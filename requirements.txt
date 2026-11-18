@@ -1,0 +1,22 @@
+# 1. Parsing + 2. Chunking
+docling
+langchain-text-splitters
+# 3. Embedding (BGE-M3 dense) + 8. keyword (BM25 sparse) + 10. re-ranking
+sentence-transformers  # pulled by ragas; pipeline uses transformers directly
+fastembed
+# 4/5/9. Vector store, filtered retrieval, RRF fusion
+qdrant-client
+# 6. Generation (Claude)
+anthropic
+pydantic
+# 7. Evaluation
+ragas==0.4.4
+langchain-anthropic
+langchain-huggingface
+# only used to build the sample PDF
+reportlab
+# Pinned: newer wheels of these are blocked by Windows Application Control on this PC
+pyarrow==22.0.0
+xxhash==3.6.0
+opencv-python-headless==4.11.0.86
+tree-sitter==0.25.2

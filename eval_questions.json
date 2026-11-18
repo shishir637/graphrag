@@ -1,0 +1,46 @@
+[
+  {
+    "question": "How many dimensions does the dense embedding have, and which model produces it?",
+    "reference": "1024 dimensions, produced by the BGE-M3 model from BAAI."
+  },
+  {
+    "question": "What is the maximum chunk size and how is it measured?",
+    "reference": "At most 512 tokens, measured with the BGE-M3 tokenizer."
+  },
+  {
+    "question": "How are the dense and BM25 search results combined?",
+    "reference": "With Reciprocal Rank Fusion (RRF), which scores chunks by their rank in each list rather than raw similarity; the top 20 fused chunks are kept."
+  },
+  {
+    "question": "How many chunks are passed to the language model, and what selects them?",
+    "reference": "Five chunks, selected by the BGE reranker v2 m3 cross-encoder from the 20 fused candidates."
+  },
+  {
+    "question": "Why does the system use BM25 in addition to dense vectors?",
+    "reference": "BM25 is strong at exact matches such as product codes, names and numbers, while dense vectors capture meaning and paraphrases."
+  },
+  {
+    "question": "Which library parses the documents and what structure does it keep?",
+    "reference": "Docling, from IBM Research; it keeps headings, tables and page numbers, and can OCR scanned pages."
+  },
+  {
+    "question": "What fields does the structured answer contain?",
+    "reference": "found, answer and citations."
+  },
+  {
+    "question": "Which index and similarity does Qdrant use for dense vectors?",
+    "reference": "An HNSW graph index with cosine similarity."
+  },
+  {
+    "question": "What does the evaluation record besides RAGAS quality scores?",
+    "reference": "Latency for each stage and the number of input and output tokens per question."
+  },
+  {
+    "question": "Which candidate pool size does each retriever return?",
+    "reference": "The top 30 candidates from each of the dense and BM25 searches."
+  },
+  {
+    "question": "How much does the system cost to run per month?",
+    "reference": "The documents do not say."
+  }
+]
