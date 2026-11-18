@@ -6,6 +6,7 @@
   python rag.py chat                       # interactive question loop
   python rag.py draft-questions -n 20      # let Claude draft an eval set from your chunks (review it!)
   python rag.py eval                       # RAGAS evaluation over eval_questions.json
+  python rag.py ui [--port 8000]           # visual interface: every step, explained, in the browser
 """
 import argparse
 import os
@@ -42,6 +43,8 @@ def main():
         sp.add_argument("--sources", help="comma-separated file names to restrict the search to")
     d = sub.add_parser("draft-questions")
     d.add_argument("-n", type=int, default=20)
+    u = sub.add_parser("ui")
+    u.add_argument("--port", type=int, default=8000)
     args = p.parse_args()
 
     if args.cmd in ("ingest", "parse"):
@@ -81,6 +84,8 @@ def _run(args):
         from rag.evaluate import draft_questions; draft_questions(args.n)
     elif args.cmd == "eval":
         from rag.evaluate import run_eval; run_eval()
+    elif args.cmd == "ui":
+        from ui.server import serve; serve(port=args.port)
 
 
 def _print_answer(r):

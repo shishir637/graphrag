@@ -15,6 +15,10 @@ langchain-anthropic
 langchain-huggingface
 # only used to build the sample PDF
 reportlab
+# Visual interface (python rag.py ui); plain uvicorn avoids extra native wheels
+fastapi
+uvicorn
+python-multipart
 # Pinned: newer wheels of these are blocked by Windows Application Control on this PC
 pyarrow==22.0.0
 xxhash==3.6.0
