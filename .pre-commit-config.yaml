@@ -1,0 +1,11 @@
+# Optional: run the semantic-layer checks before each commit.
+#   pip install pre-commit && pre-commit install
+repos:
+  - repo: local
+    hooks:
+      - id: semantic-layer-checks
+        name: semantic layer checks
+        entry: python -m pytest tests -q
+        language: system
+        pass_filenames: false
+        files: ^(semantic_layer|semantic|data|reference|tests)/

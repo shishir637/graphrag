@@ -4,7 +4,6 @@
 Outputs: outputs/7_answer.json and an appended line in outputs/query_log.jsonl (simple observability)
 """
 import json
-import os
 import time
 from datetime import datetime, timezone
 
@@ -12,6 +11,7 @@ import anthropic
 from pydantic import BaseModel, Field
 
 from .config import CLAUDE_MODEL, OUT_DIR
+from .llm import claude, workspace_headers  # noqa: F401  (re-exported)
 from .retrieve import retrieve
 from .utils import write_json
 
@@ -26,22 +26,6 @@ class Answer(BaseModel):
     found: bool = Field(description="True only if the passages contain the answer")
     answer: str
     citations: list[str] = Field(description="chunk_ids of the passages used")
-
-
-_client = None
-
-
-def workspace_headers() -> dict:
-    """User-level keys (sk-ant-usr-...) must name a workspace; set ANTHROPIC_WORKSPACE_ID in .env."""
-    ws = os.environ.get("ANTHROPIC_WORKSPACE_ID")
-    return {"anthropic-workspace-id": ws} if ws else {}
-
-
-def claude() -> anthropic.Anthropic:
-    global _client
-    if _client is None:
-        _client = anthropic.Anthropic(default_headers=workspace_headers())
-    return _client
 
 
 def format_passages(passages: list[dict]) -> str:

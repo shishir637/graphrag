@@ -1,0 +1,25 @@
+# Review gate for the semantic layer: runs the checks on every pull request that touches it.
+# Make the "semantic-layer-checks" job a required status check in the branch protection rules for main
+# so a failing check blocks the merge.
+name: semantic-layer
+
+on:
+  pull_request:
+    paths: ["semantic_layer/**", "semantic/**", "data/**", "reference/**", "tests/**", "requirements-semantic.txt"]
+  push:
+    branches: [main]
+    paths: ["semantic_layer/**", "semantic/**", "data/**", "reference/**", "tests/**"]
+
+jobs:
+  semantic-layer-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-semantic.txt
+      - run: pip install -r requirements-semantic.txt
+      - name: Semantic layer checks (schema, formulas, golden SQL, reconciliation)
+        run: python -m pytest tests -q

@@ -1,0 +1,218 @@
+# Reviewed semantic model (source of truth). Changes go through a pull request.
+# Drafted by `rag.py sl-model`; reviewer fixes: unit_price and discount aggregate with avg, not sum.
+version: 1
+entities:
+  - name: customers
+    table: customers
+    label: Customers
+    description: One record per customer, with their location, business segment and signup date.
+    primary_key: customer_id
+    dimensions:
+      - name: customer_id
+        column: customer_id
+        type: key
+        label: Customer ID
+        description: Unique identifier for each customer (e.g., C0001 to C0600).
+      - name: customer_name
+        column: customer_name
+        type: text
+        label: Customer Name
+        description: Full name of the customer; names are not unique across customers.
+      - name: city
+        column: city
+        type: category
+        label: City
+        description: City where the customer is located, one of 12 Indian cities such as Bengaluru, Mumbai and
+          Delhi.
+      - name: region_id
+        column: region_id
+        type: key
+        label: Region ID
+        description: Identifier of the sales region the customer belongs to (R01 to R04).
+      - name: segment
+        column: segment
+        type: category
+        label: Customer Segment
+        description: 'Business segment of the customer: Consumer, Small Business or Enterprise.'
+      - name: signup_date
+        column: signup_date
+        type: time
+        label: Signup Date
+        description: Date the customer signed up, ranging from 2024-01-01 to 2026-10-18.
+    measures:
+      - name: customers_count
+        column: customer_id
+        agg: count_distinct
+        label: Customer Count
+        description: Number of customers.
+  - name: order_items
+    table: order_items
+    label: Order Line Items
+    description: Individual product lines within orders, with quantity, price and discount.
+    primary_key: order_item_id
+    dimensions:
+      - name: order_item_id
+        column: order_item_id
+        type: key
+        label: Order Item ID
+        description: Unique identifier for each order line item.
+      - name: order_id
+        column: order_id
+        type: key
+        label: Order ID
+        description: Identifier of the order this line item belongs to.
+      - name: product_id
+        column: product_id
+        type: key
+        label: Product ID
+        description: Identifier of the product purchased on this line.
+    measures:
+      - name: order_items_count
+        column: order_item_id
+        agg: count_distinct
+        label: Line Item Count
+        description: Number of order line items.
+      - name: quantity
+        column: quantity
+        agg: sum
+        label: Quantity
+        description: Number of units purchased on the line, between 1 and 3.
+      - name: unit_price
+        column: unit_price
+        agg: avg
+        label: Line Unit Price
+        description: Price per unit charged on the line, ranging from 540 to 32,400 (currency not stated, 
+          likely INR).
+      - name: discount
+        column: discount
+        agg: avg
+        label: Discount Rate
+        description: 'Fractional discount applied to the line: 0, 0.05 or 0.10 (0%, 5% or 10%).'
+  - name: orders
+    table: orders
+    label: Orders
+    description: Customer orders with date, sales channel, status, order value and refunds.
+    primary_key: order_id
+    dimensions:
+      - name: order_id
+        column: order_id
+        type: key
+        label: Order ID
+        description: Unique identifier for each order.
+      - name: customer_id
+        column: customer_id
+        type: key
+        label: Customer ID
+        description: Identifier of the customer who placed the order; some values (e.g., C9999) do not match a
+          known customer.
+      - name: order_date
+        column: order_date
+        type: time
+        label: Order Date
+        description: Date the order was placed, ranging from 2024-04-01 to 2026-11-18.
+      - name: status
+        column: status
+        type: category
+        label: Order Status
+        description: 'Outcome of the order: completed, cancelled or returned.'
+      - name: channel
+        column: channel
+        type: category
+        label: Sales Channel
+        description: 'Channel through which the order was placed: web, app or store.'
+    measures:
+      - name: orders_count
+        column: order_id
+        agg: count_distinct
+        label: Order Count
+        description: Number of orders.
+      - name: amount
+        column: amount
+        agg: sum
+        label: Order Amount
+        description: Total value of the order, ranging from 486 to 261,770 (currency not stated, likely INR).
+      - name: refund_amount
+        column: refund_amount
+        agg: sum
+        label: Refund Amount
+        description: Amount refunded on the order, from 0 up to 170,949; 0 means no refund.
+  - name: products
+    table: products
+    label: Products
+    description: Catalog of 40 products with their category and list price.
+    primary_key: product_id
+    dimensions:
+      - name: product_id
+        column: product_id
+        type: key
+        label: Product ID
+        description: Unique identifier for each product (P001 to P040).
+      - name: product_name
+        column: product_name
+        type: category
+        label: Product Name
+        description: Name of the product, e.g., 'Apparel item 04'.
+      - name: category
+        column: category
+        type: category
+        label: Product Category
+        description: 'Product category: Apparel, Books, Electronics, Home or Office.'
+    measures:
+      - name: products_count
+        column: product_id
+        agg: count_distinct
+        label: Product Count
+        description: Number of products.
+      - name: unit_price
+        column: unit_price
+        agg: avg
+        label: List Unit Price
+        description: Catalog price per unit, ranging from 540 to 32,400 (currency not stated, likely INR).
+  - name: regions
+    table: regions
+    label: Regions
+    description: Sales regions used to group customers geographically.
+    primary_key: region_id
+    dimensions:
+      - name: region_id
+        column: region_id
+        type: key
+        label: Region ID
+        description: Unique identifier for each region (R01 to R04).
+      - name: region_name
+        column: region_name
+        type: category
+        label: Region Name
+        description: 'Name of the region: East, North, South or West.'
+      - name: country
+        column: country
+        type: category
+        label: Country
+        description: Country of the region; currently always India.
+    measures:
+      - name: regions_count
+        column: region_id
+        agg: count_distinct
+        label: Region Count
+        description: Number of regions.
+joins:
+  - from_entity: customers
+    from_column: region_id
+    to_entity: regions
+    to_column: region_id
+    relationship: many_to_one
+  - from_entity: order_items
+    from_column: order_id
+    to_entity: orders
+    to_column: order_id
+    relationship: many_to_one
+  - from_entity: order_items
+    from_column: product_id
+    to_entity: products
+    to_column: product_id
+    relationship: many_to_one
+  - from_entity: orders
+    from_column: customer_id
+    to_entity: customers
+    to_column: customer_id
+    relationship: many_to_one

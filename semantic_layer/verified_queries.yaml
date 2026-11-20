@@ -1,0 +1,59 @@
+# Verified question -> request pairs, checked by a data owner. They are shown to Claude as examples
+# for similar questions, and CI compiles every one of them.
+version: 1
+queries:
+  - question: What was net revenue in FY2025-26?
+    verified_by: finance
+    query:
+      metrics: [net_revenue]
+      start_date: 2025-04-01
+      end_date: 2026-03-31
+
+  - question: Show net revenue by region for each month of 2026.
+    verified_by: finance
+    query:
+      metrics: [net_revenue]
+      dimensions: [regions.region_name, orders.order_date__month]
+      start_date: 2026-01-01
+      end_date: 2026-12-31
+
+  - question: Which product categories bring in the most revenue?
+    verified_by: finance
+    query:
+      metrics: [product_revenue]
+      dimensions: [products.category]
+      order_by: [-product_revenue]
+
+  - question: What is the return rate by sales channel?
+    verified_by: operations
+    query:
+      metrics: [return_rate, returned_orders, order_count]
+      dimensions: [orders.channel]
+
+  - question: How many new customers signed up each quarter?
+    verified_by: growth
+    query:
+      metrics: [new_customers]
+      dimensions: [customers.signup_date__quarter]
+
+  - question: What is the average order value for enterprise customers in Bengaluru?
+    verified_by: finance
+    query:
+      metrics: [average_order_value, order_count]
+      filters:
+        - {dimension: customers.segment, op: "=", values: [Enterprise]}
+        - {dimension: customers.city, op: "=", values: [Bengaluru]}
+
+  - question: Top 5 cities by revenue.
+    verified_by: finance
+    query:
+      metrics: [net_revenue]
+      dimensions: [customers.city]
+      order_by: [-net_revenue]
+      limit: 5
+
+  - question: Net revenue and units sold by fiscal year.
+    verified_by: finance
+    query:
+      metrics: [net_revenue, units_sold]
+      dimensions: [orders.order_date__fiscal_year]

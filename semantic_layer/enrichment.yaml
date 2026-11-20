@@ -1,0 +1,52 @@
+# Everyday words -> semantic layer names (reviewed). `rag.py sl-enrich` checks every target exists,
+# loads these into sl_store/enrichment.duckdb and embeds them in Qdrant so questions can find them.
+# target forms:  metric_name  |  entity.dimension  |  entity.dimension=Value
+version: 1
+synonyms:
+  # metrics
+  - {term: sales, target: net_revenue}
+  - {term: revenue, target: net_revenue}
+  - {term: turnover, target: net_revenue}
+  - {term: topline, target: gross_revenue}
+  - {term: revenue before refunds, target: gross_revenue}
+  - {term: AOV, target: average_order_value}
+  - {term: basket size, target: average_order_value}
+  - {term: ticket size, target: average_order_value}
+  - {term: returns, target: returned_orders}
+  - {term: return percentage, target: return_rate}
+  - {term: signups, target: new_customers}
+  - {term: buyers, target: active_customers}
+  - {term: volume, target: units_sold}
+  - {term: quantity sold, target: units_sold}
+  - {term: running total, target: cumulative_net_revenue}
+  - {term: ARPU, target: revenue_per_customer}
+  # dimensions
+  - {term: zone, target: regions.region_name}
+  - {term: area, target: regions.region_name}
+  - {term: location, target: customers.city}
+  - {term: town, target: customers.city}
+  - {term: product line, target: products.category}
+  - {term: sales channel, target: orders.channel}
+  - {term: customer type, target: customers.segment}
+  # values
+  - {term: Bangalore, target: customers.city=Bengaluru}
+  - {term: Bombay, target: customers.city=Mumbai}
+  - {term: Madras, target: customers.city=Chennai}
+  - {term: Calcutta, target: customers.city=Kolkata}
+  - {term: online, target: orders.channel=web}
+  - {term: website, target: orders.channel=web}
+  - {term: mobile, target: orders.channel=app}
+  - {term: offline, target: orders.channel=store}
+  - {term: SMB, target: customers.segment=Small Business}
+  - {term: corporate, target: customers.segment=Enterprise}
+  - {term: gadgets, target: products.category=Electronics}
+
+# category columns whose distinct values are stored, so filter values can be checked and corrected
+value_list_dimensions:
+  - customers.city
+  - customers.segment
+  - regions.region_name
+  - orders.channel
+  - orders.status
+  - products.category
+  - products.product_name

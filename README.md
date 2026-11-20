@@ -3,6 +3,9 @@
 Drop files into `documents/`, run one command, ask questions. Every step writes its output
 to one file in `outputs/` so you can inspect exactly what each layer did.
 
+> **Branch `semantic-layer`:** adds a semantic layer for questions about numbers in tables, with a router
+> that sends each question to the documents (RAG) or the data (semantic layer). See [SEMANTIC_LAYER.md](SEMANTIC_LAYER.md).
+
 ## Folder layout
 
 ```
@@ -64,7 +67,8 @@ Replace the drafted questions with 50–100 real ones over time. Scores on Claud
 
 ## Notes
 
-- Windows Application Control on this PC blocks the newest `pyarrow` and `xxhash` wheels; `requirements.txt` pins versions that load.
+- Windows Application Control on this PC blocks some newer wheels (`pyarrow`, `xxhash`, `grpcio`, ...); `requirements.txt` pins versions that load.
+- Keep `.venv` **outside OneDrive** if you can: on-access scanning of its many small files makes imports very slow (e.g. `import anthropic` 45-77 s).
 - The embedded Qdrant (`qdrant_data/`) allows one process at a time. To run a server instead:
   `docker run -p 6333:6333 qdrant/qdrant` and change `client()` in `rag/store.py` to `QdrantClient(url="http://localhost:6333")`.
 - Models run on CPU; the first run downloads BGE-M3 (~2.2 GB) and the reranker.

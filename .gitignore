@@ -2,3 +2,6 @@
 .venv/
 qdrant_data/
 outputs/
+sl_store/
+__pycache__/
+.pytest_cache/

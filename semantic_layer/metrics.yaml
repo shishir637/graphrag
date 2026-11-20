@@ -1,0 +1,159 @@
+# Approved metric definitions (source of truth). Every business number is defined once, here.
+# Formulas are SQL over entity.column; `filters` are always applied to that metric's aggregates.
+# Changes go through a pull request; CI checks that every formula parses and that
+# net_revenue and order_count still match the finance report (reference/finance_monthly_report.csv).
+version: 1
+metrics:
+  - name: gross_revenue
+    label: Gross revenue
+    description: Value of all orders that were not cancelled, before refunds, in INR.
+    type: simple
+    entity: orders
+    expression: sum(orders.amount)
+    filters: ["orders.status != 'cancelled'"]
+    time_column: orders.order_date
+    format: currency
+    owner: finance
+    status: approved
+
+  - name: refunds
+    label: Refunds
+    description: Money given back to customers for returned orders, in INR.
+    type: simple
+    entity: orders
+    expression: sum(orders.refund_amount)
+    filters: ["orders.status != 'cancelled'"]
+    time_column: orders.order_date
+    format: currency
+    owner: finance
+    status: approved
+
+  - name: net_revenue
+    label: Net revenue
+    description: Gross revenue minus refunds, excluding cancelled orders, in INR. The company's headline revenue number.
+    type: simple
+    entity: orders
+    expression: sum(orders.amount) - sum(orders.refund_amount)
+    filters: ["orders.status != 'cancelled'"]
+    time_column: orders.order_date
+    format: currency
+    owner: finance
+    status: approved
+
+  - name: cumulative_net_revenue
+    label: Cumulative net revenue
+    description: Running total of net revenue over time; needs a time dimension on the order date.
+    type: cumulative
+    entity: orders
+    expression: sum(orders.amount) - sum(orders.refund_amount)
+    filters: ["orders.status != 'cancelled'"]
+    time_column: orders.order_date
+    format: currency
+    owner: finance
+    status: approved
+
+  - name: order_count
+    label: Orders
+    description: Number of orders placed, excluding cancelled orders (returned orders still count).
+    type: simple
+    entity: orders
+    expression: count(DISTINCT orders.order_id)
+    filters: ["orders.status != 'cancelled'"]
+    time_column: orders.order_date
+    format: number
+    owner: finance
+    status: approved
+
+  - name: returned_orders
+    label: Returned orders
+    description: Number of orders that were returned.
+    type: simple
+    entity: orders
+    expression: count(DISTINCT orders.order_id)
+    filters: ["orders.status = 'returned'"]
+    time_column: orders.order_date
+    format: number
+    owner: operations
+    status: approved
+
+  - name: return_rate
+    label: Return rate
+    description: Share of non-cancelled orders that were returned.
+    type: ratio
+    entity: orders
+    numerator: returned_orders
+    denominator: order_count
+    format: percent
+    owner: operations
+    status: approved
+
+  - name: average_order_value
+    label: Average order value
+    description: Net revenue per non-cancelled order, in INR (AOV).
+    type: ratio
+    entity: orders
+    numerator: net_revenue
+    denominator: order_count
+    format: currency
+    owner: finance
+    status: approved
+
+  - name: active_customers
+    label: Active customers
+    description: Number of distinct customers with at least one non-cancelled order in the period.
+    type: simple
+    entity: orders
+    expression: count(DISTINCT orders.customer_id)
+    filters: ["orders.status != 'cancelled'"]
+    time_column: orders.order_date
+    format: number
+    owner: growth
+    status: approved
+
+  - name: revenue_per_customer
+    label: Revenue per active customer
+    description: Net revenue divided by active customers in the period, in INR.
+    type: derived
+    entity: orders
+    expression: "{net_revenue} / NULLIF({active_customers}, 0)"
+    time_column: orders.order_date
+    format: currency
+    owner: growth
+    status: approved
+
+  - name: units_sold
+    label: Units sold
+    description: Number of product units on non-cancelled orders.
+    type: simple
+    entity: order_items
+    expression: sum(order_items.quantity)
+    filters: ["orders.status != 'cancelled'"]
+    time_column: orders.order_date
+    format: number
+    owner: operations
+    status: approved
+
+  - name: product_revenue
+    label: Product revenue
+    description: >-
+      Line value (quantity x unit price x (1 - discount)) on non-cancelled orders, in INR, before refunds.
+      Use this, not gross_revenue, to split revenue by product or category.
+    type: simple
+    entity: order_items
+    expression: sum(order_items.quantity * order_items.unit_price * (1 - order_items.discount))
+    filters: ["orders.status != 'cancelled'"]
+    time_column: orders.order_date
+    format: currency
+    owner: finance
+    status: approved
+
+  - name: new_customers
+    label: New customers
+    description: Number of customers who signed up in the period.
+    type: simple
+    entity: customers
+    expression: count(DISTINCT customers.customer_id)
+    time_column: customers.signup_date
+    format: number
+    owner: growth
+    status: approved
