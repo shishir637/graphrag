@@ -33,14 +33,26 @@ def reranker():
 
 
 def embed_dense(texts: list[str], batch_size: int = 8) -> list[list[float]]:
+    """Batches are formed from texts of similar length (less padding = less wasted compute);
+    results are returned in the original order. Prints progress for large inputs."""
+    import time
+
     import torch
     tok, model, device = dense_model()
-    out = []
+    order = sorted(range(len(texts)), key=lambda i: len(texts[i]))
+    out: list = [None] * len(texts)
+    t0, report_every = time.perf_counter(), max(1, len(texts) // 20)
     with torch.inference_mode():
-        for i in range(0, len(texts), batch_size):
-            batch = tok(texts[i:i + batch_size], padding=True, truncation=True, max_length=8192, return_tensors="pt").to(device)
+        for i in range(0, len(order), batch_size):
+            idx = order[i:i + batch_size]
+            batch = tok([texts[j] for j in idx], padding=True, truncation=True, max_length=8192,
+                        return_tensors="pt").to(device)
             cls = model(**batch).last_hidden_state[:, 0]
-            out.extend(torch.nn.functional.normalize(cls, dim=-1).cpu().tolist())
+            for j, v in zip(idx, torch.nn.functional.normalize(cls, dim=-1).cpu().tolist()):
+                out[j] = v
+            done = i + len(idx)
+            if len(texts) > 200 and (done // report_every != (done - len(idx)) // report_every or done == len(texts)):
+                print(f"    dense {done}/{len(texts)} ({time.perf_counter() - t0:.0f}s)", flush=True)
     return out
 
 

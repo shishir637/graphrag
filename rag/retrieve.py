@@ -69,4 +69,6 @@ def retrieve(question: str, groups: list[str] | None = None, sources: list[str] 
         write_json("5_retrieval.json", result)
         write_json("6_rerank.json", {"question": question, "rerank_seconds": timings["rerank"],
                                      "top_k": FINAL_TOP_K, "passages": final})
-    return {"passages": final, "timings_s": timings}
+    stage_ids = {"dense": [h.payload["chunk_id"] for h in dense], "bm25": [h.payload["chunk_id"] for h in sparse],
+                 "rrf": [h["chunk_id"] for h in fused_hits], "final": [h["chunk_id"] for h in final]}
+    return {"passages": final, "timings_s": timings, "stage_ids": stage_ids}

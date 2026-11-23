@@ -46,7 +46,13 @@ def build_index() -> dict:
             vector={"dense": r["dense"], "bm25": models.SparseVector(**r["sparse"])},
             payload={k: c[k] for k in ("chunk_id", "source", "access", "headings", "pages", "text")},
         ))
-    qc.upsert(COLLECTION, points=points, wait=True)
+    for i in range(0, len(points), 256):          # batches keep memory and request size modest
+        qc.upsert(COLLECTION, points=points[i:i + 256], wait=True)
+    # Local Qdrant on a synced folder (OneDrive) can leave old points behind after delete_collection;
+    # remove anything that is not in the current chunk set so stale documents cannot be retrieved.
+    current = sorted({c["source"] for c in chunks.values()})
+    qc.delete(COLLECTION, points_selector=models.FilterSelector(filter=models.Filter(
+        must_not=[models.FieldCondition(key="source", match=models.MatchAny(any=current))])), wait=True)
 
     info = qc.get_collection(COLLECTION)
     report = {

@@ -76,6 +76,7 @@ def ask(question: str, groups=None, sources=None, save: bool = True) -> dict:
                       "rerank_score": p.get("rerank_score"), "text": p["text"]} for p in ret["passages"]],
         "timings_s": {**ret["timings_s"], "retrieval_total": round(t1 - t0, 3),
                       "generation": round(t2 - t1, 3), "total": round(t2 - t0, 3)},
+        "stage_ids": ret["stage_ids"],
     }
     if save:
         write_json("7_answer.json", record)

@@ -1,46 +1,656 @@
 [
   {
-    "question": "How many dimensions does the dense embedding have, and which model produces it?",
-    "reference": "1024 dimensions, produced by the BGE-M3 model from BAAI."
+    "question": "How tall is Siniolchu, one of Sikkim's tallest mountains?",
+    "reference": "Siniolchu is 6,888 metres (22,598 ft) tall.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "8b1d25e81683"
+    ],
+    "regions": [
+      "Meghalaya"
+    ]
   },
   {
-    "question": "What is the maximum chunk size and how is it measured?",
-    "reference": "At most 512 tokens, measured with the BGE-M3 tokenizer."
+    "question": "Which Mizoram organisation was eventually founded by the educated class that emerged after the decline of the Zawlbuks?",
+    "reference": "The Young Mizo Association.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "47fb7e3fb17f"
+    ],
+    "regions": [
+      "Mizoram"
+    ]
   },
   {
-    "question": "How are the dense and BM25 search results combined?",
-    "reference": "With Reciprocal Rank Fusion (RRF), which scores chunks by their rank in each list rather than raw similarity; the top 20 fused chunks are kept."
+    "question": "Who founded the Shunga dynasty in ancient India, and what was its capital?",
+    "reference": "Pushyamitra Shunga founded it; its capital was Pataliputra.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "27a7a59ed61d"
+    ],
+    "regions": [
+      "India (national overview)"
+    ]
   },
   {
-    "question": "How many chunks are passed to the language model, and what selects them?",
-    "reference": "Five chunks, selected by the BGE reranker v2 m3 cross-encoder from the 20 fused candidates."
+    "question": "Where did the British establish their first settlement in Odisha, and in what year?",
+    "reference": "In Hariharpur (modern-day Jagatsinghpur), as early as 1633.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "806da8c4be03"
+    ],
+    "regions": [
+      "Odisha"
+    ]
   },
   {
-    "question": "Why does the system use BM25 in addition to dense vectors?",
-    "reference": "BM25 is strong at exact matches such as product codes, names and numbers, while dense vectors capture meaning and paraphrases."
+    "question": "On what date was Silvassa, in Dadra and Nagar Haveli, designated a town by the Portuguese, and what official name was it given?",
+    "reference": "On 11 February 1885; it was named Paço de Arcos.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "ceb9770e6e44"
+    ],
+    "regions": [
+      "Dadra and Nagar Haveli and Daman and Diu"
+    ]
   },
   {
-    "question": "Which library parses the documents and what structure does it keep?",
-    "reference": "Docling, from IBM Research; it keeps headings, tables and page numbers, and can OCR scanned pages."
+    "question": "What is the length of the rail network in Chhattisgarh?",
+    "reference": "1,108 km.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "6ae6da01bc8a"
+    ],
+    "regions": [
+      "Chhattisgarh"
+    ]
   },
   {
-    "question": "What fields does the structured answer contain?",
-    "reference": "found, answer and citations."
+    "question": "What is the seating capacity of Ambedkar Stadium, the football stadium in Delhi?",
+    "reference": "21,000 people.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "368ed7f129d7"
+    ],
+    "regions": [
+      "Delhi"
+    ]
   },
   {
-    "question": "Which index and similarity does Qdrant use for dense vectors?",
-    "reference": "An HNSW graph index with cosine similarity."
+    "question": "Which Ladakh monastery, a leading centre of the Drukpa tradition, holds an annual masked dance festival?",
+    "reference": "Hemis monastery.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "31cbad4e2c2a"
+    ],
+    "regions": [
+      "Ladakh"
+    ]
   },
   {
-    "question": "What does the evaluation record besides RAGAS quality scores?",
-    "reference": "Latency for each stage and the number of input and output tokens per question."
+    "question": "Which island is the largest wildlife sanctuary in the Andaman and Nicobar Islands, and what unusual animal population lives there?",
+    "reference": "Interview Island in Middle Andaman, which holds a population of feral elephants.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "1f1d721b0847"
+    ],
+    "regions": [
+      "Andaman and Nicobar Islands"
+    ]
   },
   {
-    "question": "Which candidate pool size does each retriever return?",
-    "reference": "The top 30 candidates from each of the dense and BM25 searches."
+    "question": "What percentage of Tripura's total area is covered by the TTAADC?",
+    "reference": "About 68% (about 7,132.56 km2 of 10,491 km2).",
+    "type": "single",
+    "gold_chunk_ids": [
+      "d6a732205df4"
+    ],
+    "regions": [
+      "Tripura"
+    ]
   },
   {
-    "question": "How much does the system cost to run per month?",
-    "reference": "The documents do not say."
+    "question": "How many divisions and districts is Uttar Pradesh divided into?",
+    "reference": "18 divisions and 75 districts.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "5adb1669faa1"
+    ],
+    "regions": [
+      "Uttar Pradesh"
+    ]
+  },
+  {
+    "question": "What is the characteristic vegetarian stew of Gujarat made of five vegetables?",
+    "reference": "Undhiyu.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "59e0fc436704"
+    ],
+    "regions": [
+      "Puducherry"
+    ]
+  },
+  {
+    "question": "How long is Maharashtra's coastline along the Arabian Sea?",
+    "reference": "840 kilometres (520 mi).",
+    "type": "single",
+    "gold_chunk_ids": [
+      "cc4a9b62c490"
+    ],
+    "regions": [
+      "Maharashtra"
+    ]
+  },
+  {
+    "question": "In the 2018 Asian Games, how many medals did Haryana athletes win for India?",
+    "reference": "18 medals (26% of India's total), comprising 5 gold, 5 silver and 8 bronze.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "b5a41975d521"
+    ],
+    "regions": [
+      "Haryana"
+    ]
+  },
+  {
+    "question": "Which Gujarat prince is believed to have established the first Indian settlements in Java and the Philippines, and with how many traders?",
+    "reference": "Prince Dhruvavijaya of Gujarat, with 5000 traders.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "8921ffc9b0dc"
+    ],
+    "regions": [
+      "Gujarat"
+    ]
+  },
+  {
+    "question": "Who inaugurated the Sangai Festival 2017 in Manipur, and on what date?",
+    "reference": "President Ram Nath Kovind, on 21 November 2017.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "a4ace01d73fe"
+    ],
+    "regions": [
+      "Manipur"
+    ]
+  },
+  {
+    "question": "How many tourists visited Tamil Nadu as of 2020?",
+    "reference": "More than 140.7 million tourists.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "790c5058fa6b"
+    ],
+    "regions": [
+      "Tamil Nadu"
+    ]
+  },
+  {
+    "question": "What is the highest peak in Andhra Pradesh and in which district is it located?",
+    "reference": "Arma Konda, in Alluri Sitharama Raju district.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "75a88c061b9b"
+    ],
+    "regions": [
+      "Andhra Pradesh"
+    ]
+  },
+  {
+    "question": "What was Kerala's total fertility rate according to the 2011 census?",
+    "reference": "1.6.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "8ce33ec54dc2"
+    ],
+    "regions": [
+      "Kerala"
+    ]
+  },
+  {
+    "question": "How long is Arunachal Pradesh's border with China?",
+    "reference": "1,080 km (670 mi).",
+    "type": "single",
+    "gold_chunk_ids": [
+      "ec49db91aa44"
+    ],
+    "regions": [
+      "Arunachal Pradesh"
+    ]
+  },
+  {
+    "question": "Which archaeological site in Bihar's Saran district has a Neolithic-age record?",
+    "reference": "Chirand, on the northern bank of the Ganga River.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "a630362cc8d1"
+    ],
+    "regions": [
+      "Bihar"
+    ]
+  },
+  {
+    "question": "What is the traditional multi-layered baked sweet served at Christmas in Goa?",
+    "reference": "Bebinca, a rich egg-based, multi-layered baked sweet.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "a215e939ab1d"
+    ],
+    "regions": [
+      "Goa"
+    ]
+  },
+  {
+    "question": "How far is the border village of Tithwal in Jammu and Kashmir from Srinagar?",
+    "reference": "About 171 km.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "8793af237159"
+    ],
+    "regions": [
+      "Jammu and Kashmir"
+    ]
+  },
+  {
+    "question": "According to the Assam Minority Development Board, how many Muslims are in Assam and how many are of Bangladeshi origin?",
+    "reference": "1.4 crore Muslims, of which 1 crore are of Bangladeshi origin.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "557f875d9d9b"
+    ],
+    "regions": [
+      "Assam"
+    ]
+  },
+  {
+    "question": "Who founded Sikkim's monarchy and in what year?",
+    "reference": "Phuntsog Namgyal, in 1642, when he was consecrated as the first Chogyal at Yuksom.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "d12b827f3b3e"
+    ],
+    "regions": [
+      "Sikkim"
+    ]
+  },
+  {
+    "question": "Which island in Lakshadweep is a declared bird sanctuary?",
+    "reference": "Pitti island.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "1b2012f647d3"
+    ],
+    "regions": [
+      "Lakshadweep"
+    ]
+  },
+  {
+    "question": "Who was elected the first Chief Minister of Madhya Pradesh after the 1956 reorganisation?",
+    "reference": "Ravishankar Shukla.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "c0f81a1855e9"
+    ],
+    "regions": [
+      "Madhya Pradesh"
+    ]
+  },
+  {
+    "question": "Who became chief minister when Jharkhand was created in 2000?",
+    "reference": "Babulal Marandi.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "614011f4a27d"
+    ],
+    "regions": [
+      "Jharkhand"
+    ]
+  },
+  {
+    "question": "Where in Karnataka did Adi Shankara establish the first of his four mathas?",
+    "reference": "Sringeri.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "07c3f63b26cf"
+    ],
+    "regions": [
+      "Karnataka"
+    ]
+  },
+  {
+    "question": "What is unique about Keibul Lamjao National Park in Manipur?",
+    "reference": "It is the world's only floating national park, on the periphery of Loktak Lake, and the only natural habitat of the Sangai deer.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "ac4cf911163e"
+    ],
+    "regions": [
+      "Nagaland"
+    ]
+  },
+  {
+    "question": "Which American town planner was selected in December 1949 to design the master plan of Chandigarh?",
+    "reference": "Albert Mayer.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "5d75832459a8"
+    ],
+    "regions": [
+      "Chandigarh"
+    ]
+  },
+  {
+    "question": "Which area of Himachal Pradesh is described as a cold desert?",
+    "reference": "Spiti.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "85f1c0a3a635"
+    ],
+    "regions": [
+      "Himachal Pradesh"
+    ]
+  },
+  {
+    "question": "How many people died in the Great Musi flood of 1908 in Hyderabad, Telangana?",
+    "reference": "At least 15,000 people.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "5dff344e87b0"
+    ],
+    "regions": [
+      "Telangana"
+    ]
+  },
+  {
+    "question": "On which day is the Phool-Dei spring festival celebrated in Uttarakhand?",
+    "reference": "On the first day of the Hindu month Chaitra.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "374f42595c5d"
+    ],
+    "regions": [
+      "Uttarakhand"
+    ]
+  },
+  {
+    "question": "In which Rajasthan village was Hem Chandra Vikramaditya born, and in what year?",
+    "reference": "In Machheri village, Alwar District, in 1501.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "b051c71fece6"
+    ],
+    "regions": [
+      "Rajasthan"
+    ]
+  },
+  {
+    "question": "Who united the Sikh confederacy in Punjab in 1801 to form the Sikh Empire?",
+    "reference": "Maharaja Ranjit Singh.",
+    "type": "single",
+    "gold_chunk_ids": [
+      "d309a20cbddd"
+    ],
+    "regions": [
+      "Punjab"
+    ]
+  },
+  {
+    "question": "How long is the coastline of the Andaman and Nicobar Islands, and what is the typical average temperature range there?",
+    "reference": "The coastline is 1,962 km (1,219 mi) long, and average temperatures range from 23 to 31 °C (73 to 88 °F).",
+    "type": "multi_part",
+    "gold_chunk_ids": [
+      "1ba8faea6908"
+    ],
+    "regions": [
+      "Andaman and Nicobar Islands"
+    ]
+  },
+  {
+    "question": "How long is India's border with Nepal, and which Indian states share that border?",
+    "reference": "The border with Nepal runs 1,751 km (1,088 mi). It is shared by Uttarakhand, Uttar Pradesh, Bihar, West Bengal and Sikkim.",
+    "type": "multi_part",
+    "gold_chunk_ids": [
+      "ad20999b04d5"
+    ],
+    "regions": [
+      "India (national overview)"
+    ]
+  },
+  {
+    "question": "In Uttarakhand's 2016-17 budget, what were the estimated total expenditure and the fiscal deficit, and who presented the budget?",
+    "reference": "Finance Minister Indira Hridayesh presented it. Total expenditure was estimated at ₹40,422.20 crore, and the fiscal deficit at ₹510.20 crore.",
+    "type": "multi_part",
+    "gold_chunk_ids": [
+      "2f7855c0e43e"
+    ],
+    "regions": [
+      "Uttarakhand"
+    ]
+  },
+  {
+    "question": "In Assam's Barak Valley, what was the 2011 population, and how many native Bengali speakers live there?",
+    "reference": "The population was 3,624,599, with approximately 2,930,378 native Bengali speakers.",
+    "type": "multi_part",
+    "gold_chunk_ids": [
+      "4c4b56fdaf82"
+    ],
+    "regions": [
+      "Assam"
+    ]
+  },
+  {
+    "question": "Who became the first Chogyal of Sikkim, in what year, and where was he consecrated?",
+    "reference": "Phuntsog Namgyal was consecrated as the first Chogyal in 1642 at Yuksom Norbugang in West Sikkim.",
+    "type": "multi_part",
+    "gold_chunk_ids": [
+      "212f0277f85b"
+    ],
+    "regions": [
+      "Sikkim"
+    ]
+  },
+  {
+    "question": "What extra requirement do foreign tourists face in Mizoram beyond getting the Protected Area Permit, and which nationalities must get the pass in advance?",
+    "reference": "Foreign tourists must register with the state police within 24 hours of arrival. Citizens of Afghanistan, China and Pakistan, and foreigners originating from these countries, must get the pass in advance. They obtain it through the Indian consulate or the Ministry of Home Affairs in New Delhi.",
+    "type": "multi_part",
+    "gold_chunk_ids": [
+      "f91387506410"
+    ],
+    "regions": [
+      "Mizoram"
+    ]
+  },
+  {
+    "question": "What was Manipur's population in the 2011 census, and what share lived in the valley versus the hill districts?",
+    "reference": "Manipur's 2011 population was 2,855,794. Of these, 57.2% lived in the valley districts and 42.8% in the hill districts.",
+    "type": "multi_part",
+    "gold_chunk_ids": [
+      "a8dea1cd82fa"
+    ],
+    "regions": [
+      "Manipur"
+    ]
+  },
+  {
+    "question": "How long is Himachal Pradesh's road network, and how many National Highways does it include?",
+    "reference": "The road network is 28,208 km (17,528 mi) long and includes eight National Highways totaling 1,234 km (767 mi).",
+    "type": "multi_part",
+    "gold_chunk_ids": [
+      "1f1242dbac3d"
+    ],
+    "regions": [
+      "Himachal Pradesh"
+    ]
+  },
+  {
+    "question": "In Uttar Pradesh, what is the second most spoken language and what share of the population uses it, and when did Urdu become a second official language?",
+    "reference": "Bhojpuri is the second most spoken language, used by nearly 11 per cent of the population. Urdu became a second official language in 1989.",
+    "type": "multi_part",
+    "gold_chunk_ids": [
+      "d9a983caa01d"
+    ],
+    "regions": [
+      "Uttar Pradesh"
+    ]
+  },
+  {
+    "question": "How does the basic character of Rajasthan's economy differ from that of Delhi's economy in terms of which sectors dominate?",
+    "reference": "Rajasthan's economy is primarily agricultural and pastoral, with mineral-, agriculture- and textile-based industries. Delhi's economy is dominated by the tertiary sector, which contributed 85% of its GSDP in 2020-21, with the secondary and primary sectors at 12% and 3%.",
+    "type": "comparison",
+    "gold_chunk_ids": [
+      "f04dc5ce43a9",
+      "d7704798ea9f"
+    ],
+    "regions": [
+      "Delhi",
+      "Rajasthan"
+    ]
+  },
+  {
+    "question": "How did lower sea levels connect the Nicobar Islands to each other, and what separates Assam's Barak Valley from the Brahmaputra Valley?",
+    "reference": "In the Nicobar Islands, lower sea levels during the ice ages linked Great Nicobar with Little Nicobar, and linked Nancowry, Chaura, Katchall, Trinka, Camorta and nearby smaller islands to one another. However, the Nicobars are not believed to have ever had a land bridge to the continent. In Assam, the Barak Valley is separated from the Brahmaputra Valley by the Karbi Anglong and North Cachar Hills.",
+    "type": "comparison",
+    "gold_chunk_ids": [
+      "d3f1740a5489",
+      "57a6d3b60b95"
+    ],
+    "regions": [
+      "Andaman and Nicobar Islands",
+      "Assam"
+    ]
+  },
+  {
+    "question": "What are the main tourist draws in Goa compared with those in Rajasthan?",
+    "reference": "Goa's tourism centres on its coastal areas, with beaches, water sports, nightlife, churches and temples, and a cultural environment shaped by over 450 years of Portuguese rule. Rajasthan is known for its majestic forts and palaces, carved temples and havelis, folk dances and music, festivals, sand dunes, and wildlife parks such as Ranthambore and Keoladeo.",
+    "type": "comparison",
+    "gold_chunk_ids": [
+      "6b5996afd8c7",
+      "c1121782c228"
+    ],
+    "regions": [
+      "Goa",
+      "Rajasthan"
+    ]
+  },
+  {
+    "question": "How is rice grown in Sikkim compared with Tamil Nadu?",
+    "reference": "In Sikkim, much of the mountainous land is unsuitable for farming, so terrace farming, particularly of rice, is common. In Tamil Nadu, rice is the staple food grain and the state is one of India's largest producers, with 7.9 million tonnes in 2021–22. Its Kaveri delta is known as the Rice Bowl of Tamil Nadu.",
+    "type": "comparison",
+    "gold_chunk_ids": [
+      "b5f656e66493",
+      "e313eae3f7a0"
+    ],
+    "regions": [
+      "Sikkim",
+      "Tamil Nadu"
+    ]
+  },
+  {
+    "question": "How do the main airports of Delhi and Manipur compare in importance?",
+    "reference": "Delhi's Indira Gandhi International Airport is the busiest airport in India and contributes about 34.5% of trade transacted through India's major airports. Manipur's Tulihal (Bir Tikendrajit) Airport in Imphal is the state's only airport and India's second largest airport in the northeast. It has been upgraded to an international airport and serves as a key logistical centre for the northeastern states.",
+    "type": "comparison",
+    "gold_chunk_ids": [
+      "c8dd5e94f77f",
+      "7ecee7a038a9"
+    ],
+    "regions": [
+      "Delhi",
+      "Manipur"
+    ]
+  },
+  {
+    "question": "What role does agriculture play in the economies of Ladakh and Madhya Pradesh?",
+    "reference": "In Ladakh, land is irrigated by channels fed by mountain ice and snow, and the principal crops are barley and wheat. Tourism, however, accounted for 50% of the region's GNP in 2000. Madhya Pradesh's economy is significantly agrarian while making rapid strides towards the industrial and service sectors.",
+    "type": "comparison",
+    "gold_chunk_ids": [
+      "8e2105621933",
+      "5b019ff5cc80"
+    ],
+    "regions": [
+      "Ladakh",
+      "Madhya Pradesh"
+    ]
+  },
+  {
+    "question": "When did Odisha become a separate province, and when did Dadra and Nagar Haveli become a Union Territory of India?",
+    "reference": "Orissa became a separate province on 1 April 1936, when Bihar and Orissa were split. Dadra and Nagar Haveli became a Union Territory of India on 11 August 1961 under the Dadra and Nagar Haveli Act, 1961.",
+    "type": "comparison",
+    "gold_chunk_ids": [
+      "7344afb4fa47",
+      "5d963ac2eee8"
+    ],
+    "regions": [
+      "Dadra and Nagar Haveli and Daman and Diu",
+      "Odisha"
+    ]
+  },
+  {
+    "question": "What is Kerala's key agricultural staple, and which Punjabi dishes are widely enjoyed in Haryana?",
+    "reference": "Kerala's key agricultural staple is rice, grown in extensive paddy fields. In Haryana, Punjabi dishes such as Makki di Roti and Sarson da Saag are widely enjoyed.",
+    "type": "comparison",
+    "gold_chunk_ids": [
+      "c563fdaa8b7d",
+      "3637028d312a"
+    ],
+    "regions": [
+      "Haryana",
+      "Kerala"
+    ]
+  },
+  {
+    "question": "What notable population shares stand out in Mizoram's and Arunachal Pradesh's demographics?",
+    "reference": "About 52% of Mizoram's population lives in urban areas, much higher than India's average. As per the 2011 Census, Arunachal Pradesh's 12 Scheduled Tribes make up 68.79% of its population.",
+    "type": "comparison",
+    "gold_chunk_ids": [
+      "0ffa5911e86d",
+      "5a186a6c60de"
+    ],
+    "regions": [
+      "Arunachal Pradesh",
+      "Mizoram"
+    ]
+  },
+  {
+    "question": "What is the direct office phone number of the Deputy Commissioner of Tawang district in Arunachal Pradesh?",
+    "reference": "The document does not contain this information.",
+    "type": "unanswerable",
+    "gold_chunk_ids": [],
+    "regions": []
+  },
+  {
+    "question": "What time does the first HRTC bus leave Shimla ISBT for Manali tomorrow morning?",
+    "reference": "The document does not contain this information.",
+    "type": "unanswerable",
+    "gold_chunk_ids": [],
+    "regions": []
+  },
+  {
+    "question": "What are the opening hours of the Cafe Coffee Day outlet on MG Road in Gangtok this Sunday?",
+    "reference": "The document does not contain this information.",
+    "type": "unanswerable",
+    "gold_chunk_ids": [],
+    "regions": []
+  },
+  {
+    "question": "What was the general category cutoff rank for admission to the Kerala Engineering Architecture Medical (KEAM) 2026 counselling at College of Engineering Trivandrum?",
+    "reference": "The document does not contain this information.",
+    "type": "unanswerable",
+    "gold_chunk_ids": [],
+    "regions": []
+  },
+  {
+    "question": "How much does a single-day entry ticket to Cellular Jail in Port Blair cost for foreign tourists as of this month, and is the light and sound show running tonight?",
+    "reference": "The document does not contain this information.",
+    "type": "unanswerable",
+    "gold_chunk_ids": [],
+    "regions": []
+  },
+  {
+    "question": "What is the current price of a seat on the Pawan Hans helicopter ferry from Kavaratti to Agatti on next Tuesday's flight?",
+    "reference": "The document does not contain this information.",
+    "type": "unanswerable",
+    "gold_chunk_ids": [],
+    "regions": []
   }
 ]

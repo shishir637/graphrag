@@ -5,6 +5,7 @@
   python rag.py ask "your question" [--groups hr,public] [--sources file.pdf]
   python rag.py chat                       # interactive question loop
   python rag.py draft-questions -n 20      # let Claude draft an eval set from your chunks (review it!)
+  python rag.py draft-questions -n 60 --mix   # large docs: spread over regions, 4 question types, gold chunk ids
   python rag.py eval                       # RAGAS evaluation over eval_questions.json
 
 Semantic layer (structured data in data/; see SEMANTIC_LAYER.md):
@@ -60,6 +61,7 @@ def main():
         sp.add_argument("--sources", help="comma-separated file names to restrict the search to")
     d = sub.add_parser("draft-questions")
     d.add_argument("-n", type=int, default=20)
+    d.add_argument("--mix", action="store_true", help="large documents: questions per region, 4 question types")
     args = p.parse_args()
 
     if args.cmd in ("ingest", "parse"):
@@ -111,7 +113,8 @@ def _run(args):
                 break
             _answer(q, "auto")
     elif args.cmd == "draft-questions":
-        from rag.evaluate import draft_questions; draft_questions(args.n)
+        from rag.evaluate import draft_mixed_questions, draft_questions
+        draft_mixed_questions(args.n) if args.mix else draft_questions(args.n)
     elif args.cmd == "eval":
         from rag.evaluate import run_eval; run_eval()
 
