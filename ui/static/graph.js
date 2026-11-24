@@ -16,10 +16,10 @@ const typeColor = (t) => {
 function graphExplain(id, c) {
   const E = {
     kg: {
-      what: `An LLM (${esc(c.graph_llm)}) reads every passage and lists the <b>entities</b> in it (${(c.entity_types || []).length} allowed types) and the <b>relationships</b> between them. <b>Entity resolution</b> then links names of the same thing ("BGE-M3" and "BGE-M3 model"), trying the cheapest check first: exact name, a number check, spelling and acronyms, name similarity, tight groups, and only then the LLM. Links can be reviewed and undone. <b>Leiden</b> groups tightly linked entities into communities, and the LLM writes a short report for each. The result is stored in <b>${c.graph_store === 'age' ? 'Apache AGE (Postgres)' : 'a JSON file'}</b>, and every entity and link keeps the ids of the passages it came from.`,
+      what: `${c.extract_mode === 'llm' ? `An LLM (${esc(c.graph_llm)}) reads every passage and lists` : `<b>GLiNER2</b>, a small model running on this machine, reads every passage and lists`} the <b>entities</b> in it (${(c.entity_types || []).length} allowed types) and the <b>relationships</b> between them${c.extract_mode === 'hybrid' ? `, each with a confidence score. Only the weakest passages (at most ${Math.round(c.escalate_budget * 100)}% of them) go to the LLM, which reviews and corrects GLiNER's draft` : ''}. <b>Entity resolution</b> then links names of the same thing ("BGE-M3" and "BGE-M3 model"), trying the cheapest check first: exact name, a number check, spelling and acronyms, name similarity, tight groups, and only then the LLM. Links can be reviewed and undone. <b>Leiden</b> groups tightly linked entities into communities, and the LLM writes a short report for each. The result is stored in <b>${c.graph_store === 'age' ? 'Apache AGE (Postgres)' : 'a JSON file'}</b>, and every entity and link keeps the ids of the passages it came from.`,
       why: 'The graph connects facts that sit in different passages, which plain search cannot do. But a graph is only as good as its extraction and resolution: a missed entity or a wrong merge means a wrong answer.',
-      watch: ['Click a node to see its description, aliases and the passages it came from.', 'Check the resolution links: a wrong match (two different people joined) is worse than a missed one. Fix either kind in graph_resolution_overrides.json and rebuild from the resolve step.', 'Out-of-schema types and links to entities that were never extracted are dropped or fixed; the count is shown below.', 'Building the graph makes several LLM calls per passage. Re-runs only pay for new or changed passages.'],
-      settings: [['Extractor', c.graph_llm], ['Store', c.graph_store === 'age' ? 'Apache AGE' : 'JSON + NetworkX'], ['Match by similarity at', c.resolve_match], ['Different below', c.resolve_no_match], ['LLM pair budget', c.resolve_llm_pairs], ['Communities', 'Leiden (modularity)']],
+      watch: ['Click a node to see its description, aliases and the passages it came from.', 'Check the resolution links: a wrong match (two different people joined) is worse than a missed one. Fix either kind in graph_resolution_overrides.json and rebuild from the resolve step.', 'Out-of-schema types and links to entities that were never extracted are dropped or fixed; the count is shown below.', 'Passages marked "reviewed by LLM" were escalated: check what the LLM dropped and added. If many weak passages stay with GLiNER, raise ESCALATE_BUDGET.', 'Re-runs only process new or changed passages.'],
+      settings: [['Extraction', c.extract_mode === 'llm' ? `LLM (${c.graph_llm})` : c.extract_mode === 'gliner' ? `GLiNER2 only (${c.gliner_model})` : `GLiNER2 + LLM review of up to ${Math.round(c.escalate_budget * 100)}%`], ['Store', c.graph_store === 'age' ? 'Apache AGE' : 'JSON + NetworkX'], ['Match by similarity at', c.resolve_match], ['Different below', c.resolve_no_match], ['LLM pair budget', c.resolve_llm_pairs], ['Communities', 'Leiden (modularity)']],
     },
     gask: {
       what: `The question's entities are found by name and by meaning, then their neighbourhood (${c.graph_hops} hop) is read from the graph. The passages behind those entities and links are ranked, then <b>fused with the normal hybrid search results</b> using the same RRF, re-ranked by the same re-ranker, and handed to the same answer step, plus a short "graph facts" passage. Overview questions ("main themes…") go to <b>global</b> search over the community reports instead.`,
@@ -157,18 +157,22 @@ const GRAPH_VIEWS = {
       <td class="tiny muted">${esc(x.reason)}${x.blocked_by ? `<div style="color:var(--warn)">blocked: ${esc(x.blocked_by)}</div>` : ''}</td>
       <td class="tiny muted" style="white-space:nowrap">name ${fmt(x.name_sim)} · vector ${fmt(x.embedding_sim)}</td></tr>`).join('');
     const tiers = Object.entries(rs.by_tier || {}).map(([k, v]) => { const [t, dd] = k.split(':'); return `<span class="chip"><b>${esc(TIER[t] || t)}</b>${esc(dd.replace('_', ' '))} ${v}</span>`; }).join('');
+    const EXT = { gliner: ['GLiNER2', ''], 'gliner+llm': ['reviewed by LLM', 'acc'], llm: ['LLM', ''] };
     const examples = d.extraction.examples.map((c) => {
       const L = chunkLabels[c.chunk_id];
+      const [extLabel, extCls] = EXT[c.extractor] || [c.extractor, ''];
+      const esc8 = c.escalation;
       return `<div class="hit gx" data-open style="cursor:pointer;padding:8px 10px">
-        <div class="small">${passageMeta({ chunk_id: c.chunk_id, source: c.source })} · <b>${c.entities.length}</b> entities · <b>${c.relations.length}</b> links${c.problems.length ? ` · <span class="chip warn">${c.problems.length} fixed or dropped</span>` : ''}</div>
+        <div class="small">${passageMeta({ chunk_id: c.chunk_id, source: c.source })} · <span class="chip ${extCls}">${esc(extLabel)}</span> <b>${c.entities.length}</b> entities · <b>${c.relations.length}</b> links${c.problems.length ? ` · <span class="chip warn">${c.problems.length} dropped or fixed</span>` : ''}
+          ${esc8 && !esc8.escalated ? `<span class="tiny muted"> · weak (${esc(esc8.reason)}), over the LLM budget</span>` : ''}</div>
         <div class="more small" style="margin-top:6px">
+          ${esc8 ? `<div class="tiny" style="margin-bottom:4px"><b>Escalation:</b> ${esc(esc8.reason)} · rank ${esc8.rank} · ${esc8.escalated ? 'sent to the LLM' : 'not sent (budget)'}</div>` : ''}
           ${L ? `<div class="tiny muted" style="margin-bottom:6px">${esc(L.c.text.slice(0, 400))}${L.c.text.length > 400 ? '…' : ''}</div>` : ''}
-          <div class="row">${c.entities.map((e) => `<span class="chip" title="${esc(e.description)}"><span style="color:${typeColor(e.type)};font-weight:700">${esc(e.type)}</span>&nbsp;${esc(e.name)}</span>`).join('')}</div>
-          ${c.relations.map((r) => `<div class="tiny" style="margin-top:3px">${esc(r.source)} <b style="color:var(--accent-ink)">-${esc(r.type)}→</b> ${esc(r.target)} <span class="muted">(${r.strength}/10) ${esc(r.description)}</span></div>`).join('')}
+          <div class="row">${c.entities.map((e) => `<span class="chip" title="${esc(e.description)}"><span style="color:${typeColor(e.type)};font-weight:700">${esc(e.type)}</span>&nbsp;${esc(e.name)}${e.confidence != null ? `&nbsp;<span class="tiny muted">${fmt(e.confidence)}</span>` : ''}${e.from === 'llm' && c.extractor !== 'llm' ? '&nbsp;<span class="tiny" style="color:var(--ok)">+LLM</span>' : ''}</span>`).join('') || '<span class="tiny muted">no entities</span>'}</div>
+          ${c.relations.map((r) => `<div class="tiny" style="margin-top:3px">${esc(r.source)} <b style="color:var(--accent-ink)">-${esc(r.type)}→</b> ${esc(r.target)} <span class="muted">(${r.confidence != null ? fmt(r.confidence) : r.strength + '/10'}) ${esc(r.description)}</span></div>`).join('')}
           ${c.problems.map((p) => `<div class="tiny" style="color:var(--warn)">${esc(p)}</div>`).join('')}
         </div></div>`;
     }).join('');
-
     const reports = d.summaries.reports.slice().sort((a, b) => a.level - b.level || b.importance - a.importance).map((r) => `<div class="panel" style="margin:10px 0 0;box-shadow:none">
       <div class="head"><h3 style="font-size:15px">${esc(r.title)}</h3><div class="row"><span class="chip"><b>level</b>${r.level}</span><span class="chip"><b>entities</b>${r.size}</span><span class="chip acc"><b>importance</b>${r.importance}/10</span>${r.access_groups.map((g) => `<span class="chip ${g === 'public' ? '' : 'warn'}">${esc(g)}</span>`).join('')}</div></div>
       <p class="small" style="margin:6px 0">${esc(r.summary)}</p>
@@ -176,10 +180,11 @@ const GRAPH_VIEWS = {
 
     return `<div class="panel"><h3>What the build produced</h3><div class="stats" style="margin-top:10px">
         ${stat(fmt(ex.chunks, 0), `passages read (${fmt(ex.reused_from_cache, 0)} reused from cache)`)}
+        ${ex.escalation ? stat(`${fmt(ex.escalation.escalated, 0)} / ${fmt(ex.escalation.eligible, 0)}`, `weak passages reviewed by the LLM / weak passages (budget ${Math.round(ex.escalation.budget * 100)}% of all)`) : ''}
         ${stat(`${fmt(ex.entity_mentions, 0)} → ${fmt(rs.entities, 0)}`, 'entity mentions → entities after resolution')}
         ${stat(fmt(rs.relations, 0), 'relationships (duplicates merged)')}
         ${stat(fmt(cs.communities, 0), `communities in ${fmt(cs.levels, 0)} level(s), modularity ${fmt(cs.modularity_level0)}`)}
-        ${stat(fmt(ex.dropped_or_fixed, 0), 'out-of-schema items dropped or fixed')}
+        ${stat(fmt(ex.dropped_or_fixed, 0), 'items dropped or fixed (low confidence, outside the schema, or removed on LLM review)')}
         ${stat(fmt((ex.llm_calls || 0) + (rs.llm_pairs || 0) + (ss.entity_summaries_by_llm || 0) + (ss.community_reports || 0), 0), 'LLM calls in the last build')}
       </div><p class="tiny muted" style="margin:10px 0 0">Stored in ${esc(d.stored_in)}: ${Object.entries(d.counts).map(([k, v]) => `${esc(k)} ${fmt(v, 0)}`).join(' · ')}</p></div>
 
@@ -191,7 +196,7 @@ const GRAPH_VIEWS = {
         ${note ? `<p class="tiny muted">${note}</p>` : ''}
         <div id="kgdetail" style="margin-top:12px">${sel ? entityDetail(G, sel) : '<p class="small muted">Click a node to see what the graph knows about it and where it came from.</p>'}</div></div>
 
-      <div class="panel"><h3>1 · Extraction, passage by passage</h3><p class="small muted">Click a passage to see what the LLM pulled out of it. Hover an entity for its description.</p>${examples || '<p class="muted">Nothing extracted.</p>'}</div>
+      <div class="panel"><h3>1 · Extraction, passage by passage</h3><p class="small muted">Click a passage to see what was pulled out of it, with GLiNER2's confidence per entity. <span style="color:var(--ok)">+LLM</span> marks entities the LLM added on review. Hover an entity for its description.</p>${examples || '<p class="muted">Nothing extracted.</p>'}</div>
 
       <div class="panel"><h3>2 · Entity resolution links</h3>
         <p class="small muted">${fmt(rs.surface_entities, 0)} distinct names (exact duplicates already collapsed) → ${fmt(rs.entities, 0)} entities. ${fmt(rs.pairs_compared, 0)} candidate pairs, each decided by the first check that was sure. ${fmt(rs.llm_pairs, 0)} pair(s) went to the LLM; ${fmt(rs.undecided, 0)} stay undecided (not the same as different)${rs.matches_blocked_by_no_match ? `; ${rs.matches_blocked_by_no_match} match(es) not applied because they would join two names already judged different` : ''}. Clearly different pairs are not listed.</p>

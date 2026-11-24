@@ -1,5 +1,5 @@
 """graph-build: run g1..g5 in order (each step reads the previous step's file in outputs/)."""
-from ..config import OUT_DIR
+from ..config import EXTRACT_MODE, OUT_DIR
 from . import llm
 
 
@@ -10,7 +10,7 @@ def build_graph(steps=("extract", "resolve", "communities", "summarize", "store"
     from .store import store_all
     from .summarize import summarize_all
     from .search import reset_cache
-    funcs = {"extract": ("[g1] Extracting entities and relationships (LLM)", extract_all),
+    funcs = {"extract": (f"[g1] Extracting entities and relationships ({EXTRACT_MODE})", extract_all),
              "resolve": ("[g2] Resolving entities", resolve_all),
              "communities": ("[g3] Detecting communities (Leiden)", detect_all),
              "summarize": ("[g4] Writing entity descriptions and community reports (LLM)", summarize_all),

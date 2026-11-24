@@ -199,6 +199,8 @@ def state():
             "fused_top_k": config.FUSED_TOP_K, "final_top_k": config.FINAL_TOP_K,
             "claude_model": config.CLAUDE_MODEL, "collection": config.COLLECTION,
             "graph_llm": f"{config.GRAPH_LLM}: {config.GRAPH_LLM_MODEL}", "graph_store": config.GRAPH_STORE,
+            "extract_mode": config.EXTRACT_MODE, "gliner_model": config.GLINER_MODEL,
+            "escalate_budget": config.ESCALATE_BUDGET, "escalate_below": config.ESCALATE_BELOW,
             "entity_types": config.ENTITY_TYPES, "relation_types": config.RELATION_TYPES,
             "resolve_match": config.RESOLVE_EMBED_MATCH, "resolve_no_match": config.RESOLVE_EMBED_NO_MATCH,
             "resolve_llm_pairs": config.RESOLVE_MAX_LLM_PAIRS,
@@ -282,8 +284,9 @@ def step_graph():
     g1, g2, g3, g4 = (_out(n) or {} for n in ("g1_extraction.json", "g2_resolution.json",
                                                "g3_communities.json", "g4_summaries.json"))
     examples = [{"chunk_id": c["chunk_id"], "source": c["source"], "entities": c["entities"],
-                 "relations": c["relations"], "problems": c["problems"]}
-                for c in g1.get("chunks", []) if c["entities"]][:40]
+                 "relations": c["relations"], "problems": c["problems"], "extractor": c.get("extractor", "llm"),
+                 "escalation": c.get("escalation")}
+                for c in g1.get("chunks", [])][:60]
     graph = g5["graph"]
     return {
         "exists": True, "stored_in": g5["stored_in"], "counts": g5["counts"], "sample_paths": g5.get("sample_paths", []),

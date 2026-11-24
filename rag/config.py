@@ -46,7 +46,48 @@ ENTITY_TYPES = ["Person", "Organization", "Project", "Product", "Technology", "S
                 "Role", "Document", "Metric", "Concept"]
 RELATION_TYPES = ["WORKS_AT", "WORKS_ON", "HAS_ROLE", "HAS_SKILL", "USES", "PART_OF", "LOCATED_IN",
                   "OWNS", "DEPENDS_ON", "PRODUCES", "MEASURES", "RELATED_TO"]
-EXTRACT_GLEANINGS = 1                  # extra "did you miss anything?" passes per chunk (0 = off)
+EXTRACT_GLEANINGS = 1                  # extra "did you miss anything?" passes per chunk, llm mode only (0 = off)
+
+# What reads the chunks (rag/graph/extract.py):
+#   hybrid -> GLiNER2 reads every chunk locally; only its weakest chunks go to the LLM for review (default)
+#   gliner -> GLiNER2 only, no LLM calls for extraction
+#   llm    -> the LLM reads every chunk (the original behaviour)
+EXTRACT_MODE = _os.environ.get("EXTRACT_MODE", "hybrid")
+GLINER_MODEL = _os.environ.get("GLINER_MODEL", "fastino/gliner2.5-base-v1")   # Apache 2.0, 194M, English
+GLINER_ENTITY_THRESHOLD = 0.5          # keep an entity span at or above this score
+GLINER_RELATION_THRESHOLD = 0.7        # keep a relation at or above this score
+ESCALATE_BELOW = 0.75                  # a chunk whose weakest kept entity scores below this may go to the LLM
+ESCALATE_BUDGET = 0.2                  # share of all chunks the LLM may review per run (1.0 = every eligible chunk)
+ESCALATE_MIN_WORDS = 8                 # a chunk where GLiNER found nothing goes to the LLM only if it has this many words
+
+# Plain-language descriptions: GLiNER2 reads them as guidance, and so does the LLM.
+ENTITY_DESCRIPTIONS = {
+    "Person": "a named individual person",
+    "Organization": "a company, team, department, institute or other named group",
+    "Project": "a named project, initiative or system being built",
+    "Product": "a named commercial product, service or model offered by an organization",
+    "Technology": "a named software library, framework, database, algorithm, model or tool",
+    "Skill": "a programming language or ability a person has",
+    "Location": "a city, country, office or other place",
+    "Role": "a job title or position",
+    "Document": "a named document, policy, report or standard",
+    "Metric": "a named measure, score or rating",
+    "Concept": "a named method, technique, idea or policy topic",
+}
+RELATION_DESCRIPTIONS = {
+    "WORKS_AT": "a person works at or for an organization",
+    "WORKS_ON": "a person or team works on a project",
+    "HAS_ROLE": "a person holds a role or job title",
+    "HAS_SKILL": "a person knows a skill or technology",
+    "USES": "a project, product or technology uses a technology",
+    "PART_OF": "something is a part, component or stage of something else",
+    "LOCATED_IN": "something is located in a place",
+    "OWNS": "a person or organization owns or maintains something",
+    "DEPENDS_ON": "something depends on or requires something else",
+    "PRODUCES": "an organization publishes, makes or develops a product or technology",
+    "MEASURES": "a metric measures something",
+    "RELATED_TO": "a general connection not covered by the other types",
+}
 
 # Entity resolution (rag/graph/resolve.py): exact -> name gate -> fuzzy -> embedding -> cluster -> LLM.
 # Embedding thresholds are cosine similarity of the two NAMES' BGE-M3 vectors.

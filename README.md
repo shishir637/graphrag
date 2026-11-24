@@ -92,7 +92,7 @@ python rag.py graph-eval                       # plain RAG vs graph modes, per q
 
 | Step | File | What happens |
 |---|---|---|
-| g1 extract | `rag/graph/extract.py` | LLM lists entities and relationships per chunk, from a closed list of types (`config.py`). Structured output, one "anything missed?" pass, cached by chunk hash. Out-of-schema items are fixed or dropped. |
+| g1 extract | `rag/graph/extract.py`, `rag/graph/gliner_extract.py` | Entities and relationships per chunk, from a closed list of types with descriptions (`config.py`). `EXTRACT_MODE=hybrid` (default): **GLiNER2** (`fastino/gliner2.5-base-v1`, Apache 2.0, runs locally) reads every chunk with a confidence per item; the weakest chunks (two+ entities but no relationship, then lowest confidence, then long chunks where nothing was found) go to the LLM for review, up to `ESCALATE_BUDGET` (20%) of chunks. `gliner`: no LLM calls. `llm`: the LLM reads every chunk. Cached by chunk hash; out-of-schema items are fixed or dropped. |
 | g2 resolve | `rag/graph/resolve.py` | Entity resolution, cheapest check first (design taken from [agentic-graphrag](https://github.com/ontogr/agentic-graphrag), Apache 2.0): your overrides → exact normalised name → number check ("GPT" vs "GPT-4", "v2" vs "v3" never match) → spelling, acronyms ("BAAI"), name + generic words ("Qdrant vector database") → name-vector similarity → tight groups → LLM for what is left, within a pair budget. Matches are reversible **links**, each with its tier and reason; "uncertain" stays undecided, and a no-match blocks any weaker match that would join the two names through a third. Fix links in `graph_resolution_overrides.json` (see the `.example`). |
 | g3 communities | `rag/graph/communities.py` | Leiden (NetworkX, BSD, modularity), split again for large communities (hierarchy). |
 | g4 summarize | `rag/graph/summarize.py` | Entity seen once keeps its description (no LLM); seen several times gets one merged description. Each community gets a report. |
@@ -103,6 +103,8 @@ python rag.py graph-eval                       # plain RAG vs graph modes, per q
 **Why hybrid and not summaries alone:** answering fact questions from LLM summaries instead of the source passages loses detail, which is the usual reason GraphRAG scores below plain RAG on single-hop questions. Hybrid only adds candidates, so if the graph finds nothing the answer is the same as plain RAG.
 
 **Access:** entities, relationships and reports keep the chunk ids they came from. Search filters on the asker's groups before anything reaches the LLM. A merged summary or community report is used only if the user can see every chunk it was written from; otherwise the per-chunk descriptions they can see are used.
+
+**Extraction without the LLM:** the first `graph-build` downloads the GLiNER2 model (~0.8 GB) from Hugging Face; after that extraction runs offline on the CPU. Set `EXTRACT_MODE=gliner` for no extraction LLM calls at all, or `EXTRACT_MODE=llm` for the original behaviour.
 
 **LLM choice:** Claude by default. For a fully open-source setup, point it at any OpenAI-compatible server (Ollama, vLLM):
 `GRAPH_LLM=openai GRAPH_LLM_MODEL=qwen2.5:14b GRAPH_LLM_BASE_URL=http://localhost:11434/v1`
