@@ -5,7 +5,7 @@
   3. resolve   merge duplicates: exact normalised name -> RapidFuzz + BGE-M3 similarity ->
                the small LLM decides only the unclear pairs
   4. relations aggregate repeated relations into weighted edges
-  5. communities  Leiden (igraph + leidenalg), two levels, no LLM; summaries are written lazily at query time
+  5. communities  Leiden (NetworkX, modularity), two levels, no LLM; summaries are written lazily at query time
   6. store     Apache AGE (graph) + SQL tables, Qdrant (entity + community vectors)
 
   python -m graph.build outputs/gr_extract_south.jsonl [--tables]
@@ -255,15 +255,27 @@ def aggregate(rels: list, key_to_id: dict) -> list[dict]:
 
 # ---------- 5. communities ----------
 def communities(entities: list[dict], relations: list[dict]) -> list[dict]:
-    import igraph as ig
-    import leidenalg as la
-    idx = {e["id"]: i for i, e in enumerate(entities)}
-    g = ig.Graph(n=len(entities), edges=[(idx[r["source_id"]], idx[r["target_id"]]) for r in relations],
-                 edge_attrs={"weight": [r["weight"] for r in relations]})
-    g.simplify(combine_edges={"weight": "sum"})
-    for e, d in zip(entities, g.degree()):
-        e["degree"] = d
-    top = la.find_partition(g, la.RBConfigurationVertexPartition, weights="weight", resolution_parameter=1.0, seed=7)
+    """Leiden with the modularity objective (NetworkX, BSD licence; igraph/leidenalg are GPL and would
+    bind a distributed product). Two levels: communities over 25 entities are split again."""
+    import networkx as nx
+    g = nx.Graph()
+    g.add_nodes_from(e["id"] for e in entities)
+    for r in relations:
+        a, b, w = r["source_id"], r["target_id"], r["weight"]
+        if a == b:
+            continue
+        if g.has_edge(a, b):
+            g[a][b]["weight"] += w
+        else:
+            g.add_edge(a, b, weight=w)
+    for e in entities:
+        e["degree"] = g.degree(e["id"])
+
+    def leiden(graph):
+        if graph.number_of_edges() == 0:
+            return [{n} for n in graph.nodes]
+        return nx.community.leiden_communities(graph, weight="weight", resolution=1.0, metric="modularity", seed=7)
+
     comms, next_id = [], 0
     by_id = {e["id"]: e for e in entities}
 
@@ -271,23 +283,20 @@ def communities(entities: list[dict], relations: list[dict]) -> list[dict]:
         mem = sorted((by_id[m] for m in member_ids), key=lambda e: -e["degree"])
         return "; ".join(f"{e['name']} ({e['type']})" for e in mem[:25])
 
-    for members in top:
+    for members in sorted(leiden(g), key=len, reverse=True):
         if len(members) < 3:                                    # isolated bits: not a community
             continue
-        ids0 = [entities[i]["id"] for i in members]
+        ids0 = sorted(members)
         cid0 = next_id
         next_id += 1
         comms.append({"id": cid0, "level": 0, "parent": None, "entity_ids": ids0, "profile": profile(ids0)})
         for m in ids0:
             by_id[m]["community_l0"] = cid0
         if len(members) > 25:                                   # level 1: split big communities again
-            sub = g.induced_subgraph(members)
-            part = la.find_partition(sub, la.RBConfigurationVertexPartition, weights="weight",
-                                     resolution_parameter=1.0, seed=7)
-            for sm in part:
-                if len(sm) < 3:
+            for sm in sorted(leiden(g.subgraph(members)), key=len, reverse=True):
+                if len(sm) < 3 or len(sm) == len(members):
                     continue
-                ids1 = [ids0[i] for i in sm]
+                ids1 = sorted(sm)
                 comms.append({"id": next_id, "level": 1, "parent": cid0, "entity_ids": ids1, "profile": profile(ids1)})
                 for m in ids1:
                     by_id[m]["community_l1"] = next_id

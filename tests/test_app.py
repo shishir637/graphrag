@@ -1,0 +1,129 @@
+"""The Context Layer app: setup, sign-in, roles, CSRF guard, agents, MCP key gate, capabilities, audit.
+No models or AI key needed."""
+import json
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app import core, engine
+from app import mcp_server as M
+
+H = {"X-CL": "1"}
+
+
+@pytest.fixture
+def client(tmp_path, monkeypatch):
+    core.reset_for_tests(tmp_path / "var")
+    docs, out = tmp_path / "documents", tmp_path / "outputs"
+    docs.mkdir(); out.mkdir()
+    monkeypatch.setattr(engine, "DOCS_DIR", docs)
+    monkeypatch.setattr(engine, "ACCESS_FILE", docs / "_access.json")
+    monkeypatch.setattr(engine, "OUT_DIR", out)
+    monkeypatch.setattr(engine, "postgres_ok", lambda: (False, "test"))
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("CL_PUBLIC_HOSTS", "testserver")
+    from app.main import asgi
+    with TestClient(asgi) as c:
+        yield c, tmp_path
+
+
+def setup_owner(c):
+    r = c.post("/api/v1/setup", headers=H, json={"name": "Owner", "email": "o@example.com", "password": "pass-word-123", "organisation": "Acme"})
+    assert r.status_code == 200, r.text
+
+
+def test_setup_once_and_login(client):
+    c, _ = client
+    assert c.get("/api/v1/setup").json()["needs_setup"] is True
+    assert c.post("/api/v1/setup", json={}).status_code == 403                      # no X-CL header
+    assert c.post("/api/v1/setup", headers=H, json={"name": "O", "email": "o@example.com", "password": "short"}).status_code == 400
+    setup_owner(c)
+    assert c.post("/api/v1/setup", headers=H, json={"name": "X", "email": "x@example.com", "password": "pass-word-123"}).status_code == 409
+    assert c.get("/api/v1/me").json()["user"]["role"] == "owner"
+    c.post("/api/v1/logout", headers=H)
+    assert c.get("/api/v1/me").status_code == 401
+    assert c.post("/api/v1/login", headers=H, json={"email": "o@example.com", "password": "wrong-password"}).status_code == 401
+    assert c.post("/api/v1/login", headers=H, json={"email": "O@Example.com", "password": "pass-word-123"}).status_code == 200
+
+
+def test_roles(client):
+    c, _ = client
+    setup_owner(c)
+    assert c.post("/api/v1/users", headers=H, json={"email": "v@example.com", "name": "V", "role": "viewer", "password": "viewer-pass-1"}).status_code == 200
+    assert c.patch("/api/v1/users/1", headers=H, json={"role": "admin"}).status_code == 400   # last owner
+    c.post("/api/v1/logout", headers=H)
+    c.post("/api/v1/login", headers=H, json={"email": "v@example.com", "password": "viewer-pass-1"})
+    assert c.get("/api/v1/agents").status_code == 200
+    assert c.post("/api/v1/agents", headers=H, json={"name": "x"}).status_code == 403
+    assert c.post("/api/v1/jobs/documents", headers=H).status_code == 403
+    assert c.put("/api/v1/settings/llm", headers=H, json={"anthropic_api_key": "sk-ant-x"}).status_code == 403
+
+
+def test_documents_and_groups(client):
+    c, tmp = client
+    setup_owner(c)
+    r = c.post("/api/v1/documents", headers=H, files=[("files", ("leave.txt", b"24 days of leave."))], data={"groups": "public"})
+    assert r.json()["saved"] == [{"name": "leave.txt", "groups": ["public"]}]
+    r = c.post("/api/v1/documents", headers=H, files=[("files", ("evil.exe", b"x"))], data={"groups": "public"})
+    assert r.status_code == 400
+    assert c.patch("/api/v1/documents/leave.txt", headers=H, json={"groups": ["Bad Group!"]}).status_code == 400
+    assert c.patch("/api/v1/documents/leave.txt", headers=H, json={"groups": ["hr", "public"]}).json()["groups"] == ["hr", "public"]
+    docs = c.get("/api/v1/documents").json()
+    assert docs["documents"][0]["status"] == "new" and docs["groups"] == ["hr", "public"]
+    assert json.loads((tmp / "documents" / "_access.json").read_text()) == {"leave.txt": ["hr", "public"]}
+    assert c.delete("/api/v1/documents/leave.txt", headers=H).status_code == 200
+    assert not (tmp / "documents" / "leave.txt").exists()
+
+
+def test_agents_and_mcp(client):
+    c, _ = client
+    setup_owner(c)
+    assert c.post("/api/v1/agents", headers=H, json={"name": "x", "capabilities": []}).status_code == 400
+    r = c.post("/api/v1/agents", headers=H, json={"name": "Support bot", "groups": ["public"], "capabilities": ["documents"]}).json()
+    token, aid = r["token"], r["agent"]["id"]
+    assert token.startswith("clk_") and token not in (core.DATA_DIR / "app.db").read_bytes().decode("latin-1")
+    init = {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "t", "version": "1"}}}
+    hdr = {"accept": "application/json, text/event-stream"}
+    m = c
+    if True:
+        assert m.post("/mcp", json=init, headers=hdr).status_code == 401
+        assert m.post("/mcp", json=init, headers=hdr | {"authorization": f"Bearer {token}"}).status_code == 200
+
+        def call(name, args):
+            body = {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": name, "arguments": args}}
+            return m.post("/mcp", json=body, headers=hdr | {"authorization": f"Bearer {token}"}).json()["result"]
+        res = call("query_metrics", {"question": "revenue"})
+        assert res["isError"] and "may not use data" in res["content"][0]["text"]
+        res = call("list_documents", {})
+        assert not res.get("isError") and res["structuredContent"]["your_groups"] == ["public"]
+        res = call("ask", {"question": "anything"})
+        assert res["isError"] and "AI model" in res["content"][0]["text"]
+        c.post(f"/api/v1/agents/{aid}/revoke", headers=H)
+        assert m.post("/mcp", json=init, headers=hdr | {"authorization": f"Bearer {token}"}).status_code == 401
+    ev = c.get("/api/v1/events?type=agent").json()["events"]
+    assert {e["action"] for e in ev} >= {"tool.query_metrics", "tool.list_documents", "tool.ask"}
+    assert any(not e["ok"] for e in ev)
+    users_ev = [e["action"] for e in c.get("/api/v1/events?type=user").json()["events"]]
+    assert "agents.create" in users_ev and "agents.revoke" in users_ev
+    csv = c.get("/api/v1/events.csv").text
+    assert csv.startswith("time,actor_type") and "tool.ask" in csv
+
+
+def test_public_hosts(monkeypatch):
+    monkeypatch.setenv("CL_PUBLIC_HOSTS", "contextlayer.acme.com, 10.0.0.5")
+    ts = M.transport_security()
+    assert "contextlayer.acme.com" in ts.allowed_hosts and "10.0.0.5:*" in ts.allowed_hosts and "localhost:*" in ts.allowed_hosts
+    assert "https://contextlayer.acme.com" in ts.allowed_origins
+
+
+def test_tools_registered_read_only():
+    tools = {t.name: t for t in M.mcp._tool_manager.list_tools()}
+    assert set(tools) == {"ask", "search_documents", "query_metrics", "list_metrics", "list_documents", "fetch_passage"}
+    assert all(t.annotations.read_only_hint for t in tools.values())
+
+
+def test_password_hashing():
+    h = core.hash_password("pass-word-123")
+    assert core.check_password("pass-word-123", h) and not core.check_password("other", h)
+    assert core.check_password("x", "garbage") is False

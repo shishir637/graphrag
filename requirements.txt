@@ -27,3 +27,6 @@ torch==2.12.0
 torchvision==0.27.0
 # Semantic layer (see requirements-semantic.txt for the minimal set CI installs)
 -r requirements-semantic.txt
+
+# Context Layer app
+-r requirements-app.txt

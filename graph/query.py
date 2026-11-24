@@ -69,19 +69,57 @@ def link_entities(question: str, qv) -> list[dict]:
 
 
 # ---------- local search ----------
+# ---------- access groups ----------
+_ACCESS = {"mtime": None, "map": {}, "groups": set()}
+
+
+def chunk_access() -> dict:
+    """chunk_id -> access groups, from the document pipeline's chunks file (reloaded when it changes)."""
+    from rag.config import OUT_DIR as RAG_OUT
+    p = RAG_OUT / "2_chunks.json"
+    if not p.exists():
+        return {}
+    m = p.stat().st_mtime
+    if _ACCESS["mtime"] != m:
+        chunks = json.loads(p.read_text(encoding="utf-8"))
+        _ACCESS.update(mtime=m, map={c["chunk_id"]: c.get("access", ["public"]) for c in chunks},
+                       groups={g for c in chunks for g in c.get("access", ["public"])})
+    return _ACCESS["map"]
+
+
+def visible(chunk_id: str, groups: list[str] | None) -> bool:
+    """None = no restriction (CLI / owner). Unknown chunks are hidden from restricted callers."""
+    if groups is None:
+        return True
+    return bool(set(chunk_access().get(chunk_id, [])) & set(groups))
+
+
+def sees_everything(groups: list[str] | None) -> bool:
+    chunk_access()
+    return groups is None or _ACCESS["groups"] <= set(groups)
+
+
 def _chunks(ids: list[str]) -> dict:
     rows = store.conn().execute("SELECT chunk_id, source, headings, text FROM public.kg_chunks WHERE chunk_id = ANY(%s)",
                                 (ids,)).fetchall()
     return {r[0]: {"chunk_id": r[0], "source": r[1], "headings": r[2], "pages": [], "text": r[3]} for r in rows}
 
 
-def local_search(question: str) -> dict:
+def local_search(question: str, groups: list[str] | None = None) -> dict:
     from rag.models import embed_dense, rerank_scores
     t0 = time.perf_counter()
     qv = embed_dense([question])[0]
     seeds = link_entities(question, qv)
+    if groups is not None and seeds:            # only entities the caller can see a source passage for
+        rows = store.conn().execute("SELECT entity_id, chunk_id FROM public.kg_entity_chunks WHERE entity_id = ANY(%s)",
+                                    ([s["id"] for s in seeds],)).fetchall()
+        ok = {eid for eid, cid in rows if visible(cid, groups)}
+        seeds = [s for s in seeds if s["id"] in ok]
     t1 = time.perf_counter()
     edges = store.neighbourhood([s["id"] for s in seeds]) if seeds else []
+    if groups is not None:                      # a relation counts only if a passage behind it is visible
+        edges = [dict(e, chunk_ids=[c for c in e["chunk_ids"] if visible(c, groups)]) for e in edges]
+        edges = [e for e in edges if e["chunk_ids"]]
     seen, ranked = set(), []
     for e in sorted(edges, key=lambda e: (e["hop"] != 2, -float(e["weight"] or 0))):
         k = (e["source"], e["type"], e["target"])
@@ -101,6 +139,7 @@ def local_search(question: str) -> dict:
                 "SELECT entity_id, chunk_id FROM public.kg_entity_chunks WHERE entity_id = ANY(%s)",
                 ([s["id"] for s in seeds],)).fetchall():
             votes[cid] = votes.get(cid, 0) + 0.5
+    votes = {c: v for c, v in votes.items() if visible(c, groups)}
     cand_ids = [c for c, _ in sorted(votes.items(), key=lambda kv: -kv[1])[:MAX_CHUNKS_RERANK * 3]]
     chunks = _chunks(cand_ids)
     cands = [chunks[c] for c in cand_ids if c in chunks]
@@ -226,20 +265,30 @@ def route(question: str) -> str:
         model=SMALL_MODEL, max_tokens=500, output_format=_Route,
         messages=[{"role": "user", "content":
                    "Classify the question.\n- lookup: one fact about one thing (a date, number, name, place).\n"
-                   "- connections: needs linking facts across things (who ruled what, what lies in which, chains like "
-                   "'the capital of the state that borders X', comparisons of two places).\n"
-                   "- overview: a big-picture or thematic question across many states/topics.\n"
-                   "- sales_numbers: revenue, orders, customers, products in the company's sales data.\n\n"
+                   "- connections: needs linking facts across things (who owns, reports to, uses or depends on what; "
+                   "chains like 'the manager of the team that built X'; comparisons of two things).\n"
+                   "- overview: a big-picture or thematic question across many documents or topics.\n"
+                   "- sales_numbers: a number to compute from the company's data tables (totals, counts, averages, "
+                   "trends, rankings of metrics such as revenue, orders or customers).\n\n"
                    f"Question: {question}"}])
     return {"lookup": "vector", "connections": "local", "overview": "global",
             "sales_numbers": "data"}[resp.parsed_output.route]
 
 
-def answer(question: str, mode: str = "auto", headings: list[str] | None = None) -> dict:
+def answer(question: str, mode: str = "auto", headings: list[str] | None = None,
+           groups: list[str] | None = None, allow_data: bool = True) -> dict:
+    """groups=None: no access restriction (CLI). With groups, every passage and relation is filtered, and
+    overview (global) search is used only by callers who can see every group, because community summaries
+    are written from all documents."""
     t0 = time.perf_counter()
     chosen = route(question) if mode == "auto" else mode
+    note = None
+    if chosen == "global" and not sees_everything(groups):
+        chosen, note = "vector", "overview search needs access to every group; answered from searchable passages"
+    if chosen == "data" and not allow_data:
+        chosen, note = "vector", "this caller has no access to metrics; answered from documents"
     if chosen == "local":
-        r = local_search(question)
+        r = local_search(question, groups)
     elif chosen == "global":
         r = global_search(question)
     elif chosen == "data":
@@ -247,8 +296,10 @@ def answer(question: str, mode: str = "auto", headings: list[str] | None = None)
         r = answer_data_question(question) | {"mode": "data"}
     else:
         from rag.generate import ask
-        r = ask(question, save=False, headings=headings) | {"mode": "vector"}
+        r = ask(question, groups=groups, save=False, headings=headings) | {"mode": "vector"}
     r["routed"] = mode == "auto"
+    if note:
+        r["note"] = note
     r.setdefault("timings_s", {})["with_routing"] = round(time.perf_counter() - t0, 3)
     return r
 

@@ -1,3 +1,49 @@
+# Context Layer
+
+Governed company knowledge for AI agents. Connect documents and data tables once; give each AI agent
+(Claude, ChatGPT, Cursor, Copilot, your own bots) its own key and one MCP link; every answer comes with
+sources, every number comes from a reviewed definition, and every call is logged.
+Who it is for and what it does: [PRODUCT.md](PRODUCT.md).
+
+## Install (self-hosted, Docker)
+
+```bash
+cp .env.example .env          # set CL_DB_PASSWORD (long random); ANTHROPIC_API_KEY now or later in Settings
+docker compose up -d          # app + graph database; first start downloads ~3 GB of models on first use
+```
+
+Open http://localhost:8080, create the owner account, then follow the checklist on the Overview page:
+connect the AI model, upload and prepare documents, optionally add data tables and build the knowledge
+graph, connect your first agent. Agents connect to `http://<server>:8080/mcp` with their key.
+
+- To serve other machines: put HTTPS in front (Caddy, nginx, your load balancer), set `CL_BIND=0.0.0.0`
+  and `CL_PUBLIC_HOSTS=contextlayer.yourcompany.com` in `.env`.
+- Everything stays in the Docker volumes; outbound traffic goes only to the AI provider.
+- Backups: the volumes `app_data` (users, agents, audit), `documents`, `tables` and `graph_data`.
+
+## Run without Docker (development, Windows/macOS/Linux)
+
+```bash
+python -m venv .venv && .venv/bin/pip install -r requirements.txt     # Windows: .venv\Scripts\...
+docker compose -f docker-compose.graph.yml up -d                      # optional: graph database
+python -m app                                                         # http://127.0.0.1:8080
+```
+
+The web app is prebuilt in `web/dist`. To change it: `cd web && npm install && npm run dev` (port 5173,
+forwards the API to 8080), then `npm run build`.
+
+| Part | Where |
+|---|---|
+| Web app (React + TypeScript) | `web/src` (pages in `web/src/pages`) |
+| API, sign-in, roles, agents, audit | `app/main.py`, `app/core.py` (SQLite in `var/`) |
+| MCP server for agents | `app/mcp_server.py` (tools: ask, search_documents, query_metrics, list_metrics, list_documents, fetch_passage) |
+| Engines | `rag/` documents, `semantic/` + `semantic_layer/` metrics, `graph/` knowledge graph |
+| Tests | `python -m pytest tests -q` |
+
+---
+
+# The engines
+
 # Small RAG system (Docling · BGE-M3 · Qdrant · Claude · RAGAS)
 
 Drop files into `documents/`, run one command, ask questions. Every step writes its output

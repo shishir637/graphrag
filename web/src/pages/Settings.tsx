@@ -1,0 +1,56 @@
+import { useState } from 'react'
+import { api, can } from '../api'
+import type { Session } from '../App'
+import { Badge, ErrorBox, Loading, PageHead, useLoad, useToast } from '../ui'
+
+interface S {
+  organisation: string; version: string
+  llm: { provider: string; api_key: string | null; workspace_id: string | null; models: Record<string, string> }
+  storage: { data_folder: string; graph_database: string; graph_database_ok: boolean; graph_database_message: string; disk: { free_gb: number; total_gb: number } }
+}
+
+export default function Settings({ s }: { s: Session }) {
+  const { data, error, reload } = useLoad<S>('/settings')
+  const [key, setKey] = useState(''); const [ws, setWs] = useState(''); const [org, setOrg] = useState<string | null>(null)
+  const [pw, setPw] = useState({ current: '', new: '' }); const toast = useToast(); const owner = can(s.user, 'owner')
+  if (error) return <div className="page"><ErrorBox error={error} retry={reload} /></div>
+  if (!data) return <div className="page"><Loading /></div>
+  const saveLlm = async (remove = false) => {
+    try { await api('/settings/llm', { method: 'PUT', json: remove ? { anthropic_api_key: '' } : { anthropic_api_key: key || undefined, anthropic_workspace_id: ws || undefined } })
+      setKey(''); setWs(''); reload(); toast(remove ? 'Key removed' : 'Saved') } catch (e: any) { toast(e.message, true) }
+  }
+  return <div className="page">
+    <PageHead title="Settings" sub={`Context Layer ${data.version}`} />
+    <div className="card"><div className="hd"><div><h2>AI model</h2><div className="muted small">{data.llm.provider}. Used for routing questions, writing answers and building the knowledge graph.</div></div>
+      {data.llm.api_key ? <Badge kind="ok" dot>connected</Badge> : <Badge kind="warn" dot>not set</Badge>}</div>
+      <div className="bd stack">
+        {data.llm.api_key ? <div className="between"><span>API key <code>{data.llm.api_key}</code>{data.llm.workspace_id && <> · workspace <code>{data.llm.workspace_id}</code></>}</span>
+          {owner && <button className="btn sm danger" onClick={() => saveLlm(true)}>Remove</button>}</div>
+          : <div className="callout warn">Without an AI model, agents can't get answers. Add an Anthropic API key (from console.anthropic.com).</div>}
+        {owner && <div className="row" style={{ alignItems: 'flex-end' }}>
+          <label className="f" style={{ flex: '1 1 320px' }}>{data.llm.api_key ? 'Replace key' : 'Anthropic API key'}<input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="sk-ant-…" autoComplete="off" /></label>
+          <label className="f" style={{ flex: '0 1 240px' }}>Workspace id (only for user keys)<input type="text" value={ws} onChange={(e) => setWs(e.target.value)} placeholder="optional" /></label>
+          <button className="btn primary" disabled={!key && !ws} onClick={() => saveLlm()}>Save</button></div>}
+        <div className="small muted">The key is stored on this server only ({data.storage.data_folder}/secrets.json, readable by the server account). An <code>ANTHROPIC_API_KEY</code> environment variable takes precedence.</div>
+        <div className="sep" /><b className="small">Models</b>
+        {Object.entries(data.llm.models).map(([k, v]) => <div key={k} className="between small"><span className="muted">{k}</span><code>{v}</code></div>)}
+      </div></div>
+    <div className="grid g2" style={{ marginTop: 16 }}>
+      <div className="card"><div className="hd"><h2>Organisation</h2></div><div className="bd stack">
+        <label className="f">Name<input type="text" value={org ?? data.organisation} onChange={(e) => setOrg(e.target.value)} disabled={!owner} /></label>
+        {owner && <div><button className="btn" disabled={org === null} onClick={async () => { try { await api('/settings/organisation', { method: 'PUT', json: { organisation: org } }); toast('Saved'); setOrg(null); reload() } catch (e: any) { toast(e.message, true) } }}>Save</button></div>}
+      </div></div>
+      <div className="card"><div className="hd"><h2>Storage</h2></div><div className="bd stack small">
+        <div className="between"><span className="muted">Data folder</span><code>{data.storage.data_folder}</code></div>
+        <div className="between"><span className="muted">Graph database</span>{data.storage.graph_database_ok ? <Badge kind="ok" dot>online</Badge> : <Badge kind="warn" dot>offline</Badge>}</div>
+        {!data.storage.graph_database_ok && <div className="tiny muted">{data.storage.graph_database_message}</div>}
+        <div className="between"><span className="muted">Free disk</span><span>{data.storage.disk.free_gb} GB of {data.storage.disk.total_gb} GB</span></div>
+      </div></div>
+    </div>
+    <div className="card" style={{ marginTop: 16 }}><div className="hd"><h2>Your password</h2></div><div className="bd row" style={{ alignItems: 'flex-end' }}>
+      <label className="f" style={{ flex: '1 1 220px' }}>Current<input type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} autoComplete="current-password" /></label>
+      <label className="f" style={{ flex: '1 1 220px' }}>New (10+ characters)<input type="password" value={pw.new} onChange={(e) => setPw({ ...pw, new: e.target.value })} autoComplete="new-password" /></label>
+      <button className="btn" disabled={!pw.current || pw.new.length < 10} onClick={async () => { try { await api('/me/password', { json: pw }); setPw({ current: '', new: '' }); toast('Password changed') } catch (e: any) { toast(e.message, true) } }}>Change password</button>
+    </div></div>
+  </div>
+}

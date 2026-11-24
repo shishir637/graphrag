@@ -5,3 +5,6 @@ outputs/
 sl_store/
 __pycache__/
 .pytest_cache/
+var/
+web/node_modules/
+web/tsconfig.tsbuildinfo

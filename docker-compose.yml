@@ -1,0 +1,52 @@
+# Context Layer, self-hosted.
+#   1. cp .env.example .env   and set CL_DB_PASSWORD (and ANTHROPIC_API_KEY, or add it later in Settings)
+#   2. docker compose up -d
+#   3. open http://localhost:8080 and create the owner account
+# Data lives in the named volumes below; `docker compose down` keeps it (add -v to delete everything).
+services:
+  app:
+    build: .
+    image: context-layer:0.1.0
+    restart: unless-stopped
+    depends_on:
+      graphdb: { condition: service_healthy }
+    ports:
+      - "${CL_BIND:-127.0.0.1}:${CL_PORT:-8080}:8080"
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_WORKSPACE_ID: ${ANTHROPIC_WORKSPACE_ID:-}
+      CL_PUBLIC_HOSTS: ${CL_PUBLIC_HOSTS:-}
+      GRAPH_PG_DSN: host=graphdb port=5432 dbname=graphrag user=rag password=${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
+    volumes:
+      - documents:/app/documents
+      - tables:/app/data
+      - outputs:/app/outputs
+      - search_index:/app/qdrant_data
+      - metric_store:/app/sl_store
+      - app_data:/app/var
+      - models:/models
+
+  graphdb:                      # PostgreSQL 17 + Apache AGE: the knowledge graph. Not published outside Docker.
+    image: apache/age:release_PG17_1.7.0
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rag
+      POSTGRES_PASSWORD: ${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
+      POSTGRES_DB: graphrag
+    command: ["postgres", "-c", "shared_preload_libraries=age", "-c", "work_mem=64MB", "-c", "maintenance_work_mem=256MB"]
+    volumes:
+      - graph_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rag -d graphrag"]
+      interval: 5s
+      retries: 30
+
+volumes:
+  documents:
+  tables:
+  outputs:
+  search_index:
+  metric_store:
+  app_data:
+  models:
+  graph_data:
