@@ -93,7 +93,7 @@ python rag.py graph-eval                       # plain RAG vs graph modes, per q
 | Step | File | What happens |
 |---|---|---|
 | g1 extract | `rag/graph/extract.py` | LLM lists entities and relationships per chunk, from a closed list of types (`config.py`). Structured output, one "anything missed?" pass, cached by chunk hash. Out-of-schema items are fixed or dropped. |
-| g2 resolve | `rag/graph/resolve.py` | Entity resolution. Normalised exact matches merge directly; other pairs (blocked by type + shared token/initials/nearest embedding) are scored by name similarity (rapidfuzz) + BGE-M3 cosine. High scores merge; borderline pairs go to the LLM; every decision is logged. |
+| g2 resolve | `rag/graph/resolve.py` | Entity resolution, cheapest check first (design taken from [agentic-graphrag](https://github.com/ontogr/agentic-graphrag), Apache 2.0): your overrides → exact normalised name → number check ("GPT" vs "GPT-4", "v2" vs "v3" never match) → spelling, acronyms ("BAAI"), name + generic words ("Qdrant vector database") → name-vector similarity → tight groups → LLM for what is left, within a pair budget. Matches are reversible **links**, each with its tier and reason; "uncertain" stays undecided, and a no-match blocks any weaker match that would join the two names through a third. Fix links in `graph_resolution_overrides.json` (see the `.example`). |
 | g3 communities | `rag/graph/communities.py` | Leiden (NetworkX, BSD, modularity), split again for large communities (hierarchy). |
 | g4 summarize | `rag/graph/summarize.py` | Entity seen once keeps its description (no LLM); seen several times gets one merged description. Each community gets a report. |
 | g5 store | `rag/graph/store.py` | Apache AGE (Postgres) as storage only. `Entity`, `Chunk`, `Community` nodes; `RELATED`, `MENTIONS`, `IN_COMMUNITY`, `CHILD_OF` edges. Chunk ids match Qdrant. `GRAPH_STORE=json` uses a JSON file + NetworkX instead. |
@@ -114,6 +114,8 @@ psql -c "CREATE ROLE clp LOGIN SUPERUSER PASSWORD 'clp'" -c "CREATE DATABASE gra
 psql -d graphrag -c "CREATE EXTENSION age"
 ```
 Set `GRAPH_DSN` in `.env` if your connection differs from `postgresql://clp:clp@127.0.0.1:5432/graphrag`. AGE has no Windows build; on Windows use Docker (`apache/age` image) or `GRAPH_STORE=json`.
+
+Resolution rules have unit tests that need no models: `python -m pytest tests -q`.
 
 The visual interface has three more screens (11–13): the interactive graph with every extraction and merge decision, a graph answer trace, and the RAG vs GraphRAG comparison.
 

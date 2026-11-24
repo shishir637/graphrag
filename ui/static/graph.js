@@ -16,10 +16,10 @@ const typeColor = (t) => {
 function graphExplain(id, c) {
   const E = {
     kg: {
-      what: `An LLM (${esc(c.graph_llm)}) reads every passage and lists the <b>entities</b> in it (${(c.entity_types || []).length} allowed types) and the <b>relationships</b> between them. <b>Entity resolution</b> then merges mentions of the same thing ("BGE-M3" and "BGE-M3 model") by name similarity plus meaning similarity, and asks the LLM only about borderline pairs. <b>Leiden</b> groups tightly linked entities into communities, and the LLM writes a short report for each. The result is stored in <b>${c.graph_store === 'age' ? 'Apache AGE (Postgres)' : 'a JSON file'}</b>, and every entity and link keeps the ids of the passages it came from.`,
+      what: `An LLM (${esc(c.graph_llm)}) reads every passage and lists the <b>entities</b> in it (${(c.entity_types || []).length} allowed types) and the <b>relationships</b> between them. <b>Entity resolution</b> then links names of the same thing ("BGE-M3" and "BGE-M3 model"), trying the cheapest check first: exact name, a number check, spelling and acronyms, name similarity, tight groups, and only then the LLM. Links can be reviewed and undone. <b>Leiden</b> groups tightly linked entities into communities, and the LLM writes a short report for each. The result is stored in <b>${c.graph_store === 'age' ? 'Apache AGE (Postgres)' : 'a JSON file'}</b>, and every entity and link keeps the ids of the passages it came from.`,
       why: 'The graph connects facts that sit in different passages, which plain search cannot do. But a graph is only as good as its extraction and resolution: a missed entity or a wrong merge means a wrong answer.',
-      watch: ['Click a node to see its description, aliases and the passages it came from.', 'Check the merge decisions: a wrong merge (two different people joined) is worse than a missed one.', 'Out-of-schema types and links to entities that were never extracted are dropped or fixed; the count is shown below.', 'Building the graph makes several LLM calls per passage. Re-runs only pay for new or changed passages.'],
-      settings: [['Extractor', c.graph_llm], ['Store', c.graph_store === 'age' ? 'Apache AGE' : 'JSON + NetworkX'], ['Auto-merge at', c.resolve_auto], ['LLM decides from', c.resolve_review], ['Communities', 'Leiden (modularity)']],
+      watch: ['Click a node to see its description, aliases and the passages it came from.', 'Check the resolution links: a wrong match (two different people joined) is worse than a missed one. Fix either kind in graph_resolution_overrides.json and rebuild from the resolve step.', 'Out-of-schema types and links to entities that were never extracted are dropped or fixed; the count is shown below.', 'Building the graph makes several LLM calls per passage. Re-runs only pay for new or changed passages.'],
+      settings: [['Extractor', c.graph_llm], ['Store', c.graph_store === 'age' ? 'Apache AGE' : 'JSON + NetworkX'], ['Match by similarity at', c.resolve_match], ['Different below', c.resolve_no_match], ['LLM pair budget', c.resolve_llm_pairs], ['Communities', 'Leiden (modularity)']],
     },
     gask: {
       what: `The question's entities are found by name and by meaning, then their neighbourhood (${c.graph_hops} hop) is read from the graph. The passages behind those entities and links are ranked, then <b>fused with the normal hybrid search results</b> using the same RRF, re-ranked by the same re-ranker, and handed to the same answer step, plus a short "graph facts" passage. Overview questions ("main themes…") go to <b>global</b> search over the community reports instead.`,
@@ -30,7 +30,7 @@ function graphExplain(id, c) {
     geval: {
       what: 'The same questions are answered by plain RAG and by each graph mode, and scored by the same RAGAS judge, overall and <b>per question type</b> (single-hop, multi-hop, global, unanswerable). Questions come from <code>eval_questions_graph.json</code>: the RAG set plus tagged multi-hop and global questions.',
       why: 'An average hides the trade-off. GraphRAG usually helps multi-hop and overview questions and can hurt single-hop ones. The rule: hybrid may not score lower than plain RAG on any type.',
-      watch: ['A drop on single-hop questions means the graph pushed good passages out: lower the graph\'s share or fix extraction.', 'No gain on multi-hop means entity resolution or linking misses: check the merge decisions and the linked entities.', 'Runs every mode, so it makes many paid calls.'],
+      watch: ['A drop on single-hop questions means the graph pushed good passages out: lower the graph\'s share or fix extraction.', 'No gain on multi-hop means entity resolution or linking misses: check the resolution links and the linked entities.', 'Runs every mode, so it makes many paid calls.'],
       settings: [['Judge', c.claude_model], ['Pass rule', 'hybrid ≥ RAG − 0.02, per type'], ['Modes', 'rag · hybrid · local']],
     },
   };
@@ -148,10 +148,15 @@ const GRAPH_VIEWS = {
     const types = [...new Set(G.entities.map((e) => e.type))].sort();
     const sel = S.sel.kgNode && ids.has(S.sel.kgNode) ? S.sel.kgNode : null;
 
-    const decisions = d.resolution.decisions.map((x) => `<tr><td class="small">${esc(x.a)}</td><td class="small">${esc(x.b)}</td>
-      <td class="muted small">${fmt(x.name_sim)}</td><td class="muted small">${fmt(x.embedding_sim)}</td><td><b>${fmt(x.score)}</b></td>
-      <td><span class="chip ${x.decision === 'merge' ? 'ok' : x.decision === 'review' ? 'warn' : ''}">${esc(x.decision)}</span> <span class="tiny muted">by ${esc(x.by)}</span>${x.reason ? `<div class="tiny muted">${esc(x.reason)}</div>` : ''}</td></tr>`).join('');
-
+    const TIER = { override: 'your override', name_gate: 'number check', fuzzy: 'spelling / acronym', embedding: 'name similarity', cluster: 'tight group', llm: 'LLM' };
+    const DEC = { match: 'ok', no_match: '', undecided: 'warn' };
+    const links = d.resolution.links.slice().sort((x, y) => ({ match: 0, undecided: 1, no_match: 2 }[x.decision] - { match: 0, undecided: 1, no_match: 2 }[y.decision]));
+    const decisions = links.map((x) => `<tr><td class="small">${esc(x.a)}</td><td class="small">${esc(x.b)}</td><td class="tiny muted">${esc(x.type)}</td>
+      <td><span class="chip ${DEC[x.decision]}">${esc(x.decision.replace('_', ' '))}</span>${x.applied === false ? ' <span class="chip warn">not applied</span>' : ''}</td>
+      <td class="small">${esc(TIER[x.tier] || x.tier)}</td>
+      <td class="tiny muted">${esc(x.reason)}${x.blocked_by ? `<div style="color:var(--warn)">blocked: ${esc(x.blocked_by)}</div>` : ''}</td>
+      <td class="tiny muted" style="white-space:nowrap">name ${fmt(x.name_sim)} · vector ${fmt(x.embedding_sim)}</td></tr>`).join('');
+    const tiers = Object.entries(rs.by_tier || {}).map(([k, v]) => { const [t, dd] = k.split(':'); return `<span class="chip"><b>${esc(TIER[t] || t)}</b>${esc(dd.replace('_', ' '))} ${v}</span>`; }).join('');
     const examples = d.extraction.examples.map((c) => {
       const L = chunkLabels[c.chunk_id];
       return `<div class="hit gx" data-open style="cursor:pointer;padding:8px 10px">
@@ -175,7 +180,7 @@ const GRAPH_VIEWS = {
         ${stat(fmt(rs.relations, 0), 'relationships (duplicates merged)')}
         ${stat(fmt(cs.communities, 0), `communities in ${fmt(cs.levels, 0)} level(s), modularity ${fmt(cs.modularity_level0)}`)}
         ${stat(fmt(ex.dropped_or_fixed, 0), 'out-of-schema items dropped or fixed')}
-        ${stat(fmt((ex.llm_calls || 0) + (rs.merged_by_llm || 0) + (rs.kept_apart_by_llm || 0) + (ss.entity_summaries_by_llm || 0) + (ss.community_reports || 0), 0), 'LLM calls in the last build')}
+        ${stat(fmt((ex.llm_calls || 0) + (rs.llm_pairs || 0) + (ss.entity_summaries_by_llm || 0) + (ss.community_reports || 0), 0), 'LLM calls in the last build')}
       </div><p class="tiny muted" style="margin:10px 0 0">Stored in ${esc(d.stored_in)}: ${Object.entries(d.counts).map(([k, v]) => `${esc(k)} ${fmt(v, 0)}`).join(' · ')}</p></div>
 
       <div class="panel"><div class="head"><h3>The graph</h3>
@@ -188,9 +193,11 @@ const GRAPH_VIEWS = {
 
       <div class="panel"><h3>1 · Extraction, passage by passage</h3><p class="small muted">Click a passage to see what the LLM pulled out of it. Hover an entity for its description.</p>${examples || '<p class="muted">Nothing extracted.</p>'}</div>
 
-      <div class="panel"><h3>2 · Entity resolution decisions</h3>
-        <p class="small muted">${fmt(rs.pairs_compared, 0)} candidate pairs compared. Merged by score: ${fmt(rs.merged_by_score, 0)} · merged by the LLM: ${fmt(rs.merged_by_llm, 0)} · kept apart by the LLM: ${fmt(rs.kept_apart_by_llm, 0)} · needs review: ${fmt(rs.needs_review, 0)}. Pairs scoring below ${fmt(S.state.config.resolve_review)} are not listed. Exact name matches (after removing case, punctuation, titles and company suffixes) merge without scoring.</p>
-        ${decisions ? `<div class="scroll"><table class="t"><thead><tr><th>Entity A</th><th>Entity B</th><th>Name</th><th>Meaning</th><th>Score</th><th>Decision</th></tr></thead><tbody>${decisions}</tbody></table></div>` : '<p class="muted small">No borderline pairs.</p>'}</div>
+      <div class="panel"><h3>2 · Entity resolution links</h3>
+        <p class="small muted">${fmt(rs.surface_entities, 0)} distinct names (exact duplicates already collapsed) → ${fmt(rs.entities, 0)} entities. ${fmt(rs.pairs_compared, 0)} candidate pairs, each decided by the first check that was sure. ${fmt(rs.llm_pairs, 0)} pair(s) went to the LLM; ${fmt(rs.undecided, 0)} stay undecided (not the same as different)${rs.matches_blocked_by_no_match ? `; ${rs.matches_blocked_by_no_match} match(es) not applied because they would join two names already judged different` : ''}. Clearly different pairs are not listed.</p>
+        <div class="row" style="margin:8px 0">${tiers}</div>
+        ${decisions ? `<div class="scroll"><table class="t"><thead><tr><th>Name A</th><th>Name B</th><th>Type</th><th>Decision</th><th>Decided by</th><th>Why</th><th>Similarity</th></tr></thead><tbody>${decisions}</tbody></table></div>` : '<p class="muted small">No pairs needed a decision.</p>'}
+        <p class="tiny muted" style="margin:8px 0 0">To correct a link, add the pair to <code>graph_resolution_overrides.json</code> under "match" or "no_match", then run <code>python rag.py graph-build --steps resolve,communities,summarize,store</code> (no extraction calls).</p></div>
 
       <div class="panel"><h3>3 · Community reports</h3><p class="small muted">${fmt(ss.community_reports, 0)} reports. Entity descriptions: ${fmt(ss.entity_summaries_copied, 0)} copied as-is (seen in one passage), ${fmt(ss.entity_summaries_by_llm, 0)} merged by the LLM. A report is only shown to users who can see every passage it was written from.</p>${reports || '<p class="muted small">No community has two or more entities yet.</p>'}</div>`;
   },

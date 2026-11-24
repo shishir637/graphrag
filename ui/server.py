@@ -200,7 +200,8 @@ def state():
             "claude_model": config.CLAUDE_MODEL, "collection": config.COLLECTION,
             "graph_llm": f"{config.GRAPH_LLM}: {config.GRAPH_LLM_MODEL}", "graph_store": config.GRAPH_STORE,
             "entity_types": config.ENTITY_TYPES, "relation_types": config.RELATION_TYPES,
-            "resolve_auto": config.RESOLVE_AUTO_MERGE, "resolve_review": config.RESOLVE_REVIEW,
+            "resolve_match": config.RESOLVE_EMBED_MATCH, "resolve_no_match": config.RESOLVE_EMBED_NO_MATCH,
+            "resolve_llm_pairs": config.RESOLVE_MAX_LLM_PAIRS,
             "graph_hops": config.GRAPH_HOPS, "graph_chunks": config.GRAPH_CHUNKS,
         },
     }
@@ -287,7 +288,7 @@ def step_graph():
     return {
         "exists": True, "stored_in": g5["stored_in"], "counts": g5["counts"], "sample_paths": g5.get("sample_paths", []),
         "extraction": {"stats": g1.get("stats"), "examples": examples},
-        "resolution": {"stats": g2.get("stats"), "decisions": g2.get("decisions", [])[:200]},
+        "resolution": {"stats": g2.get("stats"), "links": g2.get("links", [])[:300]},
         "communities": {"stats": g3.get("stats"), "list": g3.get("communities", [])},
         "summaries": {"stats": g4.get("stats"), "reports": g4.get("reports", [])},
         "graph": {"entities": [{k: e[k] for k in ("id", "name", "type", "aliases", "summary", "chunk_ids", "community")}

@@ -1,0 +1,5 @@
+{
+  "_how": "Copy to graph_resolution_overrides.json. Names are matched after normalisation (case, punctuation, titles, company suffixes); both names must have the same entity type. Then run: python rag.py graph-build --steps resolve,communities,summarize,store",
+  "match": [["GPT", "GPT-4"]],
+  "no_match": [["Ravi Kumar", "Ravi Shankar"]]
+}

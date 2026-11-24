@@ -19,6 +19,8 @@ reportlab
 psycopg[binary]
 rapidfuzz
 networkx>=3.5
+# Tests (python -m pytest tests -q)
+pytest
 # Visual interface (python rag.py ui); plain uvicorn avoids extra native wheels
 fastapi
 uvicorn

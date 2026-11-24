@@ -48,10 +48,14 @@ RELATION_TYPES = ["WORKS_AT", "WORKS_ON", "HAS_ROLE", "HAS_SKILL", "USES", "PART
                   "OWNS", "DEPENDS_ON", "PRODUCES", "MEASURES", "RELATED_TO"]
 EXTRACT_GLEANINGS = 1                  # extra "did you miss anything?" passes per chunk (0 = off)
 
-# Entity resolution: score = 0.5 * name similarity + 0.5 * description-embedding cosine
-RESOLVE_AUTO_MERGE = 0.90              # >= merge automatically
-RESOLVE_REVIEW = 0.78                  # between REVIEW and AUTO_MERGE -> LLM decides (or listed for review)
-RESOLVE_USE_LLM = True                 # False -> borderline pairs are only listed, never merged
+# Entity resolution (rag/graph/resolve.py): exact -> name gate -> fuzzy -> embedding -> cluster -> LLM.
+# Embedding thresholds are cosine similarity of the two NAMES' BGE-M3 vectors.
+RESOLVE_EMBED_MATCH = 0.95             # >= match without asking anyone
+RESOLVE_EMBED_NO_MATCH = 0.80          # <  clearly different; in between is ambiguous
+RESOLVE_MAX_LLM_PAIRS = 50             # ambiguous pairs the LLM may judge per run (most similar first)
+RESOLVE_USE_LLM = True                 # False -> ambiguous pairs stay "undecided"
+# Your own decisions, applied before everything else: graph_resolution_overrides.json
+#   {"match": [["Name A", "Name B"]], "no_match": [["Name A", "Name C"]]}
 
 # Storage: Apache AGE (Postgres). "json" keeps everything in outputs/ and uses NetworkX instead.
 GRAPH_STORE = _os.environ.get("GRAPH_STORE", "age")
