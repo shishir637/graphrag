@@ -31,6 +31,8 @@ const PHASES = {
   ask: { label: 'Answer a question', note: 'Runs for every question' },
   check: { label: 'Check the quality', note: 'Runs on a test set' },
 };
+STEPS.push(...GRAPH_STEPS);            // GraphRAG screens live in graph.js
+Object.assign(PHASES, GRAPH_PHASE);
 
 function explain(id) {
   const c = (S.state && S.state.config) || {};
@@ -102,7 +104,7 @@ function explain(id) {
       settings: [['Judge', c.claude_model], ['Questions', 'eval_questions.json']],
     },
   };
-  return E[id];
+  return E[id] || graphExplain(id, c);
 }
 
 /* ------------------------------------------------------------------ data */
@@ -149,7 +151,7 @@ async function runJob(start, label) {
   return j.result;
 }
 
-const RUN_LABELS = { ingest: 'Preparing documents (steps 1–4)', parse: 'Parsing', chunk: 'Chunking', embed: 'Embedding', index: 'Indexing', eval: 'Running the evaluation' };
+const RUN_LABELS = { ingest: 'Preparing documents (steps 1–4)', parse: 'Parsing', chunk: 'Chunking', embed: 'Embedding', index: 'Indexing', eval: 'Running the evaluation', graph: 'Building the knowledge graph', graph_eval: 'Comparing plain RAG and GraphRAG' };
 
 async function runStep(name) {
   try {
@@ -245,6 +247,7 @@ function done(id) {
   if (id === 'docs') return ((S.state && S.state.documents) || []).length > 0;
   if (['filter', 'search', 'fuse', 'rerank'].includes(id)) return !!S.trace;
   if (id === 'answer') return !!(S.trace && S.trace.answer);
+  if (id === 'gask') return !!S.gtrace;
   const s = STEPS.find((x) => x.id === id);
   return !!(s && s.file && o[s.file] && o[s.file].exists);
 }
@@ -265,6 +268,9 @@ function flowCount(id) {
     case 'rerank': return t ? `${t.final.length} to Claude` : '—';
     case 'answer': return t ? (t.answer ? (t.answer.found ? 'answered' : 'not found') : 'skipped') : '—';
     case 'eval': return done('eval') ? 'scored' : 'not run';
+    case 'kg': return done('kg') ? 'built' : 'not built';
+    case 'gask': return S.gtrace ? S.gtrace.mode : 'ask first';
+    case 'geval': return done('geval') ? 'compared' : 'not run';
     default: return '';
   }
 }
@@ -320,6 +326,13 @@ function actionButtons(s) {
     const single = s.file ? `<button class="btn sm" data-run="${s.file}" ${busy}>Run this step</button>` : '';
     return `${single}<button class="btn sm primary" data-run="ingest" ${busy}>Run steps 1–4</button>`;
   }
+  if (s.id === 'kg') {
+    const llm = S.state.has_api_key || S.state.config.graph_llm.startsWith('openai');
+    return `<button class="btn sm primary" data-run="graph" ${busy} ${llm ? '' : 'disabled title="Needs ANTHROPIC_API_KEY or GRAPH_LLM=openai"'}>${done('kg') ? 'Rebuild graph' : 'Build graph'}</button>`;
+  }
+  if (s.id === 'geval') {
+    return `<button class="btn sm primary" data-run="graph_eval" ${busy} ${S.state.has_api_key ? '' : 'disabled title="Needs ANTHROPIC_API_KEY"'}>Run comparison</button>`;
+  }
   if (s.id === 'eval') {
     return `<button class="btn sm primary" data-run="eval" ${busy} ${S.state.has_api_key ? '' : 'disabled title="Needs ANTHROPIC_API_KEY"'}>Run evaluation</button>`;
   }
@@ -356,7 +369,7 @@ function askBar() {
 function emptyStep(title, body, runName) {
   const busy = S.job && S.job.status === 'running' ? 'disabled' : '';
   return `<div class="panel empty"><h3>${esc(title)}</h3><p>${body}</p>
-    ${runName ? `<button class="btn primary" data-run="${runName}" ${busy}>${runName === 'ingest' ? 'Run steps 1–4' : 'Run this step'}</button>` : ''}</div>`;
+    ${runName ? `<button class="btn primary" data-run="${runName}" ${busy}>${{ ingest: 'Run steps 1–4', graph: 'Build the graph', graph_eval: 'Run the comparison' }[runName] || 'Run this step'}</button>` : ''}</div>`;
 }
 
 async function render() {
@@ -365,6 +378,7 @@ async function render() {
   const main = $('#main');
   let html = '';
   if (s.phase === 'ask') html += askBar();
+  if (s.id === 'gask') html += graphAskBar();
   html += explainBlock(s);
   main.innerHTML = html + '<div id="viz"><div class="panel empty"><span class="spin"></span></div></div>';
   let viz = '';
@@ -608,6 +622,8 @@ const VIEWS = {
   },
 };
 
+Object.assign(VIEWS, GRAPH_VIEWS);
+
 function noTrace() {
   return `<div class="panel empty"><h3>Ask a question to see this step</h3><p>Use the box above. Retrieval works without a Claude key; only the final answer needs one.</p></div>`;
 }
@@ -622,6 +638,7 @@ const AFTER = {
       $('#chunkdetail').scrollIntoView({ block: 'nearest' });
     }));
   },
+  ...GRAPH_AFTER,
   embed() { bindMap(true); },
   search() { bindMap(false); },
 };

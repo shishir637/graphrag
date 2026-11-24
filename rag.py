@@ -6,6 +6,9 @@
   python rag.py chat                       # interactive question loop
   python rag.py draft-questions -n 20      # let Claude draft an eval set from your chunks (review it!)
   python rag.py eval                       # RAGAS evaluation over eval_questions.json
+  python rag.py graph-build                # GraphRAG: LLM extraction -> entity resolution -> Leiden -> reports -> AGE
+  python rag.py graph-ask "q" [--mode auto|local|global|hybrid]
+  python rag.py graph-eval [--modes rag,hybrid,local,global]   # does the graph help? per question type
   python rag.py ui [--port 8000]           # visual interface: every step, explained, in the browser
 """
 import argparse
@@ -43,6 +46,14 @@ def main():
         sp.add_argument("--sources", help="comma-separated file names to restrict the search to")
     d = sub.add_parser("draft-questions")
     d.add_argument("-n", type=int, default=20)
+    gb = sub.add_parser("graph-build", help="GraphRAG: extract -> resolve -> communities -> summaries -> store")
+    gb.add_argument("--steps", help="comma-separated subset: extract,resolve,communities,summarize,store")
+    ga = sub.add_parser("graph-ask")
+    ga.add_argument("question")
+    ga.add_argument("--mode", choices=["auto", "local", "global", "hybrid"], default="auto")
+    ga.add_argument("--groups"); ga.add_argument("--sources")
+    ge = sub.add_parser("graph-eval", help="plain RAG vs graph modes on the same questions, per question type")
+    ge.add_argument("--modes", default="rag,hybrid,local")
     u = sub.add_parser("ui")
     u.add_argument("--port", type=int, default=8000)
     args = p.parse_args()
@@ -84,6 +95,17 @@ def _run(args):
         from rag.evaluate import draft_questions; draft_questions(args.n)
     elif args.cmd == "eval":
         from rag.evaluate import run_eval; run_eval()
+    elif args.cmd == "graph-build":
+        from rag.graph.build import build_graph
+        build_graph(*([_csv(args.steps)] if args.steps else []))
+    elif args.cmd == "graph-ask":
+        from rag.graph.search import ask_graph
+        r = ask_graph(args.question, args.mode, _csv(args.groups), _csv(args.sources))
+        print(f"  mode: {r['mode']}")
+        _print_answer(r)
+    elif args.cmd == "graph-eval":
+        from rag.graph.evaluate import run_graph_eval
+        run_graph_eval(tuple(_csv(args.modes)))
     elif args.cmd == "ui":
         from ui.server import serve; serve(port=args.port)
 

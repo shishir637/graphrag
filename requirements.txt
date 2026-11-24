@@ -15,6 +15,10 @@ langchain-anthropic
 langchain-huggingface
 # only used to build the sample PDF
 reportlab
+# GraphRAG: Apache AGE client, entity resolution scoring, Leiden communities
+psycopg[binary]
+rapidfuzz
+networkx>=3.5
 # Visual interface (python rag.py ui); plain uvicorn avoids extra native wheels
 fastapi
 uvicorn

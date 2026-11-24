@@ -69,4 +69,4 @@ def retrieve(question: str, groups: list[str] | None = None, sources: list[str] 
         write_json("5_retrieval.json", result)
         write_json("6_rerank.json", {"question": question, "rerank_seconds": timings["rerank"],
                                      "top_k": FINAL_TOP_K, "passages": final})
-    return {"passages": final, "timings_s": timings}
+    return {"passages": final, "fused": fused_hits, "timings_s": timings}

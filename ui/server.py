@@ -31,6 +31,7 @@ STEP_FILES = {
     "parse": "1_parsed.json", "chunk": "2_chunks.json", "embed": "3_embeddings.json",
     "index": "4_index.json", "retrieve": "5_retrieval.json", "rerank": "6_rerank.json",
     "answer": "7_answer.json", "eval": "8_eval_results.json",
+    "graph": "g5_graph.json", "graph_eval": "g7_graph_eval.json",
 }
 
 app = FastAPI(title="RAG pipeline explorer", docs_url=None, redoc_url=None)
@@ -175,9 +176,18 @@ def state():
             examples = [q["question"] for q in json.loads(qfile.read_text(encoding="utf-8"))][:8]
         except (json.JSONDecodeError, KeyError, TypeError):
             examples = []
+    graph_examples = []
+    gfile = config.ROOT / "eval_questions_graph.json"
+    if gfile.exists():
+        try:
+            graph_examples = [q["question"] for q in json.loads(gfile.read_text(encoding="utf-8"))
+                              if q.get("type") in ("multi-hop", "global")][:6]
+        except (json.JSONDecodeError, KeyError, TypeError):
+            graph_examples = []
     return {
         "documents": docs,
         "examples": examples,
+        "graph_examples": graph_examples,
         "outputs": outputs,
         "groups": groups,
         "has_api_key": bool(os.environ.get("ANTHROPIC_API_KEY")),
@@ -188,6 +198,10 @@ def state():
             "rerank_model": config.RERANK_MODEL, "candidates_per_retriever": config.CANDIDATES_PER_RETRIEVER,
             "fused_top_k": config.FUSED_TOP_K, "final_top_k": config.FINAL_TOP_K,
             "claude_model": config.CLAUDE_MODEL, "collection": config.COLLECTION,
+            "graph_llm": f"{config.GRAPH_LLM}: {config.GRAPH_LLM_MODEL}", "graph_store": config.GRAPH_STORE,
+            "entity_types": config.ENTITY_TYPES, "relation_types": config.RELATION_TYPES,
+            "resolve_auto": config.RESOLVE_AUTO_MERGE, "resolve_review": config.RESOLVE_REVIEW,
+            "graph_hops": config.GRAPH_HOPS, "graph_chunks": config.GRAPH_CHUNKS,
         },
     }
 
@@ -258,6 +272,69 @@ def step_eval():
     return {"exists": data is not None, **(data or {})}
 
 
+@app.get("/api/step/graph")
+def step_graph():
+    """Everything the 'Knowledge graph' screen needs, from g1..g5."""
+    g5 = _out("g5_graph.json")
+    if g5 is None:
+        return {"exists": False}
+    g1, g2, g3, g4 = (_out(n) or {} for n in ("g1_extraction.json", "g2_resolution.json",
+                                               "g3_communities.json", "g4_summaries.json"))
+    examples = [{"chunk_id": c["chunk_id"], "source": c["source"], "entities": c["entities"],
+                 "relations": c["relations"], "problems": c["problems"]}
+                for c in g1.get("chunks", []) if c["entities"]][:40]
+    graph = g5["graph"]
+    return {
+        "exists": True, "stored_in": g5["stored_in"], "counts": g5["counts"], "sample_paths": g5.get("sample_paths", []),
+        "extraction": {"stats": g1.get("stats"), "examples": examples},
+        "resolution": {"stats": g2.get("stats"), "decisions": g2.get("decisions", [])[:200]},
+        "communities": {"stats": g3.get("stats"), "list": g3.get("communities", [])},
+        "summaries": {"stats": g4.get("stats"), "reports": g4.get("reports", [])},
+        "graph": {"entities": [{k: e[k] for k in ("id", "name", "type", "aliases", "summary", "chunk_ids", "community")}
+                               for e in graph["entities"]],
+                  "relations": graph["relations"], "communities": graph["communities"]},
+    }
+
+
+@app.get("/api/step/graph_eval")
+def step_graph_eval():
+    data = _out("g7_graph_eval.json")
+    return {"exists": data is not None, **(data or {})}
+
+
+class GraphAskIn(BaseModel):
+    question: str
+    mode: str = "auto"
+    groups: list[str] | None = None
+    sources: list[str] | None = None
+    generate: bool = False
+
+
+@app.post("/api/graph/ask")
+def graph_ask_route(body: GraphAskIn):
+    question = body.question.strip()
+    if not question:
+        raise HTTPException(400, "Type a question first.")
+    if body.mode not in ("auto", "local", "global", "hybrid"):
+        raise HTTPException(400, "Unknown mode")
+    if _out("g5_graph.json") is None:
+        raise HTTPException(400, "Build the knowledge graph first.")
+    has_key = bool(os.environ.get("ANTHROPIC_API_KEY")) or config.GRAPH_LLM == "openai"
+    if body.generate and not os.environ.get("ANTHROPIC_API_KEY"):
+        raise HTTPException(400, "Writing the answer uses Claude. Set ANTHROPIC_API_KEY in .env, or run retrieval only.")
+    from rag.graph.search import route
+    if (body.mode == "global" or (body.mode == "auto" and route(question) == "global")) and not has_key:
+        raise HTTPException(400, "Global search asks the LLM to read the community reports. Set ANTHROPIC_API_KEY "
+                                 "(or GRAPH_LLM=openai), or pick local / hybrid.")
+    groups = body.groups or ["public"]
+
+    def run():
+        from rag.graph.search import ask_graph
+        return ask_graph(question, body.mode, groups, body.sources or None, save=True, answer=body.generate)
+
+    return _start_job("graph-ask", run)
+
+
 @app.get("/api/history")
 def history(limit: int = 15):
     path = OUT_DIR / "query_log.jsonl"
@@ -296,11 +373,16 @@ def run_step(step: str):
         "parse": one("parse", "parse_all"), "chunk": one("chunk", "chunk_all"),
         "embed": one("embed", "embed_all"), "index": one("store", "build_index"),
         "eval": one("evaluate", "run_eval"),
+        "graph": lambda: __import__("rag.graph.build", fromlist=["build_graph"]).build_graph(),
+        "graph_eval": lambda: __import__("rag.graph.evaluate", fromlist=["run_graph_eval"]).run_graph_eval(),
     }
     if step not in actions:
         raise HTTPException(404, f"Unknown step: {step}")
-    if step == "eval" and not os.environ.get("ANTHROPIC_API_KEY"):
+    if step in ("eval", "graph_eval") and not os.environ.get("ANTHROPIC_API_KEY"):
         raise HTTPException(400, "Evaluation uses Claude as the judge. Set ANTHROPIC_API_KEY in .env first.")
+    if step == "graph" and not (os.environ.get("ANTHROPIC_API_KEY") or config.GRAPH_LLM == "openai"):
+        raise HTTPException(400, "Building the graph uses an LLM to extract entities. Set ANTHROPIC_API_KEY in .env, "
+                                 "or GRAPH_LLM=openai with GRAPH_LLM_BASE_URL for a local open model.")
     return _start_job(step, actions[step])
 
 

@@ -1,0 +1,87 @@
+[
+  {
+    "question": "How many dimensions does the dense embedding have, and which model produces it?",
+    "reference": "1024 dimensions, produced by the BGE-M3 model from BAAI.",
+    "type": "single-hop"
+  },
+  {
+    "question": "What is the maximum chunk size and how is it measured?",
+    "reference": "At most 512 tokens, measured with the BGE-M3 tokenizer.",
+    "type": "single-hop"
+  },
+  {
+    "question": "How are the dense and BM25 search results combined?",
+    "reference": "With Reciprocal Rank Fusion (RRF), which scores chunks by their rank in each list rather than raw similarity; the top 20 fused chunks are kept.",
+    "type": "single-hop"
+  },
+  {
+    "question": "How many chunks are passed to the language model, and what selects them?",
+    "reference": "Five chunks, selected by the BGE reranker v2 m3 cross-encoder from the 20 fused candidates.",
+    "type": "single-hop"
+  },
+  {
+    "question": "Why does the system use BM25 in addition to dense vectors?",
+    "reference": "BM25 is strong at exact matches such as product codes, names and numbers, while dense vectors capture meaning and paraphrases.",
+    "type": "single-hop"
+  },
+  {
+    "question": "Which library parses the documents and what structure does it keep?",
+    "reference": "Docling, from IBM Research; it keeps headings, tables and page numbers, and can OCR scanned pages.",
+    "type": "single-hop"
+  },
+  {
+    "question": "What fields does the structured answer contain?",
+    "reference": "found, answer and citations.",
+    "type": "single-hop"
+  },
+  {
+    "question": "Which index and similarity does Qdrant use for dense vectors?",
+    "reference": "An HNSW graph index with cosine similarity.",
+    "type": "single-hop"
+  },
+  {
+    "question": "What does the evaluation record besides RAGAS quality scores?",
+    "reference": "Latency for each stage and the number of input and output tokens per question.",
+    "type": "single-hop"
+  },
+  {
+    "question": "Which candidate pool size does each retriever return?",
+    "reference": "The top 30 candidates from each of the dense and BM25 searches.",
+    "type": "single-hop"
+  },
+  {
+    "question": "How much does the system cost to run per month?",
+    "reference": "The documents do not say.",
+    "type": "unanswerable"
+  },
+  {
+    "type": "multi-hop",
+    "question": "Which model is used both to measure chunk size and to create the dense vectors, and who publishes it?",
+    "reference": "BGE-M3: its tokenizer measures the 512-token chunk limit and it produces the 1024-dimension dense vectors. It is published by the Beijing Academy of Artificial Intelligence (BAAI)."
+  },
+  {
+    "type": "multi-hop",
+    "question": "Which components of the pipeline come from research organisations, and which organisations are they?",
+    "reference": "Docling, the parser, comes from IBM Research; the BGE-M3 embedding model (and the BGE reranker) come from the Beijing Academy of Artificial Intelligence (BAAI)."
+  },
+  {
+    "type": "multi-hop",
+    "question": "Which model re-scores the fused chunks, and how many chunks does fusion keep from the two searches before that?",
+    "reference": "The BGE reranker v2 m3 cross-encoder re-scores them; RRF fusion keeps the top 20 chunks from the 30 dense and 30 BM25 candidates."
+  },
+  {
+    "type": "multi-hop",
+    "question": "Where is the access list stored and at which point of retrieval is it applied?",
+    "reference": "The access list is stored in each Qdrant point's payload with the chunk text, source and pages, and the permission filter is applied inside the dense and BM25 searches themselves."
+  },
+  {
+    "type": "global",
+    "question": "What are the main themes across the documents?",
+    "reference": "The design of the document question-answering system built at INI8 LABS: parsing and chunking with Docling, BGE-M3 and BM25 embeddings in Qdrant, hybrid retrieval with RRF and re-ranking, grounded answer generation with Claude, and evaluation with RAGAS."
+  },
+  {
+    "type": "global",
+    "question": "Summarize how the system makes sure answers are grounded and can be checked.",
+    "reference": "Claude answers only from the five retrieved passages, cites their ids, and sets found=false when they do not contain the answer; every stage writes its own JSON file, every question is logged with passages and timings, and RAGAS faithfulness measures grounding."
+  }
+]

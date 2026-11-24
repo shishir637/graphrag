@@ -80,6 +80,43 @@ matters, what to look for, the settings it uses) and a visual of what that step 
 - It listens on `127.0.0.1` only and has no login: the access groups are whatever you tick, so it shows
   how permission filtering works rather than enforcing security.
 
+## GraphRAG (optional layer on the same passages)
+
+LLM-based GraphRAG built on top of this pipeline. It reads `outputs/2_chunks.json`, so run `ingest` first.
+
+```
+python rag.py graph-build                      # g1..g5 below
+python rag.py graph-ask "question" --mode auto # auto | hybrid | local | global
+python rag.py graph-eval                       # plain RAG vs graph modes, per question type
+```
+
+| Step | File | What happens |
+|---|---|---|
+| g1 extract | `rag/graph/extract.py` | LLM lists entities and relationships per chunk, from a closed list of types (`config.py`). Structured output, one "anything missed?" pass, cached by chunk hash. Out-of-schema items are fixed or dropped. |
+| g2 resolve | `rag/graph/resolve.py` | Entity resolution. Normalised exact matches merge directly; other pairs (blocked by type + shared token/initials/nearest embedding) are scored by name similarity (rapidfuzz) + BGE-M3 cosine. High scores merge; borderline pairs go to the LLM; every decision is logged. |
+| g3 communities | `rag/graph/communities.py` | Leiden (NetworkX, BSD, modularity), split again for large communities (hierarchy). |
+| g4 summarize | `rag/graph/summarize.py` | Entity seen once keeps its description (no LLM); seen several times gets one merged description. Each community gets a report. |
+| g5 store | `rag/graph/store.py` | Apache AGE (Postgres) as storage only. `Entity`, `Chunk`, `Community` nodes; `RELATED`, `MENTIONS`, `IN_COMMUNITY`, `CHILD_OF` edges. Chunk ids match Qdrant. `GRAPH_STORE=json` uses a JSON file + NetworkX instead. |
+| g6 search | `rag/graph/search.py` | **hybrid** (default): the graph's chunks are RRF-fused with the existing dense + BM25 candidates, re-ranked by the same re-ranker, answered by the same `generate()`, plus a short "graph facts" passage. **local**: graph chunks only. **global**: map-reduce over community reports. **auto**: rule-based router. |
+| g7 eval | `rag/graph/evaluate.py` | Same RAGAS judge for every mode, overall and per question type. Pass rule: hybrid ≥ RAG − 0.02 on every type. Questions: `eval_questions_graph.json` (the RAG set tagged, plus multi-hop and global questions). |
+
+**Why hybrid and not summaries alone:** answering fact questions from LLM summaries instead of the source passages loses detail, which is the usual reason GraphRAG scores below plain RAG on single-hop questions. Hybrid only adds candidates, so if the graph finds nothing the answer is the same as plain RAG.
+
+**Access:** entities, relationships and reports keep the chunk ids they came from. Search filters on the asker's groups before anything reaches the LLM. A merged summary or community report is used only if the user can see every chunk it was written from; otherwise the per-chunk descriptions they can see are used.
+
+**LLM choice:** Claude by default. For a fully open-source setup, point it at any OpenAI-compatible server (Ollama, vLLM):
+`GRAPH_LLM=openai GRAPH_LLM_MODEL=qwen2.5:14b GRAPH_LLM_BASE_URL=http://localhost:11434/v1`
+
+**Apache AGE setup** (Postgres 16, once):
+```
+git clone -b PG16 https://github.com/apache/age && cd age && make && sudo make install
+psql -c "CREATE ROLE clp LOGIN SUPERUSER PASSWORD 'clp'" -c "CREATE DATABASE graphrag OWNER clp"
+psql -d graphrag -c "CREATE EXTENSION age"
+```
+Set `GRAPH_DSN` in `.env` if your connection differs from `postgresql://clp:clp@127.0.0.1:5432/graphrag`. AGE has no Windows build; on Windows use Docker (`apache/age` image) or `GRAPH_STORE=json`.
+
+The visual interface has three more screens (11–13): the interactive graph with every extraction and merge decision, a graph answer trace, and the RAG vs GraphRAG comparison.
+
 ## What RAGAS measures (and what it doesn't)
 
 RAGAS measures **quality**, split by layer so you know what to fix:

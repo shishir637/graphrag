@@ -29,3 +29,42 @@ FINAL_TOP_K = 5                        # passages handed to Claude
 
 # Generation / evaluation
 CLAUDE_MODEL = "claude-opus-5-5"
+
+# ---- GraphRAG (python rag.py graph-build / graph-ask / graph-eval) ----------------------------
+import os as _os
+
+# LLM used to extract entities/relationships and write summaries.
+#   anthropic -> Claude via the same client as generation (default)
+#   openai    -> any OpenAI-compatible server, e.g. Ollama/vLLM with an open model (fully open source)
+GRAPH_LLM = _os.environ.get("GRAPH_LLM", "anthropic")
+GRAPH_LLM_MODEL = _os.environ.get("GRAPH_LLM_MODEL", CLAUDE_MODEL)
+GRAPH_LLM_BASE_URL = _os.environ.get("GRAPH_LLM_BASE_URL", "http://localhost:11434/v1")
+
+# Schema the extractor may use. Keep it small and specific to your documents: a closed list
+# gives cleaner graphs than letting the LLM invent types.
+ENTITY_TYPES = ["Person", "Organization", "Project", "Product", "Technology", "Skill", "Location",
+                "Role", "Document", "Metric", "Concept"]
+RELATION_TYPES = ["WORKS_AT", "WORKS_ON", "HAS_ROLE", "HAS_SKILL", "USES", "PART_OF", "LOCATED_IN",
+                  "OWNS", "DEPENDS_ON", "PRODUCES", "MEASURES", "RELATED_TO"]
+EXTRACT_GLEANINGS = 1                  # extra "did you miss anything?" passes per chunk (0 = off)
+
+# Entity resolution: score = 0.5 * name similarity + 0.5 * description-embedding cosine
+RESOLVE_AUTO_MERGE = 0.90              # >= merge automatically
+RESOLVE_REVIEW = 0.78                  # between REVIEW and AUTO_MERGE -> LLM decides (or listed for review)
+RESOLVE_USE_LLM = True                 # False -> borderline pairs are only listed, never merged
+
+# Storage: Apache AGE (Postgres). "json" keeps everything in outputs/ and uses NetworkX instead.
+GRAPH_STORE = _os.environ.get("GRAPH_STORE", "age")
+GRAPH_DSN = _os.environ.get("GRAPH_DSN", "postgresql://clp:clp@127.0.0.1:5432/graphrag")
+GRAPH_NAME = "doc_graph"
+
+# Communities (Leiden) and their reports
+LEIDEN_RESOLUTION = 1.0
+MAX_COMMUNITY_SIZE = 25                # bigger communities are split again -> next level
+COMMUNITY_MIN_SIZE = 2                 # singletons get no report
+
+# Graph search
+GRAPH_HOPS = 1                         # neighbourhood around the question's entities
+GRAPH_CHUNKS = 15                      # chunks the graph contributes to hybrid fusion
+ENTITY_LINK_MIN = 0.55                 # min cosine for question -> entity linking by embedding
+GLOBAL_TOP_POINTS = 20                 # key points kept after the map step of global search

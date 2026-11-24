@@ -79,24 +79,14 @@ class _BGEEmbeddings(Embeddings):
         return embed_dense([text])[0]
 
 
-def run_eval():
+def score_runs(items: list[dict], runs: list[dict]) -> tuple[list[dict], list[str]]:
+    """RAGAS scores for answered questions (shared by `eval` and `graph-eval`)."""
     from ragas import EvaluationDataset, evaluate
     from ragas.embeddings import LangchainEmbeddingsWrapper
     from ragas.llms import LangchainLLMWrapper
     from ragas.run_config import RunConfig
     from ragas.metrics import (Faithfulness, LLMContextPrecisionWithReference, LLMContextRecall,
                                ResponseRelevancy)
-
-    if not QUESTIONS_FILE.exists():
-        raise SystemExit("eval_questions.json not found - run `python rag.py draft-questions` or write it by hand.")
-    items = json.loads(QUESTIONS_FILE.read_text(encoding="utf-8"))
-
-    print(f"  answering {len(items)} questions...")
-    runs = []
-    for i, it in enumerate(items, 1):
-        r = ask(it["question"], it.get("groups"), it.get("sources"), save=False)
-        runs.append(r)
-        print(f"   {i}/{len(items)} {r['timings_s']['total']}s  found={r['found']}")
 
     dataset = EvaluationDataset.from_list([{
         "user_input": it["question"],
@@ -127,6 +117,22 @@ def run_eval():
             "timings_s": r["timings_s"], "usage": r["usage"],
             "retrieved": [f"{c['source']}#{c['chunk_id']}" for c in r["contexts"]],
         })
+    return per_q, metric_cols
+
+
+def run_eval():
+    if not QUESTIONS_FILE.exists():
+        raise SystemExit("eval_questions.json not found - run `python rag.py draft-questions` or write it by hand.")
+    items = json.loads(QUESTIONS_FILE.read_text(encoding="utf-8"))
+
+    print(f"  answering {len(items)} questions...")
+    runs = []
+    for i, it in enumerate(items, 1):
+        r = ask(it["question"], it.get("groups"), it.get("sources"), save=False)
+        runs.append(r)
+        print(f"   {i}/{len(items)} {r['timings_s']['total']}s  found={r['found']}")
+
+    per_q, metric_cols = score_runs(items, runs)
 
     def avg(vals):
         vals = [v for v in vals if v is not None]
