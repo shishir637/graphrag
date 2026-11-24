@@ -53,6 +53,8 @@ class AgeStore:
         import psycopg
         self.graph = graph
         self.conn = psycopg.connect(dsn, autocommit=True)
+        if not self.conn.execute("SELECT 1 FROM pg_extension WHERE extname = 'age'").fetchone():
+            self.conn.execute("CREATE EXTENSION age")       # needs a superuser once (true for the Docker image)
         self.conn.execute("LOAD 'age'")
         self.conn.execute('SET search_path = ag_catalog, "$user", public')
 
