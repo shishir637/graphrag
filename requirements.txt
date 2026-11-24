@@ -26,7 +26,12 @@ pytest
 fastapi
 uvicorn
 python-multipart
-# Pinned: newer wheels of these are blocked by Windows Application Control on this PC
+# Pinned: newer wheels of these are blocked by Windows Application Control on our PCs.
+# torch comes from the PyTorch CPU index (same build that passed the policy); Windows only.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.7.1+cpu; sys_platform == "win32"
+torchvision==0.22.1+cpu; sys_platform == "win32"
+grpcio==1.71.0; sys_platform == "win32"
 pyarrow==22.0.0
 xxhash==3.6.0
 opencv-python-headless==4.11.0.86
