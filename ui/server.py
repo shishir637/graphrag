@@ -34,12 +34,25 @@ STEP_FILES = {
     "graph": "g5_graph.json", "graph_eval": "g7_graph_eval.json",
 }
 
-app = FastAPI(title="RAG pipeline explorer", docs_url=None, redoc_url=None)
+from . import keys as _keys
+from . import mcp_server as _mcp
+
+_mcp_asgi = _mcp.http_app()          # builds the MCP session manager; mounted at the end of this file
+
+
+@contextlib.asynccontextmanager
+async def _lifespan(app):
+    async with _mcp.mcp.session_manager.run():
+        yield
+
+
+app = FastAPI(title="Context Layer", docs_url=None, redoc_url=None, lifespan=_lifespan)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 # One pipeline action at a time: the embedded Qdrant store allows a single writer,
-# and the steps read each other's output files.
+# and the steps read each other's output files. MCP tools wait on the same lock.
 _lock = threading.Lock()
+_mcp.LOCK = _lock
 _jobs: dict[str, dict] = {}
 
 
@@ -382,7 +395,14 @@ def run_step(step: str):
             getattr(mod, fn)()
         return go
 
+    def prepare():
+        ingest()
+        print("[graph] Building the knowledge graph")
+        from rag.graph.build import build_graph
+        build_graph()
+
     actions = {
+        "prepare": prepare,
         "ingest": ingest,
         "parse": one("parse", "parse_all"), "chunk": one("chunk", "chunk_all"),
         "embed": one("embed", "embed_all"), "index": one("store", "build_index"),
@@ -394,7 +414,7 @@ def run_step(step: str):
         raise HTTPException(404, f"Unknown step: {step}")
     if step in ("eval", "graph_eval") and not os.environ.get("ANTHROPIC_API_KEY"):
         raise HTTPException(400, "Evaluation uses Claude as the judge. Set ANTHROPIC_API_KEY in .env first.")
-    if step == "graph" and config.EXTRACT_MODE == "llm" and not _graph_llm():
+    if step in ("graph", "prepare") and config.EXTRACT_MODE == "llm" and not _graph_llm():
         raise HTTPException(400, "EXTRACT_MODE=llm needs an LLM. Set ANTHROPIC_API_KEY, GRAPH_LLM=openai for a local "
                                  "model, or use EXTRACT_MODE=hybrid / gliner (works without any LLM).")
     return _start_job(step, actions[step])
@@ -503,8 +523,81 @@ def set_access(body: AccessIn):
     return {"name": name, "access": groups, "note": "Re-run the preparation steps so the index picks this up."}
 
 
+# ---------------------------------------------------------------- console (agents, keys, MCP)
+
+@app.get("/console")
+def console_page():
+    return FileResponse(STATIC / "console.html")
+
+
+class KeyIn(BaseModel):
+    name: str
+    groups: list[str] = ["public"]
+
+
+@app.get("/api/console/keys")
+def console_keys():
+    return {"keys": _keys.list_keys()}
+
+
+@app.post("/api/console/keys")
+def console_create_key(body: KeyIn):
+    try:
+        rec, token = _keys.create(body.name, body.groups)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"key": rec, "token": token}
+
+
+@app.post("/api/console/keys/{key_id}/revoke")
+def console_revoke_key(key_id: str):
+    try:
+        return {"key": _keys.revoke(key_id)}
+    except KeyError:
+        raise HTTPException(404, "No such key")
+
+
+@app.get("/api/console/activity")
+def console_activity(limit: int = 50):
+    return {"calls": _keys.recent_calls(limit)}
+
+
+@app.get("/api/console/tools")
+def console_tools():
+    out = []
+    for t in _mcp.mcp._tool_manager.list_tools():
+        out.append({"name": t.name, "description": t.description, "input": t.parameters})
+    return {"tools": out}
+
+
+class TryIn(BaseModel):
+    key_id: str
+    tool: str
+    args: dict = {}
+
+
+@app.post("/api/console/try")
+def console_try(body: TryIn):
+    """Run a tool exactly as an agent holding this key would (local console only)."""
+    k = _keys.get(body.key_id)
+    if k is None or k["revoked"]:
+        raise HTTPException(400, "Pick an active key.")
+    if body.tool not in _mcp.TOOLS:
+        raise HTTPException(404, "Unknown tool")
+    try:
+        return {"result": _mcp.run_tool(k, body.tool, body.args)}
+    except Exception as e:                                  # noqa: BLE001 - show the agent-facing error
+        raise HTTPException(400, str(e))
+
+
 def serve(host: str = "127.0.0.1", port: int = 8000):
     import uvicorn
 
-    print(f"RAG pipeline explorer: http://{host}:{port}")
+    print(f"Context Layer console:  http://{host}:{port}/console")
+    print(f"Pipeline explorer:      http://{host}:{port}/")
+    print(f"MCP endpoint (agents):  http://{host}:{port}/mcp   (needs a key from the console)")
     uvicorn.run(app, host=host, port=port, log_level="warning")
+
+
+# MCP endpoint (/mcp). Mounted last so the routes above take priority.
+app.mount("/", _mcp_asgi)

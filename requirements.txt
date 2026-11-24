@@ -26,6 +26,8 @@ pytest
 fastapi
 uvicorn
 python-multipart
+# MCP server for agents (ui/mcp_server.py)
+mcp>=2.3,<3
 # Pinned: newer wheels of these are blocked by Windows Application Control on our PCs.
 # torch comes from the PyTorch CPU index (same build that passed the policy); Windows only.
 --extra-index-url https://download.pytorch.org/whl/cpu

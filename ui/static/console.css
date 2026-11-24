@@ -1,0 +1,41 @@
+/* Context Layer console: builds on style.css variables and components */
+.ctabs { display: flex; gap: 4px; padding: 0 28px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+.ctabs button { font: inherit; font-size: 14px; font-weight: 600; color: var(--muted); background: none; border: 0; border-bottom: 2px solid transparent; padding: 12px 14px 10px; cursor: pointer; }
+.ctabs button:hover { color: var(--ink); }
+.ctabs button.on { color: var(--accent-ink); border-bottom-color: var(--accent); }
+.ctab-link { margin-left: auto; align-self: center; font-size: 13px; color: var(--muted); text-decoration: none; padding: 8px 4px; }
+.ctab-link:hover { color: var(--accent-ink); }
+.cmain { max-width: 1080px; margin: 0 auto; padding: 22px 28px 60px; }
+.cmain h2 { margin: 0 0 4px; font-size: 20px; }
+.lead { color: var(--muted); margin: 0 0 16px; font-size: 14.5px; max-width: 760px; }
+.steps3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 14px 0 6px; }
+.steps3 .s { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: var(--panel); }
+.steps3 .s b { display: block; font-size: 13.5px; margin-bottom: 3px; }
+.steps3 .s span { font-size: 13px; color: var(--muted); }
+.steps3 .s.done b::before { content: "✓ "; color: var(--ok); }
+.field { display: grid; gap: 6px; margin-bottom: 12px; }
+.field label.lbl, .lbl { font-size: 12.5px; font-weight: 650; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.copyrow { display: flex; gap: 8px; align-items: stretch; }
+.copyrow code { flex: 1; display: block; padding: 9px 11px; background: var(--code); border: 1px solid var(--line); border-radius: 8px; font-size: 13.5px; overflow-x: auto; white-space: nowrap; }
+.secret { border-color: var(--warn) !important; background: var(--warn-bg) !important; }
+.once { font-size: 13px; color: var(--warn); margin: 6px 0 0; }
+.clients { display: flex; gap: 6px; flex-wrap: wrap; margin: 14px 0 8px; }
+.clients button { font: inherit; font-size: 13px; padding: 6px 11px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; color: var(--ink); }
+.clients button.on { border-color: var(--accent); background: var(--accent-bg); color: var(--accent-ink); font-weight: 650; }
+pre.snippet { background: var(--code); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 12.8px; overflow-x: auto; margin: 6px 0 0; white-space: pre; }
+.snip-wrap { position: relative; }
+.snip-wrap .btn { position: absolute; top: 8px; right: 8px; }
+.hint { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+.hint ol, .hint ul { margin: 6px 0 0; padding-left: 20px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.result { background: var(--code); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 12.8px; max-height: 520px; overflow: auto; white-space: pre-wrap; word-break: break-word; margin: 0; }
+textarea { font: inherit; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; width: 100%; min-height: 110px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; }
+textarea:focus { outline: 2px solid var(--accent-bg); border-color: var(--accent); }
+.tool-desc { font-size: 13px; color: var(--muted); margin: 6px 0 10px; }
+td.mono, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+.revoked td { opacity: .5; }
+@media (max-width: 760px) {
+  .steps3, .grid2 { grid-template-columns: 1fr; }
+  .cmain { padding: 16px; }
+  .ctabs { padding: 0 10px; }
+}

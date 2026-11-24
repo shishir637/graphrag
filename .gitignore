@@ -4,3 +4,4 @@ qdrant_data/
 outputs/
 __pycache__/
 *.pyc
+console_data/

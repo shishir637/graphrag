@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Context Layer console</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/console.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="logo" aria-hidden="true">CL</div>
+    <div>
+      <h1>Context Layer</h1>
+      <p class="sub">Connect your documents once, then give any AI agent a link to search and ask them, with sources.</p>
+    </div>
+  </div>
+  <div class="status" id="status"></div>
+</header>
+<nav class="ctabs" id="tabs" aria-label="Console sections">
+  <button data-tab="connect" class="on">Connect an agent</button>
+  <button data-tab="data">Data</button>
+  <button data-tab="keys">Keys</button>
+  <button data-tab="try">Try it</button>
+  <button data-tab="activity">Activity</button>
+  <a href="/" class="ctab-link">Pipeline explorer ↗</a>
+</nav>
+<main id="main" class="cmain" tabindex="-1"></main>
+<aside class="job" id="job" hidden aria-live="polite"></aside>
+<div class="toast" id="toast" hidden role="status"></div>
+<script src="/static/console.js"></script>
+</body>
+</html>

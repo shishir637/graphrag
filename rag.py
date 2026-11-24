@@ -9,7 +9,8 @@
   python rag.py graph-build                # GraphRAG: LLM extraction -> entity resolution -> Leiden -> reports -> AGE
   python rag.py graph-ask "q" [--mode auto|local|global|hybrid]
   python rag.py graph-eval [--modes rag,hybrid,local,global]   # does the graph help? per question type
-  python rag.py ui [--port 8000]           # visual interface: every step, explained, in the browser
+  python rag.py doctor                     # check that every package loads on this PC
+  python rag.py ui [--port 8000]           # console (/console), pipeline explorer (/) and MCP endpoint (/mcp)
 """
 import argparse
 import os
@@ -37,7 +38,7 @@ def _csv(v):
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
-    for name in ("ingest", "parse", "chunk", "embed", "index", "chat", "eval"):
+    for name in ("ingest", "parse", "chunk", "embed", "index", "chat", "eval", "doctor"):
         sub.add_parser(name)
     a = sub.add_parser("ask")
     a.add_argument("question")
@@ -75,7 +76,35 @@ def main():
             store._client.close()
 
 
+def _doctor():
+    """Import every compiled dependency and report which ones this PC refuses to load."""
+    import importlib
+    checks = [("torch", "embeddings, GLiNER2, PDF layout"), ("torchvision", "PDF layout"), ("transformers", "models"),
+              ("grpc", "Qdrant client"), ("qdrant_client", "search index"), ("fastembed", "keyword search, re-ranker"),
+              ("onnxruntime", "re-ranker"), ("docling", "parsing"), ("pyarrow", "parsing"), ("cv2", "parsing"),
+              ("gliner2", "local extraction"), ("psycopg", "Apache AGE"), ("rapidfuzz", "entity resolution"),
+              ("networkx", "communities"), ("mcp", "MCP server"), ("cryptography", "MCP server"),
+              ("rpds", "MCP server"), ("fastapi", "web UI"), ("uvicorn", "web UI")]
+    if sys.platform == "win32":
+        checks.append(("win32api", "MCP server (pywin32)"))
+    bad = 0
+    for mod, used_for in checks:
+        try:
+            m = importlib.import_module(mod)
+            print(f"  OK       {mod:<14} {getattr(m, '__version__', ''):<14} {used_for}")
+        except ModuleNotFoundError as e:
+            bad += 1
+            print(f"  MISSING  {mod:<14} {'':<14} {used_for}: not installed ({e.name})")
+        except Exception as e:                                  # noqa: BLE001
+            bad += 1
+            print(f"  BLOCKED  {mod:<14} {'':<14} {used_for}: {str(e)[:90]}")
+    print("\nAll good." if not bad else f"\n{bad} problem(s). MISSING: run pip install -r requirements.txt. BLOCKED with "
+          "'Application Control policy': Windows refuses that version; try an older one (README, Windows notes).")
+
+
 def _run(args):
+    if args.cmd == "doctor":
+        return _doctor()
 
     if args.cmd == "ask":
         from rag.generate import ask

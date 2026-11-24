@@ -134,6 +134,32 @@ Resolution rules have unit tests that need no models: `python -m pytest tests -q
 
 The visual interface has three more screens (11–13): the interactive graph with every extraction and merge decision, a graph answer trace, and the RAG vs GraphRAG comparison.
 
+## Console and MCP server (connect any agent)
+
+`python rag.py ui` now serves three things on http://127.0.0.1:8000:
+
+| Address | What it is |
+|---|---|
+| `/console` | **Context Layer console**: add documents, *Prepare data* (parse, index, knowledge graph), create one access key per agent, copy the MCP link and ready-made setup for Claude Code, Claude Desktop, Cursor, VS Code or Python, try any tool as a key, see every call |
+| `/mcp` | **MCP endpoint** (Streamable HTTP) for agents. Every request needs `Authorization: Bearer <key>` |
+| `/` | Pipeline explorer (every step explained) |
+
+Tools an agent gets (all read-only, all limited to the key's access groups):
+
+| Tool | Returns |
+|---|---|
+| `list_documents` | documents the key can read |
+| `search` | best passages for a query (dense + BM25, re-ranked), with ids and sources |
+| `ask` | GraphRAG answer with citations and passages (passages only when no LLM is configured) |
+| `find_entity` | what the knowledge graph knows about a name: description, other names, relationships, passages |
+| `fetch_passage` | the exact text of a passage id, for quoting |
+
+A key carries access groups (the same groups documents are tagged with), so an HR bot key with `hr, public` sees the salary file and a public key does not. Keys are stored as SHA-256 hashes in `console_data/keys.json` (git-ignored) and calls are logged to `console_data/mcp_calls.jsonl`. Revoking a key cuts that agent off on its next request. If the graph store is down, `ask` falls back to document search and says so.
+
+This runs on your own computer only (127.0.0.1). Other machines, phones and hosted apps such as ChatGPT need it hosted with HTTPS and sign-in, plus separate data per customer: that is the next phase (see the Context Layer baseline roadmap).
+
+`python rag.py doctor` checks that every package loads on this PC and says which are missing or blocked.
+
 ## What RAGAS measures (and what it doesn't)
 
 RAGAS measures **quality**, split by layer so you know what to fix:
