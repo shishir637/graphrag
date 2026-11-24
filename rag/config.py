@@ -35,7 +35,9 @@ import os as _os
 
 # LLM used to extract entities/relationships and write summaries.
 #   anthropic -> Claude via the same client as generation (default)
-#   openai    -> any OpenAI-compatible server, e.g. Ollama/vLLM with an open model (fully open source)
+#   openai    -> any OpenAI-compatible server, e.g. Ollama/vLLM with an open model (fully open source, no key)
+#   none      -> no LLM at all: every graph step uses its rule-based fallback (also automatic when
+#                GRAPH_LLM=anthropic and ANTHROPIC_API_KEY is not set)
 GRAPH_LLM = _os.environ.get("GRAPH_LLM", "anthropic")
 GRAPH_LLM_MODEL = _os.environ.get("GRAPH_LLM_MODEL", CLAUDE_MODEL)
 GRAPH_LLM_BASE_URL = _os.environ.get("GRAPH_LLM_BASE_URL", "http://localhost:11434/v1")

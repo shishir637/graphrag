@@ -2,6 +2,7 @@
 Claude (default) or any OpenAI-compatible server such as Ollama running an open model.
 Tests replace the backend with set_backend()."""
 import json
+import os
 from typing import Callable, TypeVar
 
 from pydantic import BaseModel
@@ -44,6 +45,25 @@ def _openai_compatible(system: str, user: str, schema: type[T]) -> T:
     usage["input_tokens"] += u.get("prompt_tokens", 0)
     usage["output_tokens"] += u.get("completion_tokens", 0)
     return schema.model_validate_json(data["choices"][0]["message"]["content"])
+
+
+def available() -> bool:
+    """Is there an LLM to call? Claude needs ANTHROPIC_API_KEY; GRAPH_LLM=openai points at a local
+    server (Ollama, vLLM) and needs no key; GRAPH_LLM=none switches the LLM off on purpose.
+    Without one, every graph step falls back to a rule-based version instead of failing."""
+    if _backend is not None:
+        return True
+    if GRAPH_LLM == "none":
+        return False
+    if GRAPH_LLM == "openai":
+        return True
+    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+
+def describe() -> str:
+    if not available():
+        return "no LLM (rule-based fallbacks)"
+    return f"{GRAPH_LLM}: {GRAPH_LLM_MODEL}" if _backend is None else "test backend"
 
 
 def structured(system: str, user: str, schema: type[T]) -> T:

@@ -19,7 +19,7 @@ function graphExplain(id, c) {
       what: `${c.extract_mode === 'llm' ? `An LLM (${esc(c.graph_llm)}) reads every passage and lists` : `<b>GLiNER2</b>, a small model running on this machine, reads every passage and lists`} the <b>entities</b> in it (${(c.entity_types || []).length} allowed types) and the <b>relationships</b> between them${c.extract_mode === 'hybrid' ? `, each with a confidence score. Only the weakest passages (at most ${Math.round(c.escalate_budget * 100)}% of them) go to the LLM, which reviews and corrects GLiNER's draft` : ''}. <b>Entity resolution</b> then links names of the same thing ("BGE-M3" and "BGE-M3 model"), trying the cheapest check first: exact name, a number check, spelling and acronyms, name similarity, tight groups, and only then the LLM. Links can be reviewed and undone. <b>Leiden</b> groups tightly linked entities into communities, and the LLM writes a short report for each. The result is stored in <b>${c.graph_store === 'age' ? 'Apache AGE (Postgres)' : 'a JSON file'}</b>, and every entity and link keeps the ids of the passages it came from.`,
       why: 'The graph connects facts that sit in different passages, which plain search cannot do. But a graph is only as good as its extraction and resolution: a missed entity or a wrong merge means a wrong answer.',
       watch: ['Click a node to see its description, aliases and the passages it came from.', 'Check the resolution links: a wrong match (two different people joined) is worse than a missed one. Fix either kind in graph_resolution_overrides.json and rebuild from the resolve step.', 'Out-of-schema types and links to entities that were never extracted are dropped or fixed; the count is shown below.', 'Passages marked "reviewed by LLM" were escalated: check what the LLM dropped and added. If many weak passages stay with GLiNER, raise ESCALATE_BUDGET.', 'Re-runs only process new or changed passages.'],
-      settings: [['Extraction', c.extract_mode === 'llm' ? `LLM (${c.graph_llm})` : c.extract_mode === 'gliner' ? `GLiNER2 only (${c.gliner_model})` : `GLiNER2 + LLM review of up to ${Math.round(c.escalate_budget * 100)}%`], ['Store', c.graph_store === 'age' ? 'Apache AGE' : 'JSON + NetworkX'], ['Match by similarity at', c.resolve_match], ['Different below', c.resolve_no_match], ['LLM pair budget', c.resolve_llm_pairs], ['Communities', 'Leiden (modularity)']],
+      settings: [['Extraction', c.extract_mode === 'llm' ? `LLM (${c.graph_llm})` : c.extract_mode === 'gliner' || !S.state.graph_llm_available ? `GLiNER2 only (${c.gliner_model})` : `GLiNER2 + LLM review of up to ${Math.round(c.escalate_budget * 100)}%`], ['LLM', c.graph_llm], ['Store', c.graph_store === 'age' ? 'Apache AGE' : 'JSON + NetworkX'], ['Match by similarity at', c.resolve_match], ['Different below', c.resolve_no_match], ['LLM pair budget', c.resolve_llm_pairs], ['Communities', 'Leiden (modularity)']],
     },
     gask: {
       what: `The question's entities are found by name and by meaning, then their neighbourhood (${c.graph_hops} hop) is read from the graph. The passages behind those entities and links are ranked, then <b>fused with the normal hybrid search results</b> using the same RRF, re-ranked by the same re-ranker, and handed to the same answer step, plus a short "graph facts" passage. Overview questions ("main themes…") go to <b>global</b> search over the community reports instead.`,
@@ -209,7 +209,7 @@ const GRAPH_VIEWS = {
 
   async gask() {
     const t = S.gtrace;
-    if (!t) return `<div class="panel empty"><h3>Ask a question through the graph</h3><p>Use the box above. Local and hybrid work without a Claude key (retrieval only); global needs the LLM.</p></div>`;
+    if (!t) return `<div class="panel empty"><h3>Ask a question through the graph</h3><p>Use the box above. Every mode works without an LLM: you then get the passages and graph facts instead of a written answer, and global search ranks the reports by similarity.</p></div>`;
     await labels();
     const tr = t.graph_trace;
     let html = `<div class="panel"><div class="head"><h3>Route: <span class="chip acc">${esc(t.mode)}</span></h3><span class="small muted">total ${secs(t.timings_s.total)}</span></div>
@@ -238,7 +238,7 @@ const GRAPH_VIEWS = {
     }
     if (tr.global) {
       const G = tr.global;
-      html += `<div class="panel"><h3>Global search over community reports</h3><p class="small muted">${G.reports_considered} reports read${G.reports_hidden_by_access ? `, ${G.reports_hidden_by_access} hidden because they were written from passages this user cannot see` : ''}. The LLM picked these points (map step); the best go to the answer (reduce step).</p>
+      html += `<div class="panel"><h3>Global search over community reports</h3><p class="small muted">${G.reports_considered} reports read${G.reports_hidden_by_access ? `, ${G.reports_hidden_by_access} hidden because they were written from passages this user cannot see` : ''}. ${G.map_step === 'llm' ? 'The LLM picked these points (map step); the best go to the answer (reduce step).' : 'No LLM: the reports most similar to the question were picked, with their findings.'}</p>
         ${G.points.map((p) => `<div class="hit" style="display:grid;grid-template-columns:70px 1fr 100px;gap:8px;align-items:center"><span class="chip">${esc(p.community)}</span><span class="small">${esc(p.point)}</span>${bar(p.score, 100)}</div>`).join('') || '<p class="small muted">No relevant points.</p>'}</div>`;
     }
     html += `<div class="panel"><h3>E · What the answer step receives</h3>
@@ -249,7 +249,7 @@ const GRAPH_VIEWS = {
     html += t.answer != null
       ? `<div class="panel"><h3>Answer ${t.found ? '<span class="chip ok">found</span>' : '<span class="chip warn">not found</span>'}</h3><p>${esc(t.answer)}</p>
          <p class="tiny muted">Graph LLM calls for this question: ${t.graph_llm.calls}. Answer model: ${esc(t.model || '')}</p></div>`
-      : '<div class="panel"><p class="small muted" style="margin:0">Retrieval only: tick "Write the answer" to send these passages to Claude.</p></div>';
+      : `<div class="panel"><p class="small muted" style="margin:0">${S.state.can_answer ? 'Retrieval only: tick "Write the answer" to send these passages to the model.' : 'Retrieval only: no LLM is configured, so these passages are the result. Add ANTHROPIC_API_KEY, or GRAPH_LLM=openai for a local model, to get a written answer.'}</p></div>`;
     return html;
   },
 
@@ -309,7 +309,7 @@ const GRAPH_AFTER = {
 
 function graphAskBar() {
   const st = S.state;
-  const f = S.gform || { q: '', mode: 'auto', groups: ['public'], generate: st.has_api_key };
+  const f = S.gform || { q: '', mode: 'auto', groups: ['public'], generate: st.can_answer };
   const ready = st.outputs.graph && st.outputs.graph.exists;
   const modes = [['auto', 'Auto'], ['hybrid', 'Hybrid (graph + text)'], ['local', 'Local (graph only)'], ['global', 'Global (reports)']];
   return `<div class="askbar">
@@ -318,7 +318,7 @@ function graphAskBar() {
     <div class="opts">
       <div><span class="lbl">Mode</span><div class="row gmode">${modes.map(([v, l]) => `<label class="check"><input type="radio" name="gmode" value="${v}" ${f.mode === v ? 'checked' : ''}>${l}</label>`).join('')}</div></div>
       <div><span class="lbl">Ask as someone in these groups</span><div class="row ggrp">${st.groups.map((g) => `<label class="check"><input type="checkbox" value="${esc(g)}" ${f.groups.includes(g) ? 'checked' : ''}>${esc(g)}</label>`).join('')}</div></div>
-      <div><span class="lbl">Answer</span><label class="check"><input type="checkbox" id="ggen" ${f.generate && st.has_api_key ? 'checked' : ''} ${st.has_api_key ? '' : 'disabled'}>Write the answer with Claude</label></div>
+      <div><span class="lbl">Answer</span><label class="check"><input type="checkbox" id="ggen" ${f.generate && st.can_answer ? 'checked' : ''} ${st.can_answer ? '' : 'disabled title="No LLM configured: retrieval only"'}>Write the answer${st.can_answer ? ` (${esc(st.answer_model)})` : ''}</label></div>
     </div>
     ${st.graph_examples && st.graph_examples.length ? `<div class="examples"><span class="tiny muted" style="align-self:center">Try:</span>${st.graph_examples.map((x) => `<button data-gexample="${esc(x)}">${esc(x)}</button>`).join('')}</div>` : ''}
     ${ready ? '' : '<p class="small muted" style="margin:10px 0 0">The knowledge graph is not built yet (step 11).</p>'}

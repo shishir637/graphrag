@@ -12,6 +12,9 @@ descriptions they are allowed to see. That keeps summaries from leaking restrict
 
 Output: outputs/g4_summaries.json
 """
+import re
+from collections import Counter
+
 from pydantic import BaseModel, Field
 
 from ..config import COMMUNITY_MIN_SIZE
@@ -49,8 +52,33 @@ def _entity_summary(e: dict) -> tuple[str, bool]:
     distinct = list(dict.fromkeys(d["text"] for d in e["descriptions"] if d["text"]))
     if len(distinct) <= 1:
         return (distinct[0] if distinct else ""), False
+    if not llm.available():                    # no LLM: the distinct sentences, repeats removed, at most four
+        sents = list(dict.fromkeys(x.strip() for t in distinct for x in re.split(r"(?<=[.!?])\s+", t) if x.strip()))
+        return " ".join(sents[:4]), False
     text = "\n".join(f"- {t}" for t in distinct)
     return llm.structured(_ENTITY_SYS, f"Entity: {e['name']} ({e['type']})\nDescriptions:\n{text}", _Desc).description, True
+
+
+def template_report(c: dict, ents: dict, rels: list[dict], summaries: dict) -> Report:
+    """A report written by code, used when no LLM is configured. Same fields as the LLM report."""
+    deg = Counter()
+    for r in rels:
+        deg[r["source"]] += r["weight"]
+        deg[r["target"]] += r["weight"]
+    order = sorted(c["entity_ids"], key=lambda i: (-deg[i], ents[i]["name"]))
+    by_type = {}
+    for i in order:
+        by_type.setdefault(ents[i]["type"], []).append(ents[i]["name"])
+    parts = [f"{len(v)} {t}{'s' if len(v) > 1 else ''} ({', '.join(v[:4])}{', ...' if len(v) > 4 else ''})"
+             for t, v in sorted(by_type.items(), key=lambda x: -len(x[1]))]
+    phrase = lambda r: f"{ents[r['source']]['name']} {r['type'].lower().replace('_', ' ')} {ents[r['target']]['name']}"
+    findings = [Finding(summary=phrase(r), explanation=r["descriptions"][0]["text"]) for r in rels[:5]]
+    if not findings:
+        findings = [Finding(summary=ents[i]["name"], explanation=summaries[i]["summary"]) for i in order[:3]]
+    return Report(title=" / ".join(ents[i]["name"] for i in order[:3]),
+                  summary=f"{len(order)} entities: {'; '.join(parts)}." +
+                          (f" Strongest links: {'; '.join(phrase(r) for r in rels[:3])}." if rels else ""),
+                  importance=min(10, len(order) + len(rels) // 2), findings=findings)
 
 
 def summarize_all() -> dict:
@@ -78,13 +106,17 @@ def summarize_all() -> dict:
                               for i in c["entity_ids"])
         rel_lines = "\n".join(f"- {ents[r['source']]['name']} -[{r['type']}]-> {ents[r['target']]['name']}: "
                               f"{r['descriptions'][0]['text']}" for r in rels)
-        rep = llm.structured(_REPORT_SYS, f"Entities:\n{ent_lines}\n\nRelationships:\n{rel_lines or '(none)'}", Report)
+        if llm.available():
+            rep, by = llm.structured(_REPORT_SYS, f"Entities:\n{ent_lines}\n\nRelationships:\n{rel_lines or '(none)'}", Report), "llm"
+        else:
+            rep, by = template_report(c, ents, rels, entity_summaries), "template"
         from_chunks = sorted({ch for i in c["entity_ids"] for ch in ents[i]["chunk_ids"]})
-        reports.append({"community": c["id"], "level": c["level"], "size": c["size"], **rep.model_dump(),
+        reports.append({"community": c["id"], "level": c["level"], "size": c["size"], **rep.model_dump(), "by": by,
                         "from_chunks": from_chunks,
                         "access_groups": sorted({g for ch in from_chunks for g in chunk_access.get(ch, [])})})
 
     stats = {"entities": len(entity_summaries), "entity_summaries_by_llm": llm_entity_calls,
-             "entity_summaries_copied": len(entity_summaries) - llm_entity_calls, "community_reports": len(reports)}
+             "entity_summaries_copied": len(entity_summaries) - llm_entity_calls, "community_reports": len(reports),
+             "reports_by_llm": sum(r["by"] == "llm" for r in reports), "llm_available": llm.available()}
     write_json("g4_summaries.json", {"stats": stats, "entities": entity_summaries, "reports": reports})
     return stats

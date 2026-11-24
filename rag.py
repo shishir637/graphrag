@@ -111,6 +111,13 @@ def _run(args):
 
 
 def _print_answer(r):
+    if r["answer"] is None:      # no LLM configured: show what retrieval found
+        print("\n(no LLM configured, so no written answer. Set ANTHROPIC_API_KEY, or GRAPH_LLM=openai for a local "
+              "model.) Best passages:")
+        for i, c in enumerate(r["contexts"], 1):
+            print(f"\n  [{i}] {c['source']}#{c['chunk_id']}\n      " + " ".join(c["text"].split())[:300])
+        print(f"\n  ({r['timings_s']['total']}s total)")
+        return
     print("\n" + r["answer"])
     for c in r["contexts"]:
         if c["chunk_id"] in r["citations"]:

@@ -45,6 +45,16 @@ _jobs: dict[str, dict] = {}
 
 # ---------------------------------------------------------------- helpers
 
+def _can_answer() -> bool:
+    from rag.generate import can_answer
+    return can_answer()
+
+
+def _graph_llm() -> bool:
+    from rag.graph import llm
+    return llm.available()
+
+
 def _out(name: str):
     path = OUT_DIR / name
     if not path.exists():
@@ -190,7 +200,11 @@ def state():
         "graph_examples": graph_examples,
         "outputs": outputs,
         "groups": groups,
-        "has_api_key": bool(os.environ.get("ANTHROPIC_API_KEY")),
+        "has_api_key": bool(os.environ.get("ANTHROPIC_API_KEY")),      # Claude: needed for the RAGAS judge
+        "can_answer": _can_answer(),                                   # Claude or a local model
+        "answer_model": config.CLAUDE_MODEL if os.environ.get("ANTHROPIC_API_KEY") else (
+            config.GRAPH_LLM_MODEL if config.GRAPH_LLM == "openai" else None),
+        "graph_llm_available": _graph_llm(),
         "busy": _lock.locked(),
         "config": {
             "embed_model": config.EMBED_MODEL, "embed_dim": config.EMBED_DIM,
@@ -198,7 +212,7 @@ def state():
             "rerank_model": config.RERANK_MODEL, "candidates_per_retriever": config.CANDIDATES_PER_RETRIEVER,
             "fused_top_k": config.FUSED_TOP_K, "final_top_k": config.FINAL_TOP_K,
             "claude_model": config.CLAUDE_MODEL, "collection": config.COLLECTION,
-            "graph_llm": f"{config.GRAPH_LLM}: {config.GRAPH_LLM_MODEL}", "graph_store": config.GRAPH_STORE,
+            "graph_llm": __import__("rag.graph.llm", fromlist=["describe"]).describe(), "graph_store": config.GRAPH_STORE,
             "extract_mode": config.EXTRACT_MODE, "gliner_model": config.GLINER_MODEL,
             "escalate_budget": config.ESCALATE_BUDGET, "escalate_below": config.ESCALATE_BELOW,
             "entity_types": config.ENTITY_TYPES, "relation_types": config.RELATION_TYPES,
@@ -323,13 +337,9 @@ def graph_ask_route(body: GraphAskIn):
         raise HTTPException(400, "Unknown mode")
     if _out("g5_graph.json") is None:
         raise HTTPException(400, "Build the knowledge graph first.")
-    has_key = bool(os.environ.get("ANTHROPIC_API_KEY")) or config.GRAPH_LLM == "openai"
-    if body.generate and not os.environ.get("ANTHROPIC_API_KEY"):
-        raise HTTPException(400, "Writing the answer uses Claude. Set ANTHROPIC_API_KEY in .env, or run retrieval only.")
-    from rag.graph.search import route
-    if (body.mode == "global" or (body.mode == "auto" and route(question) == "global")) and not has_key:
-        raise HTTPException(400, "Global search asks the LLM to read the community reports. Set ANTHROPIC_API_KEY "
-                                 "(or GRAPH_LLM=openai), or pick local / hybrid.")
+    if body.generate and not _can_answer():
+        raise HTTPException(400, "Writing the answer needs an LLM. Set ANTHROPIC_API_KEY, or GRAPH_LLM=openai for a "
+                                 "local model, or run retrieval only.")
     groups = body.groups or ["public"]
 
     def run():
@@ -384,9 +394,9 @@ def run_step(step: str):
         raise HTTPException(404, f"Unknown step: {step}")
     if step in ("eval", "graph_eval") and not os.environ.get("ANTHROPIC_API_KEY"):
         raise HTTPException(400, "Evaluation uses Claude as the judge. Set ANTHROPIC_API_KEY in .env first.")
-    if step == "graph" and not (os.environ.get("ANTHROPIC_API_KEY") or config.GRAPH_LLM == "openai"):
-        raise HTTPException(400, "Building the graph uses an LLM to extract entities. Set ANTHROPIC_API_KEY in .env, "
-                                 "or GRAPH_LLM=openai with GRAPH_LLM_BASE_URL for a local open model.")
+    if step == "graph" and config.EXTRACT_MODE == "llm" and not _graph_llm():
+        raise HTTPException(400, "EXTRACT_MODE=llm needs an LLM. Set ANTHROPIC_API_KEY, GRAPH_LLM=openai for a local "
+                                 "model, or use EXTRACT_MODE=hybrid / gliner (works without any LLM).")
     return _start_job(step, actions[step])
 
 
@@ -402,8 +412,9 @@ def ask_route(body: AskIn):
     question = body.question.strip()
     if not question:
         raise HTTPException(400, "Type a question first.")
-    if body.generate and not os.environ.get("ANTHROPIC_API_KEY"):
-        raise HTTPException(400, "Writing the answer uses Claude. Set ANTHROPIC_API_KEY in .env, or run retrieval only.")
+    if body.generate and not _can_answer():
+        raise HTTPException(400, "Writing the answer needs an LLM. Set ANTHROPIC_API_KEY, or GRAPH_LLM=openai for a "
+                                 "local model, or run retrieval only.")
     groups = body.groups or ["public"]
     sources = body.sources or None
 

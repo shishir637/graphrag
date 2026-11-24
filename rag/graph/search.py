@@ -187,7 +187,18 @@ def global_context(question: str, groups=None, sources=None, level: int = 0) -> 
     hidden = sum(1 for r in _Cache.reports if r["level"] == level) - len(reps)
     reps.sort(key=lambda r: -r["importance"])
     points = []
-    for i in range(0, len(reps), 6):
+    if not llm.available():
+        # no LLM for the map step: rank reports by meaning similarity to the question, keep their findings
+        texts = [f"{r['title']}. {r['summary']} " + " ".join(f["summary"] for f in r["findings"]) for r in reps]
+        if reps:
+            vecs = embed_dense([question] + texts)
+            q = vecs[0]
+            ranked = sorted(zip(reps, vecs[1:]), key=lambda x: -sum(a * b for a, b in zip(q, x[1])))[:5]
+            for r, v in ranked:
+                sim = sum(a * b for a, b in zip(q, v))
+                points += [{"community": r["community"], "point": f"{f['summary']}: {f['explanation']}",
+                            "score": max(1, round(sim * 100))} for f in r["findings"]]
+    for i in range(0, len(reps), 6) if llm.available() else []:
         batch = reps[i:i + 6]
         text = "\n\n".join(f"[report {r['community']}] {r['title']}\n{r['summary']}\n" +
                            "\n".join(f"- {f['summary']}: {f['explanation']}" for f in r["findings"]) for r in batch)
@@ -203,6 +214,7 @@ def global_context(question: str, groups=None, sources=None, level: int = 0) -> 
     passages = [{"chunk_id": f"report_{c}", "source": "community report", "pages": [], "headings": [titles[c]],
                  "text": "\n".join(f"- {x}" for x in pts)} for c, pts in by_comm.items()]
     return {"reports_considered": len(reps), "reports_hidden_by_access": hidden, "points": points,
+            "map_step": "llm" if llm.available() else "similarity (no LLM)",
             "passages": passages}
 
 
@@ -223,7 +235,7 @@ def ask_graph(question: str, mode: str = "auto", groups=None, sources=None, save
 
     if mode == "global":
         g = global_context(question, groups, sources)
-        trace["global"] = {k: g[k] for k in ("reports_considered", "reports_hidden_by_access", "points")}
+        trace["global"] = {k: g[k] for k in ("reports_considered", "reports_hidden_by_access", "points", "map_step")}
         passages = g["passages"]
         if not passages:                                       # nothing usable at report level
             mode = trace["mode"] = "hybrid"
@@ -258,7 +270,8 @@ def ask_graph(question: str, mode: str = "auto", groups=None, sources=None, save
             passages = passages + [g["facts_passage"]]
 
     t1 = time.perf_counter()
-    gen = generate(question, passages) if answer else {"found": None, "answer": None, "citations": [],
+    from ..generate import can_answer
+    gen = generate(question, passages) if answer and can_answer() else {"found": None, "answer": None, "citations": [],
                                                          "model": None, "usage": {"input_tokens": 0, "output_tokens": 0}}
     t2 = time.perf_counter()
     record = {

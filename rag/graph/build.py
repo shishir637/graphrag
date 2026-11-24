@@ -13,7 +13,7 @@ def build_graph(steps=("extract", "resolve", "communities", "summarize", "store"
     funcs = {"extract": (f"[g1] Extracting entities and relationships ({EXTRACT_MODE})", extract_all),
              "resolve": ("[g2] Resolving entities", resolve_all),
              "communities": ("[g3] Detecting communities (Leiden)", detect_all),
-             "summarize": ("[g4] Writing entity descriptions and community reports (LLM)", summarize_all),
+             "summarize": ("[g4] Writing entity descriptions and community reports", summarize_all),
              "store": ("[g5] Storing the graph", store_all)}
     out = {}
     for s in steps:

@@ -106,6 +106,19 @@ python rag.py graph-eval                       # plain RAG vs graph modes, per q
 
 **Extraction without the LLM:** the first `graph-build` downloads the GLiNER2 model (~0.8 GB) from Hugging Face; after that extraction runs offline on the CPU. Set `EXTRACT_MODE=gliner` for no extraction LLM calls at all, or `EXTRACT_MODE=llm` for the original behaviour.
 
+**Running without an API key:** leave `ANTHROPIC_API_KEY` empty and everything still runs, with zero LLM calls:
+
+| Step | With an LLM | Without one |
+|---|---|---|
+| Extraction (hybrid) | GLiNER2, weak passages reviewed by the LLM | GLiNER2 only; weak passages are listed but not reviewed |
+| Entity resolution | ambiguous pairs judged by the LLM | rule tiers only; ambiguous pairs stay "undecided" |
+| Entity descriptions | merged by the LLM | the distinct sentences, joined |
+| Community reports | written by the LLM | template: main entities by type and the strongest relationships |
+| Global search | LLM picks points from each report | reports ranked by similarity to the question |
+| Answer | written, with citations | the best passages and graph facts, no written answer |
+
+Only the RAGAS evaluation (`eval`, `graph-eval`) still needs Claude, because Claude is the judge. For written answers without a key, run a local model: `ollama pull qwen2.5:7b`, then in `.env` set `GRAPH_LLM=openai`, `GRAPH_LLM_MODEL=qwen2.5:7b`, `GRAPH_LLM_BASE_URL=http://localhost:11434/v1`. Set `GRAPH_LLM=none` to switch the LLM off even when a key is present.
+
 **LLM choice:** Claude by default. For a fully open-source setup, point it at any OpenAI-compatible server (Ollama, vLLM):
 `GRAPH_LLM=openai GRAPH_LLM_MODEL=qwen2.5:14b GRAPH_LLM_BASE_URL=http://localhost:11434/v1`
 

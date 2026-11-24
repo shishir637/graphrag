@@ -199,6 +199,9 @@ def escalation_plan(chunks: list[dict], local: dict[str, dict], total: int) -> t
 def extract_all() -> dict:
     if EXTRACT_MODE not in ("hybrid", "gliner", "llm"):
         raise SystemExit(f"EXTRACT_MODE must be hybrid, gliner or llm (got {EXTRACT_MODE!r})")
+    if EXTRACT_MODE == "llm" and not llm.available():
+        raise SystemExit("EXTRACT_MODE=llm needs an LLM: set ANTHROPIC_API_KEY, or GRAPH_LLM=openai for a local "
+                         "model, or use EXTRACT_MODE=hybrid / gliner.")
     chunks = read_json("2_chunks.json")
     cache = {}
     if (utils.OUT_DIR / "g1_extraction.json").exists():        # same folder write_json uses
@@ -222,6 +225,11 @@ def extract_all() -> dict:
             if i % 20 == 0 or i == len(todo):
                 print(f"   gliner {i}/{len(todo)} chunks")
         selected, why = (escalation_plan(todo, local, len(chunks)) if EXTRACT_MODE == "hybrid" else ([], {}))
+        if selected and not llm.available():            # no LLM: weak chunks keep GLiNER's result
+            print(f"   no LLM configured: {len(selected)} weak chunk(s) keep GLiNER's result unreviewed")
+            for cid in selected:
+                why[cid].update(escalated=False, reason=why[cid]["reason"] + " (no LLM configured)")
+            selected = []
         for c in todo:
             if c["chunk_id"] not in selected:
                 done[c["chunk_id"]] = local_record(c, local[c["chunk_id"]], why.get(c["chunk_id"]))
@@ -231,6 +239,7 @@ def extract_all() -> dict:
             print(f"   llm review {i}/{len(selected)} {cid}: {why[cid]['reason']}")
         if EXTRACT_MODE == "hybrid":
             plan_stats = {"eligible": len(why), "escalated": len(selected), "budget": ESCALATE_BUDGET,
+                          "llm_available": llm.available(),
                           "left_to_gliner": len(why) - len(selected),
                           "lowest_score_left": min((w["weakest"] for w in why.values()
                                                     if not w["escalated"] and w["weakest"] is not None), default=None)}

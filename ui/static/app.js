@@ -280,7 +280,7 @@ function renderChrome() {
   const built = st.outputs.index && st.outputs.index.exists;
   $('#status').innerHTML = `
     <span class="pill ${built ? 'ok' : 'warn'}"><span class="dot"></span>${built ? 'Index ready' : 'Index not built yet'}</span>
-    <span class="pill ${st.has_api_key ? 'ok' : 'warn'}"><span class="dot"></span>${st.has_api_key ? 'Claude connected' : 'No Claude key: retrieval only'}</span>
+    <span class="pill ${st.can_answer ? 'ok' : 'warn'}"><span class="dot"></span>${st.has_api_key ? 'Claude connected' : st.can_answer ? `Local model: ${esc(st.answer_model)}` : 'No LLM: retrieval only'}</span>
     <span class="pill">${esc(st.config.embed_model)} · Qdrant</span>`;
 
   let flow = '';
@@ -327,8 +327,8 @@ function actionButtons(s) {
     return `${single}<button class="btn sm primary" data-run="ingest" ${busy}>Run steps 1–4</button>`;
   }
   if (s.id === 'kg') {
-    const llm = S.state.has_api_key || S.state.config.graph_llm.startsWith('openai');
-    return `<button class="btn sm primary" data-run="graph" ${busy} ${llm ? '' : 'disabled title="Needs ANTHROPIC_API_KEY or GRAPH_LLM=openai"'}>${done('kg') ? 'Rebuild graph' : 'Build graph'}</button>`;
+    const ok = S.state.config.extract_mode !== 'llm' || S.state.graph_llm_available;
+    return `<button class="btn sm primary" data-run="graph" ${busy} ${ok ? '' : 'disabled title="EXTRACT_MODE=llm needs an LLM"'}>${done('kg') ? 'Rebuild graph' : 'Build graph'}</button>`;
   }
   if (s.id === 'geval') {
     return `<button class="btn sm primary" data-run="graph_eval" ${busy} ${S.state.has_api_key ? '' : 'disabled title="Needs ANTHROPIC_API_KEY"'}>Run comparison</button>`;
@@ -350,7 +350,7 @@ function navButtons(s) {
 
 function askBar() {
   const st = S.state;
-  const f = S.form || { q: '', groups: ['public'], sources: [], generate: st.has_api_key };
+  const f = S.form || { q: '', groups: ['public'], sources: [], generate: st.can_answer };
   const ready = st.outputs.index && st.outputs.index.exists;
   return `<div class="askbar">
     <div class="q"><input type="text" id="q" placeholder="Ask a question about your documents…" value="${esc(f.q)}" aria-label="Question">
@@ -358,8 +358,8 @@ function askBar() {
     <div class="opts">
       <div><span class="lbl">Ask as someone in these groups</span><div class="row grp">${st.groups.map((g) => `<label class="check"><input type="checkbox" value="${esc(g)}" ${f.groups.includes(g) ? 'checked' : ''}>${esc(g)}</label>`).join('')}</div></div>
       <div><span class="lbl">Only search these files (optional)</span><div class="row src">${st.documents.map((d) => `<label class="check"><input type="checkbox" value="${esc(d.name)}" ${f.sources.includes(d.name) ? 'checked' : ''}>${esc(d.name)}</label>`).join('') || '<span class="small muted">No documents yet</span>'}</div></div>
-      <div><span class="lbl">Step 9</span><label class="check"><input type="checkbox" id="gen" ${f.generate && st.has_api_key ? 'checked' : ''} ${st.has_api_key ? '' : 'disabled'}>Write the answer with Claude (paid API call)</label>
-        ${st.has_api_key ? '' : '<span class="tiny muted">Add ANTHROPIC_API_KEY to .env to enable</span>'}</div>
+      <div><span class="lbl">Step 9</span><label class="check"><input type="checkbox" id="gen" ${f.generate && st.can_answer ? 'checked' : ''} ${st.can_answer ? '' : 'disabled'}>${st.has_api_key ? 'Write the answer with Claude (paid API call)' : st.can_answer ? `Write the answer with ${esc(st.answer_model)} (local)` : 'Write the answer'}</label>
+        ${st.can_answer ? '' : '<span class="tiny muted">Add ANTHROPIC_API_KEY, or GRAPH_LLM=openai for a local model, to enable</span>'}</div>
     </div>
     ${st.examples && st.examples.length ? `<div class="examples"><span class="tiny muted" style="align-self:center">Try:</span>${st.examples.map((x) => `<button data-example="${esc(x)}">${esc(x)}</button>`).join('')}</div>` : ''}
     ${ready ? '' : '<p class="small muted" style="margin:10px 0 0">The index is not built yet. Run steps 1–4 first.</p>'}

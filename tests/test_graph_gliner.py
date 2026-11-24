@@ -130,8 +130,8 @@ def test_escalation_order_and_budget(env):
     assert [recs[c]["extractor"] for c in ("c_norel", "c_weak", "c_empty", "c_strong")] == \
         ["gliner+llm", "gliner+llm", "gliner", "gliner"]
     assert stats["llm_calls"] == 2 and len(asked) == 2
-    assert stats["escalation"] == {"eligible": 3, "escalated": 2, "budget": 0.4, "left_to_gliner": 1,
-                                   "lowest_score_left": None}
+    assert stats["escalation"] == {"eligible": 3, "escalated": 2, "budget": 0.4, "llm_available": True,
+                                   "left_to_gliner": 1, "lowest_score_left": None}
     weak = {e["name"]: e["from"] for e in recs["c_weak"]["entities"]}
     assert weak == {"Databricks": "gliner+llm", "Spark": "llm"}
     strong = recs["c_strong"]

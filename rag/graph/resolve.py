@@ -255,15 +255,19 @@ def resolve_all() -> dict:
 
     # tier 6: llm - most similar first, within budget; the rest stay undecided
     still.sort(key=lambda p: (-p["embedding_sim"], p["a"], p["b"]))
-    budget = RESOLVE_MAX_LLM_PAIRS if RESOLVE_USE_LLM else 0
+    use_llm = RESOLVE_USE_LLM and llm.available()
+    budget = RESOLVE_MAX_LLM_PAIRS if use_llm else 0
+    asked = 0
     for n, p in enumerate(still):
         if n >= budget:
-            links.append({**p, "decision": "undecided", "tier": "llm",
-                          "reason": "LLM disabled" if not RESOLVE_USE_LLM else f"over the LLM budget of {budget} pairs"})
+            reason = ("LLM disabled (RESOLVE_USE_LLM=False)" if not RESOLVE_USE_LLM else
+                      "no LLM configured" if not use_llm else f"over the LLM budget of {budget} pairs")
+            links.append({**p, "decision": "undecided", "tier": "llm", "reason": reason})
             continue
         A, B = S[p["a"]], S[p["b"]]
         da = " ".join(dict.fromkeys(d["text"] for d in A["descriptions"]))[:600]
         db = " ".join(dict.fromkeys(d["text"] for d in B["descriptions"]))[:600]
+        asked += 1
         v = llm.structured(_JUDGE, f"Entity A ({A['type']}): {A['label']}\nDescription: {da}\n\n"
                                    f"Entity B ({B['type']}): {B['label']}\nDescription: {db}", _Verdict)
         dec = {"match": "match", "no_match": "no_match"}.get(v.verdict, "undecided")
@@ -340,7 +344,7 @@ def resolve_all() -> dict:
     stats = {"mentions": sum(len(r["entities"]) for r in ext), "surface_entities": len(S),
              "entities": len(entities), "relations": len(relations), "pairs_compared": len(cand),
              "by_tier": {f"{t}:{d}": n for (t, d), n in sorted(by.items())},
-             "llm_pairs": sum(1 for l in links if l["tier"] == "llm" and "budget" not in l["reason"] and "disabled" not in l["reason"]),
+             "llm_pairs": asked, "llm_available": use_llm,
              "undecided": sum(l["decision"] == "undecided" for l in links),
              "matches_blocked_by_no_match": sum(l.get("applied") is False for l in links),
              "overrides_file": OVERRIDES_FILE.name if OVERRIDES_FILE.exists() else None}

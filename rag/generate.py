@@ -53,8 +53,24 @@ def format_passages(passages: list[dict]) -> str:
     return "\n\n---\n\n".join(parts)
 
 
+def can_answer() -> bool:
+    """Claude (ANTHROPIC_API_KEY) or a local OpenAI-compatible model (GRAPH_LLM=openai, e.g. Ollama)."""
+    from .config import GRAPH_LLM
+    return bool(os.environ.get("ANTHROPIC_API_KEY")) or GRAPH_LLM == "openai"
+
+
 def generate(question: str, passages: list[dict]) -> dict:
     user = f"<passages>\n{format_passages(passages)}\n</passages>\n\nQuestion: {question}"
+    if not can_answer():
+        return {"found": None, "answer": None, "citations": [], "model": None,
+                "usage": {"input_tokens": 0, "output_tokens": 0}}
+    if not os.environ.get("ANTHROPIC_API_KEY"):          # local model through the graph LLM client
+        from .config import GRAPH_LLM_MODEL
+        from .graph import llm
+        parsed = llm.structured(SYSTEM, user, Answer)
+        valid_ids = {p["chunk_id"] for p in passages}
+        return {**parsed.model_dump(), "citations": [c for c in parsed.citations if c in valid_ids],
+                "model": GRAPH_LLM_MODEL, "usage": {"input_tokens": 0, "output_tokens": 0}}
     resp = claude().beta.messages.parse(
         model=CLAUDE_MODEL,
         max_tokens=16000,
