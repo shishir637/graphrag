@@ -1,0 +1,14 @@
+# Graph RAG - traditional NLP extraction runs in its OWN environment, outside OneDrive:
+# spaCy/GLiNER pin transformers/huggingface-hub versions that break the RAG environment, and
+# Windows Application Control on this PC blocks some of their compiled files inside OneDrive.
+#
+#   py -3.12 -m venv %USERPROFILE%\venvs\graphrag-nlp
+#   %USERPROFILE%\venvs\graphrag-nlp\Scripts\python -m pip install -r requirements-graph.txt ^
+#       --extra-index-url https://download.pytorch.org/whl/cpu
+#   ...\graphrag-nlp\Scripts\python -m graph.extract_trad --method spacy|gliner
+torch==2.12.0+cpu              # 2.15 is blocked by Application Control on this PC
+spacy==3.8.7
+click
+en_core_web_lg @ https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl
+gliner==0.2.22                 # model urchade/gliner_medium-v2.1, Apache-2.0
+pyyaml

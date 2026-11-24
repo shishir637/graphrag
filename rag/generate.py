@@ -61,9 +61,9 @@ def generate(question: str, passages: list[dict]) -> dict:
     }
 
 
-def ask(question: str, groups=None, sources=None, save: bool = True) -> dict:
+def ask(question: str, groups=None, sources=None, save: bool = True, headings=None) -> dict:
     t0 = time.perf_counter()
-    ret = retrieve(question, groups, sources, save=save)
+    ret = retrieve(question, groups, sources, save=save, headings=headings)
     t1 = time.perf_counter()
     gen = generate(question, ret["passages"])
     t2 = time.perf_counter()

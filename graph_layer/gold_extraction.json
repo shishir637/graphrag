@@ -1,0 +1,123 @@
+{
+  "_about": "Hand-labelled gold standard for extraction (30 chunks of the India document). Entities: [name, type]; relations: [source, TYPE, target]. Written by Claude Code (the coding assistant) by reading each chunk with its heading path; review and correct before relying on the scores. Generic nouns are left out; crops and industries are included as Product only when the chunk names them as the place's produce.",
+  "176b152364cf": {
+    "entities": [["Uttar Pradesh", "State"], ["Uttarakhand", "State"], ["Yogi Adityanath", "Person"], ["Ayodhya Dispute", "Event"], ["Supreme Court of India", "Organisation"], ["Rama Janmabhoomi temple", "Landmark"]],
+    "relations": [["Yogi Adityanath", "LEADS", "Uttar Pradesh"], ["Uttarakhand", "RELATED_TO", "Uttar Pradesh"], ["Supreme Court of India", "RELATED_TO", "Ayodhya Dispute"]]
+  },
+  "7cb68a4234c6": {
+    "entities": [["Goa", "State"], ["Goa Catholic Church", "Organisation"], ["cashew nuts", "Product"], ["textiles", "Product"], ["pharmaceuticals", "Product"]],
+    "relations": [["Goa", "PRODUCES", "cashew nuts"], ["Goa", "PRODUCES", "textiles"], ["Goa", "PRODUCES", "pharmaceuticals"], ["Goa Catholic Church", "RELATED_TO", "Goa"]]
+  },
+  "346f4dd280d9": {
+    "entities": [["Nohkalikai Falls", "GeoFeature"], ["Cherrapunji", "City"], ["Meghalaya", "State"], ["Nohsngithiang Falls", "GeoFeature"], ["Langshiang Falls", "GeoFeature"], ["Kynrem Falls", "GeoFeature"], ["Sadu Chiru Waterfalls", "GeoFeature"], ["Kangpokpi district", "District"], ["Manipur", "State"], ["Elephant Falls", "GeoFeature"], ["Panimur Falls", "GeoFeature"], ["Assam", "State"], ["Vantawng Falls", "GeoFeature"], ["Mizoram", "State"], ["Nuranang Falls", "GeoFeature"], ["Tawang", "City"], ["Arunachal Pradesh", "State"], ["Akashiganga Falls", "GeoFeature"], ["Bishop Falls", "GeoFeature"], ["Karbi Anglong", "District"], ["Dumbur waterfalls", "GeoFeature"], ["Tripura", "State"]],
+    "relations": [["Nohkalikai Falls", "LOCATED_IN", "Meghalaya"], ["Nohsngithiang Falls", "LOCATED_IN", "Meghalaya"], ["Langshiang Falls", "LOCATED_IN", "Meghalaya"], ["Kynrem Falls", "LOCATED_IN", "Meghalaya"], ["Sadu Chiru Waterfalls", "LOCATED_IN", "Kangpokpi district"], ["Kangpokpi district", "LOCATED_IN", "Manipur"], ["Elephant Falls", "LOCATED_IN", "Meghalaya"], ["Panimur Falls", "LOCATED_IN", "Assam"], ["Vantawng Falls", "LOCATED_IN", "Mizoram"], ["Nuranang Falls", "LOCATED_IN", "Tawang"], ["Tawang", "LOCATED_IN", "Arunachal Pradesh"], ["Akashiganga Falls", "LOCATED_IN", "Assam"], ["Bishop Falls", "LOCATED_IN", "Meghalaya"], ["Karbi Anglong", "LOCATED_IN", "Assam"], ["Dumbur waterfalls", "LOCATED_IN", "Tripura"]]
+  },
+  "14750e1d52db": {
+    "entities": [["Kerala", "State"], ["Alleppey", "City"], ["Central Coir Research Institute", "Institution"], ["SIDBI", "Organisation"], ["KSIDC", "Organisation"], ["coir", "Product"], ["ilmenite", "Product"], ["India", "Country"]],
+    "relations": [["Kerala", "PRODUCES", "coir"], ["Kerala", "PRODUCES", "ilmenite"], ["Central Coir Research Institute", "LOCATED_IN", "Alleppey"], ["Alleppey", "LOCATED_IN", "Kerala"], ["KSIDC", "RELATED_TO", "Kerala"]]
+  },
+  "f506b011af96": {
+    "entities": [["Bhangra", "Festival"], ["Giddha", "Festival"], ["Punjab", "State"], ["Punjabi", "Language"], ["England", "Country"], ["Canada", "Country"], ["US", "Country"]],
+    "relations": [["Bhangra", "CELEBRATED_IN", "Punjab"], ["Giddha", "CELEBRATED_IN", "Punjab"], ["Bhangra", "RELATED_TO", "England"], ["Bhangra", "RELATED_TO", "Canada"]]
+  },
+  "b5f656e66493": {
+    "entities": [["Sikkim", "State"], ["rice", "Product"], ["wheat", "Product"], ["maize", "Product"], ["cardamom", "Product"], ["ginger", "Product"], ["tea", "Product"], ["India", "Country"]],
+    "relations": [["Sikkim", "PRODUCES", "rice"], ["Sikkim", "PRODUCES", "wheat"], ["Sikkim", "PRODUCES", "maize"], ["Sikkim", "PRODUCES", "cardamom"], ["Sikkim", "PRODUCES", "ginger"], ["Sikkim", "PRODUCES", "tea"]]
+  },
+  "da4153a16cc6": {
+    "entities": [["Kinnaur", "District"], ["NH-5 Hindustan-Tibet National highway", "Landmark"], ["Ferozepur", "City"], ["Punjab", "State"], ["Shipki La", "GeoFeature"], ["Lahaul", "Place"], ["Rohtang pass", "GeoFeature"], ["Kunzum", "GeoFeature"], ["Baralacha", "GeoFeature"], ["Himachal Pradesh", "State"], ["Delhi-Nangal rail line", "Landmark"]],
+    "relations": [["Kinnaur", "LOCATED_IN", "Himachal Pradesh"], ["Lahaul", "LOCATED_IN", "Himachal Pradesh"], ["Ferozepur", "LOCATED_IN", "Punjab"], ["NH-5 Hindustan-Tibet National highway", "RELATED_TO", "Kinnaur"], ["Rohtang pass", "RELATED_TO", "Lahaul"]]
+  },
+  "7b5773048933": {
+    "entities": [["Bengal", "Place"], ["West Bengal", "State"], ["Malla dynasty", "Dynasty"], ["Kalighat paintings", "Product"], ["Abanindranath Tagore", "Person"], ["Bengal School of Art", "Organisation"], ["Gaganendranath Tagore", "Person"], ["Ramkinkar Baij", "Person"], ["Jamini Roy", "Person"], ["Rabindranath Tagore", "Person"], ["Calcutta Group", "Organisation"], ["Society of Contemporary Artists", "Organisation"]],
+    "relations": [["Abanindranath Tagore", "FOUNDED", "Bengal School of Art"], ["Malla dynasty", "RULED", "Bengal"], ["Calcutta Group", "LOCATED_IN", "West Bengal"], ["Society of Contemporary Artists", "LOCATED_IN", "West Bengal"], ["Gaganendranath Tagore", "PART_OF", "Bengal School of Art"], ["Jamini Roy", "PART_OF", "Bengal School of Art"]]
+  },
+  "c8fc80ae33f2": {
+    "entities": [["Dewas", "District"], ["Madhya Pradesh", "State"], ["Mojri", "Product"], ["Soybean", "Product"], ["wheat", "Product"], ["Bank Note Press", "Organisation"]],
+    "relations": [["Dewas", "LOCATED_IN", "Madhya Pradesh"], ["Dewas", "PRODUCES", "Soybean"], ["Dewas", "PRODUCES", "wheat"], ["Dewas", "PRODUCES", "Mojri"], ["Bank Note Press", "LOCATED_IN", "Dewas"]]
+  },
+  "b39030ae8810": {
+    "entities": [["Uttarakhand", "State"], ["Forest Research Institute", "Institution"], ["Indira Gandhi National Forest Academy", "Institution"], ["Indian Forest Service", "Organisation"], ["Dehradun", "City"], ["The Doon School", "Institution"], ["Lal Bahadur Shastri National Academy of Administration", "Institution"], ["Mussoorie", "City"], ["Indian Administrative Service", "Organisation"], ["Indian Military Academy", "Institution"], ["Indian Army", "Organisation"]],
+    "relations": [["Forest Research Institute", "LOCATED_IN", "Uttarakhand"], ["Indira Gandhi National Forest Academy", "LOCATED_IN", "Forest Research Institute"], ["The Doon School", "LOCATED_IN", "Dehradun"], ["Lal Bahadur Shastri National Academy of Administration", "LOCATED_IN", "Mussoorie"], ["Indian Military Academy", "LOCATED_IN", "Uttarakhand"], ["Dehradun", "LOCATED_IN", "Uttarakhand"], ["Mussoorie", "LOCATED_IN", "Uttarakhand"], ["Indian Military Academy", "PART_OF", "Indian Army"]]
+  },
+  "1aa16e07b853": {
+    "entities": [["Aurangzeb", "Person"], ["Mughal Empire", "Dynasty"], ["Odisha", "State"], ["Murshid Quli Khan", "Person"], ["Bengal", "Place"], ["Shuja-ud-Din", "Person"]],
+    "relations": [["Aurangzeb", "RULED", "Mughal Empire"], ["Mughal Empire", "RULED", "Odisha"], ["Murshid Quli Khan", "RULED", "Odisha"], ["Murshid Quli Khan", "RULED", "Bengal"], ["Shuja-ud-Din", "RULED", "Bengal"], ["Shuja-ud-Din", "RELATED_TO", "Murshid Quli Khan"]]
+  },
+  "094a74d1fa55": {
+    "entities": [["Rajasthan", "State"], ["India", "Country"]],
+    "relations": [["Rajasthan", "LOCATED_IN", "India"]]
+  },
+  "1752d37b0842": {
+    "entities": [["Space Applications Centre", "Institution"], ["Ahmedabad", "City"], ["Indian Space Research Organisation", "Organisation"], ["Vikram Sarabhai", "Person"], ["Physical Research Laboratory", "Institution"], ["Indian Institute of Management Ahmedabad", "Institution"], ["Gujarat", "State"], ["Central Salt and Marine Chemicals Research Institute", "Institution"], ["Council of Scientific and Industrial Research", "Organisation"], ["Bhavnagar", "City"], ["Jawaharlal Nehru", "Person"], ["Gujarat National Law University", "Institution"], ["Gandhinagar", "City"]],
+    "relations": [["Space Applications Centre", "LOCATED_IN", "Ahmedabad"], ["Space Applications Centre", "PART_OF", "Indian Space Research Organisation"], ["Vikram Sarabhai", "FOUNDED", "Physical Research Laboratory"], ["Vikram Sarabhai", "FOUNDED", "Indian Institute of Management Ahmedabad"], ["Indian Institute of Management Ahmedabad", "LOCATED_IN", "Ahmedabad"], ["Ahmedabad", "LOCATED_IN", "Gujarat"], ["Central Salt and Marine Chemicals Research Institute", "LOCATED_IN", "Bhavnagar"], ["Central Salt and Marine Chemicals Research Institute", "PART_OF", "Council of Scientific and Industrial Research"], ["Jawaharlal Nehru", "RELATED_TO", "Central Salt and Marine Chemicals Research Institute"], ["Gujarat National Law University", "LOCATED_IN", "Gandhinagar"]]
+  },
+  "3f1040c8e528": {
+    "entities": [["World War II", "Event"], ["Japanese Army", "Organisation"], ["Indian National Army", "Organisation"], ["Subhas Chandra Bose", "Person"], ["Burma", "Country"], ["India", "Country"], ["Kohima", "City"], ["Battle of Kohima", "Event"], ["Imphal", "City"], ["Manipur", "State"], ["Nagaland", "State"], ["World War II Cemetery", "Landmark"], ["War Museum", "Landmark"], ["British Empire", "Dynasty"], ["Naga people", "EthnicGroup"], ["Angami Nagas", "EthnicGroup"], ["Kohima Cathedral", "Landmark"], ["Aradura Hill", "GeoFeature"]],
+    "relations": [["Subhas Chandra Bose", "LEADS", "Indian National Army"], ["Imphal", "LOCATED_IN", "Manipur"], ["Kohima", "LOCATED_IN", "Nagaland"], ["Battle of Kohima", "RELATED_TO", "Kohima"], ["Battle of Kohima", "PART_OF", "World War II"], ["Kohima Cathedral", "LOCATED_IN", "Aradura Hill"], ["Aradura Hill", "LOCATED_IN", "Kohima"], ["World War II Cemetery", "LOCATED_IN", "Kohima"], ["Angami Nagas", "PART_OF", "Naga people"]]
+  },
+  "7ef3cf23d11e": {
+    "entities": [["Maharashtra", "State"], ["Vasantrao Naik Marathwada Agricultural University", "Institution"], ["Mahatma Phule Krishi Vidyapeeth", "Institution"], ["Dr. Panjabrao Deshmukh Krishi Vidyapeeth", "Institution"], ["Dr. Balasaheb Sawant Konkan Krishi Vidyapeeth", "Institution"], ["Sant Gadge Baba Amravati University", "Institution"], ["Dr. Babasaheb Ambedkar Marathwada University", "Institution"], ["North Maharashtra University", "Institution"], ["Shivaji University", "Institution"], ["Solapur University", "Institution"], ["Swami Ramanand Teerth Marathwada University", "Institution"], ["Rashtrasant Tukadoji Maharaj Nagpur University", "Institution"], ["Symbiosis International University", "Institution"], ["Tata Institute of Social Sciences", "Institution"], ["Tilak Maharashtra University", "Institution"]],
+    "relations": [["Symbiosis International University", "LOCATED_IN", "Maharashtra"], ["Tata Institute of Social Sciences", "LOCATED_IN", "Maharashtra"], ["Tilak Maharashtra University", "LOCATED_IN", "Maharashtra"], ["Shivaji University", "LOCATED_IN", "Maharashtra"], ["Mahatma Phule Krishi Vidyapeeth", "LOCATED_IN", "Maharashtra"]]
+  },
+  "f010c038585a": {
+    "entities": [["Pali Canon", "Product"], ["Jain Agamas", "Product"], ["Puranas", "Product"], ["Magadha", "Place"], ["Pradyota dynasty", "Dynasty"], ["Haryanka dynasty", "Dynasty"], ["Bimbisara", "Person"], ["Anga", "Place"], ["Bihar", "State"], ["West Bengal", "State"], ["Ajatashatru", "Person"], ["Gautama Buddha", "Person"], ["Buddhism", "Religion"], ["Bodh Gaya", "City"], ["Sarnath", "City"], ["Rajgriha", "City"], ["Shaishunaga dynasty", "Dynasty"], ["Kalasoka", "Person"], ["Mahapadma Nanda", "Person"], ["Nanda dynasty", "Dynasty"]],
+    "relations": [["Pradyota dynasty", "RULED", "Magadha"], ["Haryanka dynasty", "RULED", "Magadha"], ["Bimbisara", "PART_OF", "Haryanka dynasty"], ["Bimbisara", "RULED", "Anga"], ["Ajatashatru", "RULED", "Magadha"], ["Ajatashatru", "RELATED_TO", "Bimbisara"], ["Gautama Buddha", "FOUNDED", "Buddhism"], ["Gautama Buddha", "RELATED_TO", "Bodh Gaya"], ["Gautama Buddha", "RELATED_TO", "Sarnath"], ["Shaishunaga dynasty", "RULED", "Magadha"], ["Kalasoka", "PART_OF", "Shaishunaga dynasty"], ["Mahapadma Nanda", "RELATED_TO", "Kalasoka"], ["Mahapadma Nanda", "FOUNDED", "Nanda dynasty"]]
+  },
+  "cb11e5438bef": {
+    "entities": [["Palamu district", "District"], ["Jharkhand", "State"], ["Raksel Rajput Dynasty", "Dynasty"], ["Medini Ray", "Person"], ["Palamu Fort", "Landmark"], ["Gaya", "District"], ["Hazaribagh", "District"], ["Navratangarh", "City"], ["Satbarwa", "City"], ["Chero dynasty", "Dynasty"], ["Daud Khan", "Person"], ["Patna", "City"], ["Mughal Empire", "Dynasty"], ["Islam", "Religion"]],
+    "relations": [["Palamu district", "LOCATED_IN", "Jharkhand"], ["Raksel Rajput Dynasty", "FOUNDED", "Palamu Fort"], ["Medini Ray", "RULED", "Palamu district"], ["Medini Ray", "PART_OF", "Chero dynasty"], ["Medini Ray", "RULED", "Hazaribagh"], ["Medini Ray", "RULED", "Gaya"], ["Medini Ray", "FOUNDED", "Palamu Fort"], ["Daud Khan", "RELATED_TO", "Palamu Fort"], ["Mughal Empire", "RULED", "Palamu district"], ["Chero dynasty", "RULED", "Palamu district"]]
+  },
+  "07d8e65d1fd6": {
+    "entities": [["Ukhrul", "City"], ["Ukhrul district", "District"], ["Manipur", "State"], ["Tamenglong", "City"], ["Tamenglong district", "District"], ["Haflong", "City"], ["Assam", "State"], ["Tawang", "City"], ["Arunachal Pradesh", "State"], ["Cherrapunji", "City"], ["East Khasi Hills district", "District"], ["Meghalaya", "State"], ["Mawsynram", "City"]],
+    "relations": [["Ukhrul", "LOCATED_IN", "Ukhrul district"], ["Ukhrul district", "LOCATED_IN", "Manipur"], ["Tamenglong", "LOCATED_IN", "Tamenglong district"], ["Tamenglong district", "LOCATED_IN", "Manipur"], ["Haflong", "LOCATED_IN", "Assam"], ["Tawang", "LOCATED_IN", "Arunachal Pradesh"], ["Cherrapunji", "LOCATED_IN", "East Khasi Hills district"], ["East Khasi Hills district", "LOCATED_IN", "Meghalaya"], ["Mawsynram", "LOCATED_IN", "Meghalaya"]]
+  },
+  "55b6da1d8852": {
+    "entities": [["Assam", "State"], ["Pushyavarman", "Person"], ["Varman dynasty", "Dynasty"], ["Kamarupa kingdom", "Dynasty"], ["Karatoya", "GeoFeature"], ["Sadiya", "City"], ["Narakasura", "Person"], ["Bhaskaravarman", "Person"], ["Xuanzang", "Person"], ["Salasthamba", "Person"], ["Mlechchha dynasty", "Dynasty"], ["Brahmapala", "Person"], ["Pala dynasty", "Dynasty"], ["Ramapala", "Person"], ["Gaur", "Place"], ["Timgyadeva", "Person"], ["Vaidyadeva", "Person"]],
+    "relations": [["Pushyavarman", "FOUNDED", "Varman dynasty"], ["Varman dynasty", "RULED", "Kamarupa kingdom"], ["Bhaskaravarman", "RULED", "Kamarupa kingdom"], ["Xuanzang", "RELATED_TO", "Bhaskaravarman"], ["Salasthamba", "FOUNDED", "Mlechchha dynasty"], ["Brahmapala", "FOUNDED", "Pala dynasty"], ["Ramapala", "RULED", "Gaur"], ["Kamarupa kingdom", "LOCATED_IN", "Assam"], ["Timgyadeva", "RULED", "Kamarupa kingdom"], ["Vaidyadeva", "RULED", "Kamarupa kingdom"]]
+  },
+  "10ab57a8d976": {
+    "entities": [["Telangana", "State"], ["Deccan Plateau", "GeoFeature"], ["Maurya Empire", "Dynasty"], ["Satavahana Dynasty", "Dynasty"], ["Kakatiya Dynasty", "Dynasty"], ["Musunuri Nayaks", "Dynasty"], ["Delhi Sultanate", "Dynasty"], ["Bahmani Sultanate", "Dynasty"], ["Golconda Sultanate", "Dynasty"], ["Asaf Jahi dynasty", "Dynasty"], ["Nizam-ul-Mulk", "Person"], ["Mubariz Khan", "Person"], ["Hyderabad", "City"], ["Hyderabad State", "State"], ["Andhra Pradesh", "State"], ["Telugu people", "EthnicGroup"], ["India", "Country"], ["Indian army", "Organisation"]],
+    "relations": [["Telangana", "LOCATED_IN", "Deccan Plateau"], ["Maurya Empire", "RULED", "Telangana"], ["Satavahana Dynasty", "RULED", "Telangana"], ["Kakatiya Dynasty", "RULED", "Telangana"], ["Musunuri Nayaks", "RULED", "Telangana"], ["Delhi Sultanate", "RULED", "Telangana"], ["Bahmani Sultanate", "RULED", "Telangana"], ["Golconda Sultanate", "RULED", "Telangana"], ["Asaf Jahi dynasty", "RULED", "Telangana"], ["Nizam-ul-Mulk", "RULED", "Hyderabad"], ["Nizam-ul-Mulk", "FOUNDED", "Asaf Jahi dynasty"], ["Indian army", "RULED", "Hyderabad State"], ["Telangana", "PART_OF", "Hyderabad State"], ["Telangana", "PART_OF", "Andhra Pradesh"], ["Hyderabad", "CAPITAL_OF", "Telangana"], ["Hyderabad", "CAPITAL_OF", "Andhra Pradesh"]]
+  },
+  "5529203dac50": {
+    "entities": [["Tamil Nadu", "State"], ["India", "Country"], ["Western Ghats", "GeoFeature"], ["Deccan Plateau", "GeoFeature"], ["Eastern Ghats", "GeoFeature"], ["Bay of Bengal", "GeoFeature"], ["Gulf of Mannar", "GeoFeature"], ["Palk Strait", "GeoFeature"], ["Laccadive Sea", "GeoFeature"], ["Kerala", "State"], ["Karnataka", "State"], ["Andhra Pradesh", "State"], ["Puducherry", "State"], ["Northern Province", "Place"], ["Sri Lanka", "Country"], ["Pamban Island", "GeoFeature"], ["Rama's Bridge", "GeoFeature"], ["Kanyakumari", "City"], ["Indian Ocean", "GeoFeature"], ["Arabian Sea", "GeoFeature"]],
+    "relations": [["Tamil Nadu", "BORDERS", "Kerala"], ["Tamil Nadu", "BORDERS", "Karnataka"], ["Tamil Nadu", "BORDERS", "Andhra Pradesh"], ["Tamil Nadu", "BORDERS", "Puducherry"], ["Tamil Nadu", "BORDERS", "Sri Lanka"], ["Tamil Nadu", "BORDERS", "Bay of Bengal"], ["Tamil Nadu", "BORDERS", "Western Ghats"], ["Northern Province", "LOCATED_IN", "Sri Lanka"], ["Kanyakumari", "LOCATED_IN", "Tamil Nadu"], ["Tamil Nadu", "LOCATED_IN", "India"], ["Pamban Island", "LOCATED_IN", "Tamil Nadu"]]
+  },
+  "9d9cda1c04d9": {
+    "entities": [["Tripura", "State"], ["Sipahijola Wildlife Sanctuary", "Park"], ["Gumti Wildlife Sanctuary", "Park"], ["Rowa Wildlife Sanctuary", "Park"], ["Trishna Wildlife Sanctuary", "Park"], ["Clouded Leopard National Park", "Park"], ["Rajbari National Park", "Park"], ["Rudrasagar Lake", "GeoFeature"], ["India", "Country"]],
+    "relations": [["Sipahijola Wildlife Sanctuary", "LOCATED_IN", "Tripura"], ["Gumti Wildlife Sanctuary", "LOCATED_IN", "Tripura"], ["Rowa Wildlife Sanctuary", "LOCATED_IN", "Tripura"], ["Trishna Wildlife Sanctuary", "LOCATED_IN", "Tripura"], ["Clouded Leopard National Park", "LOCATED_IN", "Tripura"], ["Rajbari National Park", "LOCATED_IN", "Tripura"], ["Rudrasagar Lake", "LOCATED_IN", "Tripura"]]
+  },
+  "071251e00eda": {
+    "entities": [["Daman", "City"], ["Nani Daman", "City"], ["Moti Daman", "City"], ["Coast Guard Public School", "Institution"], ["Institute of Our Lady of Fatima", "Institution"], ["Vaidik Dental college", "Institution"], ["Government Polytechnic Daman", "Institution"], ["Government College", "Institution"], ["Jawahar Navodaya Vidyalaya", "Institution"], ["Stella Maris English Medium High School", "Institution"], ["Dabhel", "City"], ["Dadra and Nagar Haveli and Daman and Diu", "State"]],
+    "relations": [["Coast Guard Public School", "LOCATED_IN", "Nani Daman"], ["Institute of Our Lady of Fatima", "LOCATED_IN", "Moti Daman"], ["Vaidik Dental college", "LOCATED_IN", "Nani Daman"], ["Government Polytechnic Daman", "LOCATED_IN", "Daman"], ["Government College", "LOCATED_IN", "Nani Daman"], ["Jawahar Navodaya Vidyalaya", "LOCATED_IN", "Daman"], ["Nani Daman", "LOCATED_IN", "Daman"], ["Moti Daman", "LOCATED_IN", "Daman"], ["Daman", "LOCATED_IN", "Dadra and Nagar Haveli and Daman and Diu"]]
+  },
+  "48aab9917b19": {
+    "entities": [["Andaman Islands", "GeoFeature"], ["Narcondam hornbill", "Product"], ["Chalis Ek", "Place"], ["China", "Country"]],
+    "relations": [["Chalis Ek", "LOCATED_IN", "Andaman Islands"]]
+  },
+  "8793af237159": {
+    "entities": [["Tithwal", "City"], ["Srinagar", "City"], ["Sopore", "City"], ["Kupwara", "City"], ["Tangdhar", "City"], ["Sharda Peeth", "Landmark"], ["Sadhna pass", "GeoFeature"], ["Karnah valley", "GeoFeature"], ["Kishan-Ganga", "GeoFeature"], ["Shamshabari mountain range", "GeoFeature"], ["Neelam valley", "GeoFeature"], ["Leepa valley", "GeoFeature"], ["Jammu and Kashmir", "State"], ["Forest Department of J&K", "Organisation"], ["NH1", "Landmark"], ["NH 701", "Landmark"]],
+    "relations": [["Tithwal", "LOCATED_IN", "Jammu and Kashmir"], ["Tithwal", "LOCATED_IN", "Karnah valley"], ["Karnah valley", "RELATED_TO", "Kishan-Ganga"], ["Sadhna pass", "LOCATED_IN", "Shamshabari mountain range"], ["Srinagar", "LOCATED_IN", "Jammu and Kashmir"], ["Sopore", "LOCATED_IN", "Jammu and Kashmir"], ["Kupwara", "LOCATED_IN", "Jammu and Kashmir"], ["Kishan-Ganga", "FLOWS_THROUGH", "Karnah valley"]]
+  },
+  "da9e9b9a8148": {
+    "entities": [["Delhi", "State"], ["India", "Country"], ["NH 1", "Landmark"], ["NH 2", "Landmark"], ["NH 8", "Landmark"], ["NH 10", "Landmark"], ["NH 24", "Landmark"], ["Golden Quadrilateral", "Landmark"], ["Mumbai", "City"], ["Kolkata", "City"], ["Public Works Department", "Organisation"], ["Government of Delhi", "Organisation"], ["Delhi Development Authority", "Organisation"], ["New Delhi Municipal Council", "Organisation"], ["Government of India", "Organisation"], ["Municipal Corporation of Delhi", "Organisation"]],
+    "relations": [["NH 1", "RELATED_TO", "Delhi"], ["Golden Quadrilateral", "RELATED_TO", "Delhi"], ["Public Works Department", "PART_OF", "Government of Delhi"], ["Municipal Corporation of Delhi", "RELATED_TO", "Delhi"], ["Delhi Development Authority", "PART_OF", "Government of India"], ["New Delhi Municipal Council", "PART_OF", "Government of India"]]
+  },
+  "4afa6684438f": {
+    "entities": [["Chhattisgarh", "State"], ["Achanakmar Wildlife Sanctuary", "Park"], ["Bilaspur", "District"], ["Badalkhol Wildlife Sanctuary", "Park"], ["Jashpur", "District"], ["Bhairamgarh Wildlife Sanctuary", "Park"], ["Bijapur", "District"], ["Barnawapara Wildlife Sanctuary", "Park"], ["Gomarda Wildlife Sanctuary", "Park"], ["Raigarh", "District"], ["Pamed Wildlife Sanctuary", "Park"], ["Semarsot Wildlife Sanctuary", "Park"], ["Sitanadi Wildlife Sanctuary", "Park"], ["Dhamtari", "District"], ["Udanti Wildlife Sanctuary", "Park"], ["Tamor Pingla Wildlife Sanctuary", "Park"], ["Surguja", "District"], ["Bhoramdev Wildlife Sanctuary", "Park"], ["Kawardha", "District"]],
+    "relations": [["Achanakmar Wildlife Sanctuary", "LOCATED_IN", "Bilaspur"], ["Badalkhol Wildlife Sanctuary", "LOCATED_IN", "Jashpur"], ["Bhairamgarh Wildlife Sanctuary", "LOCATED_IN", "Bijapur"], ["Gomarda Wildlife Sanctuary", "LOCATED_IN", "Raigarh"], ["Pamed Wildlife Sanctuary", "LOCATED_IN", "Bijapur"], ["Sitanadi Wildlife Sanctuary", "LOCATED_IN", "Dhamtari"], ["Tamor Pingla Wildlife Sanctuary", "LOCATED_IN", "Surguja"], ["Bhoramdev Wildlife Sanctuary", "LOCATED_IN", "Kawardha"], ["Achanakmar Wildlife Sanctuary", "LOCATED_IN", "Chhattisgarh"], ["Udanti Wildlife Sanctuary", "LOCATED_IN", "Chhattisgarh"]]
+  },
+  "664a648628a8": {
+    "entities": [["Meghalaya", "State"], ["Khasis", "EthnicGroup"], ["Garos", "EthnicGroup"], ["Jaintias", "EthnicGroup"], ["Bengali", "EthnicGroup"], ["Hajongs", "EthnicGroup"], ["Koches", "EthnicGroup"], ["Rajbongshis", "EthnicGroup"], ["Boros", "EthnicGroup"], ["Kuki", "EthnicGroup"], ["Karbi", "EthnicGroup"], ["Nepali", "EthnicGroup"]],
+    "relations": [["Khasis", "LOCATED_IN", "Meghalaya"], ["Garos", "LOCATED_IN", "Meghalaya"], ["Jaintias", "LOCATED_IN", "Meghalaya"], ["Hajongs", "LOCATED_IN", "Meghalaya"]]
+  },
+  "d77b4c10476f": {
+    "entities": [["Bihar", "State"], ["Valmiki National Park", "Park"], ["India", "Country"], ["Vikramshila Gangetic Dolphin Sanctuary", "Park"], ["Bhagalpur", "District"], ["Karkatgarh Waterfall", "GeoFeature"], ["Karmanasa River", "GeoFeature"], ["Kaimur Wildlife Sanctuary", "Park"], ["Bhimbandh Wildlife Sanctuary", "Park"], ["Gautam Buddha Wildlife Sanctuary", "Park"], ["Kanwar Lake Bird Sanctuary", "Park"], ["Asia", "Place"], ["Baraila lake", "GeoFeature"], ["Kusheshwar Nath Lake", "GeoFeature"], ["Udaypur lake", "GeoFeature"]],
+    "relations": [["Valmiki National Park", "LOCATED_IN", "Bihar"], ["Vikramshila Gangetic Dolphin Sanctuary", "LOCATED_IN", "Bhagalpur"], ["Karkatgarh Waterfall", "LOCATED_IN", "Karmanasa River"], ["Kaimur Wildlife Sanctuary", "LOCATED_IN", "Bihar"], ["Bhimbandh Wildlife Sanctuary", "LOCATED_IN", "Bihar"], ["Gautam Buddha Wildlife Sanctuary", "LOCATED_IN", "Bihar"], ["Kanwar Lake Bird Sanctuary", "LOCATED_IN", "Bihar"], ["Bhagalpur", "LOCATED_IN", "Bihar"]]
+  },
+  "722eeadb186f": {
+    "entities": [["Haryana", "State"], ["India", "Country"]],
+    "relations": [["Haryana", "LOCATED_IN", "India"]]
+  }
+}

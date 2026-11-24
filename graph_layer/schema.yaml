@@ -1,0 +1,89 @@
+# Knowledge-graph schema: what kinds of things and links the graph holds.
+# Shared by every extractor (spaCy, GLiNER, Claude) so their output can be compared like for like.
+
+entity_types:
+  State:        {description: "Indian state or union territory", gliner_label: "indian state or union territory"}
+  City:         {description: "city, town or village", gliner_label: "city or town"}
+  District:     {description: "administrative district or division", gliner_label: "district"}
+  Country:      {description: "country or nation", gliner_label: "country"}
+  Place:        {description: "other named region or area", gliner_label: "region"}
+  GeoFeature:   {description: "river, lake, mountain, peak, island, sea, plateau", gliner_label: "river, mountain, lake or island"}
+  Park:         {description: "national park, wildlife or bird sanctuary, reserve", gliner_label: "national park or sanctuary"}
+  Landmark:     {description: "monument, temple, monastery, fort, palace, stadium, airport", gliner_label: "monument, temple or building"}
+  Person:       {description: "named person", gliner_label: "person"}
+  Organisation: {description: "party, company, association, government body", gliner_label: "organisation"}
+  Institution:  {description: "university, school, research institute, hospital", gliner_label: "university or institute"}
+  Dynasty:      {description: "dynasty, empire, kingdom, sultanate", gliner_label: "dynasty or empire"}
+  Event:        {description: "war, battle, flood, treaty, movement, census", gliner_label: "historical event"}
+  Festival:     {description: "festival or celebration", gliner_label: "festival"}
+  Language:     {description: "language or script", gliner_label: "language"}
+  Religion:     {description: "religion or religious tradition", gliner_label: "religion"}
+  EthnicGroup:  {description: "people, tribe, community, caste", gliner_label: "tribe or ethnic group"}
+  Food:         {description: "dish, sweet, drink", gliner_label: "dish or food"}
+  Product:      {description: "crop, mineral, industry, craft", gliner_label: "crop or industry"}
+
+# spaCy's pretrained (OntoNotes) labels -> our types. Labels not listed (DATE, CARDINAL, MONEY...) are
+# attributes, not graph nodes. GPE is refined to State/City/Country with the gazetteer below.
+spacy_label_map:
+  PERSON: Person
+  ORG: Organisation
+  GPE: Place
+  LOC: GeoFeature
+  FAC: Landmark
+  NORP: EthnicGroup
+  EVENT: Event
+  LANGUAGE: Language
+  PRODUCT: Product
+  WORK_OF_ART: null
+
+relation_types:
+  CAPITAL_OF:    {description: "X is the capital of Y"}
+  LOCATED_IN:    {description: "X is located in / part of Y (place in place)"}
+  BORDERS:       {description: "X borders / shares a border with Y"}
+  FLOWS_THROUGH: {description: "river X flows through Y"}
+  RULED:         {description: "person or dynasty X ruled / controlled Y"}
+  FOUNDED:       {description: "X founded / established Y"}
+  BORN_IN:       {description: "person X was born in Y"}
+  CELEBRATED_IN: {description: "festival X is celebrated in Y"}
+  SPOKEN_IN:     {description: "language X is spoken in Y"}
+  PRODUCES:      {description: "place Y produces X (crop, mineral, product); stored as Y PRODUCES X"}
+  LEADS:         {description: "person X leads / is chief minister, governor, president of Y"}
+  PART_OF:       {description: "X is part of / member of Y (non-geographic)"}
+  RELATED_TO:    {description: "any other meaningful link; the description says what it is"}
+
+# Rule-based relation extraction over the dependency parse.
+# A verb (by lemma) linking a subject entity to an object entity. "passive: true" means the
+# grammatical subject is the semantic object ("Kerala was ruled by the Cheras").
+verb_rules:
+  rule:      {type: RULED}
+  reign:     {type: RULED}
+  govern:    {type: RULED}
+  conquer:   {type: RULED}
+  annex:     {type: RULED}
+  found:     {type: FOUNDED}
+  establish: {type: FOUNDED}
+  build:     {type: FOUNDED}
+  construct: {type: FOUNDED}
+  flow:      {type: FLOWS_THROUGH}
+  border:    {type: BORDERS}
+  bear:      {type: BORN_IN, preps: [in, at]}
+  locate:    {type: LOCATED_IN, preps: [in, at, on, near]}
+  situate:   {type: LOCATED_IN, preps: [in, at, on, near]}
+  lie:       {type: LOCATED_IN, preps: [in, on, along]}
+  celebrate: {type: CELEBRATED_IN, preps: [in, across, throughout]}
+  speak:     {type: SPOKEN_IN, preps: [in, across, by]}
+  produce:   {type: PRODUCES, reverse: true}
+  grow:      {type: PRODUCES, reverse: true}
+  lead:      {type: LEADS}
+  head:      {type: LEADS}
+
+# "X is the <noun> of Y" patterns (copula + attribute noun + 'of')
+copula_rules:
+  capital: CAPITAL_OF
+  part: LOCATED_IN
+  chief minister: LEADS
+  governor: LEADS
+  founder: FOUNDED
+  ruler: RULED
+  king: RULED
+  queen: RULED

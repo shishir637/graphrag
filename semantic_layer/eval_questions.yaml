@@ -1,0 +1,151 @@
+# Gold evaluation set for the semantic layer (reviewed like the rest of semantic_layer/).
+# Each data question has the request the planner SHOULD produce; scoring runs both the gold request and the
+# planner's request and compares the result rows, so differently-written but equivalent requests still pass.
+# Relative dates are resolved against as_of (the evaluator pins "today" to it).
+#   kind: simple | breakdown | filter | top_n | synonym | typo | multi_metric | disallowed | fiscal | unanswerable | route
+as_of: 2026-11-24
+questions:
+  # ---------- simple ----------
+  - {id: s01, kind: simple, question: "What was total net revenue in FY2025-26?",
+     gold: {metrics: [net_revenue], start_date: 2025-04-01, end_date: 2026-03-31}}
+  - {id: s02, kind: simple, question: "How many orders did we get last month?",
+     gold: {metrics: [order_count], start_date: 2026-10-01, end_date: 2026-10-31}}
+  - {id: s03, kind: simple, question: "What was gross revenue in 2025?",
+     gold: {metrics: [gross_revenue], start_date: 2025-01-01, end_date: 2025-12-31}}
+  - {id: s04, kind: simple, question: "Total refunds last quarter",
+     gold: {metrics: [refunds], start_date: 2026-07-01, end_date: 2026-09-30}}
+  - {id: s05, kind: simple, question: "How many units were sold in FY2024-25?",
+     gold: {metrics: [units_sold], start_date: 2024-04-01, end_date: 2025-03-31}}
+  - {id: s06, kind: simple, question: "What is our overall return rate?",
+     gold: {metrics: [return_rate]}}
+  - {id: s07, kind: simple, question: "What is the average order value this fiscal year?",
+     gold: {metrics: [average_order_value], start_date: 2026-04-01, end_date: 2027-03-31}}
+  - {id: s08, kind: simple, question: "How many active customers did we have in Q2 2026?",
+     gold: {metrics: [active_customers], start_date: 2026-04-01, end_date: 2026-06-30}}
+  - {id: s09, kind: simple, question: "How many new customers joined in 2025?",
+     gold: {metrics: [new_customers], start_date: 2025-01-01, end_date: 2025-12-31}}
+  - {id: s10, kind: simple, question: "What was revenue per customer in FY2025-26?",
+     gold: {metrics: [revenue_per_customer], start_date: 2025-04-01, end_date: 2026-03-31}}
+
+  # ---------- breakdowns ----------
+  - {id: b01, kind: breakdown, question: "Net revenue by region",
+     gold: {metrics: [net_revenue], dimensions: [regions.region_name]}}
+  - {id: b02, kind: breakdown, question: "Order count by channel last quarter",
+     gold: {metrics: [order_count], dimensions: [orders.channel], start_date: 2026-07-01, end_date: 2026-09-30}}
+  - {id: b03, kind: breakdown, question: "Monthly net revenue in 2026",
+     gold: {metrics: [net_revenue], dimensions: [orders.order_date__month], start_date: 2026-01-01, end_date: 2026-12-31}}
+  - {id: b04, kind: breakdown, question: "Net revenue by fiscal year",
+     gold: {metrics: [net_revenue], dimensions: [orders.order_date__fiscal_year]}}
+  - {id: b05, kind: breakdown, question: "Units sold by product category in 2026",
+     gold: {metrics: [units_sold], dimensions: [products.category], start_date: 2026-01-01, end_date: 2026-12-31}}
+  - {id: b06, kind: breakdown, question: "Active customers by segment",
+     gold: {metrics: [active_customers], dimensions: [customers.segment]}}
+  - {id: b07, kind: breakdown, question: "Return rate by region",
+     gold: {metrics: [return_rate], dimensions: [regions.region_name]}}
+  - {id: b08, kind: breakdown, question: "How many new customers signed up per quarter?",
+     gold: {metrics: [new_customers], dimensions: [customers.signup_date__quarter]}}
+  - {id: b09, kind: breakdown, question: "Cumulative net revenue by month for 2025",
+     gold: {metrics: [cumulative_net_revenue], dimensions: [orders.order_date__month], start_date: 2025-01-01, end_date: 2025-12-31}}
+  - {id: b10, kind: breakdown, question: "Weekly order count for October 2026",
+     gold: {metrics: [order_count], dimensions: [orders.order_date__week], start_date: 2026-10-01, end_date: 2026-10-31}}
+
+  # ---------- filters ----------
+  - {id: f01, kind: filter, question: "Net revenue from Enterprise customers in FY2025-26",
+     gold: {metrics: [net_revenue], filters: [{dimension: customers.segment, op: "=", values: [Enterprise]}],
+            start_date: 2025-04-01, end_date: 2026-03-31}}
+  - {id: f02, kind: filter, question: "How many orders came through the app in 2026?",
+     gold: {metrics: [order_count], filters: [{dimension: orders.channel, op: "=", values: [app]}],
+            start_date: 2026-01-01, end_date: 2026-12-31}}
+  - {id: f03, kind: filter, question: "Average order value for Small Business customers in Mumbai",
+     gold: {metrics: [average_order_value], filters: [{dimension: customers.segment, op: "=", values: [Small Business]},
+                                                       {dimension: customers.city, op: "=", values: [Mumbai]}]}}
+  - {id: f04, kind: filter, question: "Net revenue in the South region last quarter",
+     gold: {metrics: [net_revenue], filters: [{dimension: regions.region_name, op: "=", values: [South]}],
+            start_date: 2026-07-01, end_date: 2026-09-30}}
+  - {id: f05, kind: filter, question: "Units of Electronics sold last month",
+     gold: {metrics: [units_sold], filters: [{dimension: products.category, op: "=", values: [Electronics]}],
+            start_date: 2026-10-01, end_date: 2026-10-31}}
+  - {id: f06, kind: filter, question: "Return rate for web orders in 2025",
+     gold: {metrics: [return_rate], filters: [{dimension: orders.channel, op: "=", values: [web]}],
+            start_date: 2025-01-01, end_date: 2025-12-31}}
+
+  # ---------- top N ----------
+  - {id: t01, kind: top_n, question: "Top 3 cities by net revenue in 2026",
+     gold: {metrics: [net_revenue], dimensions: [customers.city], order_by: [-net_revenue], limit: 3,
+            start_date: 2026-01-01, end_date: 2026-12-31}}
+  - {id: t02, kind: top_n, question: "Which 5 products generated the most revenue?",
+     gold: {metrics: [product_revenue], dimensions: [products.product_name], order_by: [-product_revenue], limit: 5}}
+  - {id: t03, kind: top_n, question: "Which region had the lowest number of orders last fiscal year?",
+     gold: {metrics: [order_count], dimensions: [regions.region_name], order_by: [order_count], limit: 1,
+            start_date: 2025-04-01, end_date: 2026-03-31}}
+
+  # ---------- synonyms ----------
+  - {id: y01, kind: synonym, question: "What were our sales last quarter?",
+     gold: {metrics: [net_revenue], start_date: 2026-07-01, end_date: 2026-09-30}}
+  - {id: y02, kind: synonym, question: "Revenue in Bangalore in 2026",
+     gold: {metrics: [net_revenue], filters: [{dimension: customers.city, op: "=", values: [Bengaluru]}],
+            start_date: 2026-01-01, end_date: 2026-12-31}}
+  - {id: y03, kind: synonym, question: "How many signups did we get last month?",
+     gold: {metrics: [new_customers], start_date: 2026-10-01, end_date: 2026-10-31}}
+  - {id: y04, kind: synonym, question: "AOV for corporate clients",
+     gold: {metrics: [average_order_value], filters: [{dimension: customers.segment, op: "=", values: [Enterprise]}]}}
+  - {id: y05, kind: synonym, question: "Topline in FY2025-26",
+     gold: {metrics: [gross_revenue], start_date: 2025-04-01, end_date: 2026-03-31}}
+  - {id: y06, kind: synonym, question: "How many orders were placed online in Madras this year?",
+     gold: {metrics: [order_count], filters: [{dimension: orders.channel, op: "=", values: [web]},
+                                              {dimension: customers.city, op: "=", values: [Chennai]}],
+            start_date: 2026-01-01, end_date: 2026-12-31}}
+
+  # ---------- typos ----------
+  - {id: x01, kind: typo, question: "net revenu in Bangalor last quarter",
+     gold: {metrics: [net_revenue], filters: [{dimension: customers.city, op: "=", values: [Bengaluru]}],
+            start_date: 2026-07-01, end_date: 2026-09-30}}
+  - {id: x02, kind: typo, question: "orders from Chenai in 2025",
+     gold: {metrics: [order_count], filters: [{dimension: customers.city, op: "=", values: [Chennai]}],
+            start_date: 2025-01-01, end_date: 2025-12-31}}
+  - {id: x03, kind: typo, question: "retun rate for enterprse customers",
+     gold: {metrics: [return_rate], filters: [{dimension: customers.segment, op: "=", values: [Enterprise]}]}}
+  - {id: x04, kind: typo, question: "units sold in Hyderbad by categry",
+     gold: {metrics: [units_sold], dimensions: [products.category],
+            filters: [{dimension: customers.city, op: "=", values: [Hyderabad]}]}}
+
+  # ---------- several metrics ----------
+  - {id: m01, kind: multi_metric, question: "Show orders, net revenue and average order value by region for FY2025-26",
+     gold: {metrics: [order_count, net_revenue, average_order_value], dimensions: [regions.region_name],
+            start_date: 2025-04-01, end_date: 2026-03-31}}
+  - {id: m02, kind: multi_metric, question: "Gross revenue, refunds and net revenue for 2025",
+     gold: {metrics: [gross_revenue, refunds, net_revenue], start_date: 2025-01-01, end_date: 2025-12-31}}
+  - {id: m03, kind: multi_metric, question: "Returned orders and return rate by channel",
+     gold: {metrics: [returned_orders, return_rate], dimensions: [orders.channel]}}
+
+  # ---------- splits the layer must handle safely ----------
+  - {id: d01, kind: disallowed, question: "Net revenue by product category",
+     gold: {metrics: [product_revenue], dimensions: [products.category]}}
+  - {id: d02, kind: disallowed, question: "Revenue for each product in 2026",
+     gold: {metrics: [product_revenue], dimensions: [products.product_name], start_date: 2026-01-01, end_date: 2026-12-31}}
+
+  # ---------- fiscal / date wording ----------
+  - {id: q01, kind: fiscal, question: "Net revenue in fiscal Q1 of FY2026-27",
+     gold: {metrics: [net_revenue], start_date: 2026-04-01, end_date: 2026-06-30}}
+  - {id: q02, kind: fiscal, question: "Order count in the first half of 2025",
+     gold: {metrics: [order_count], start_date: 2025-01-01, end_date: 2025-06-30}}
+  - {id: q03, kind: fiscal, question: "Net revenue since 1 September 2026",
+     gold: {metrics: [net_revenue], start_date: 2026-09-01, end_date: 2026-11-24}}
+  - {id: q04, kind: fiscal, question: "Net revenue last fiscal year by quarter",
+     gold: {metrics: [net_revenue], dimensions: [orders.order_date__quarter], start_date: 2025-04-01, end_date: 2026-03-31}}
+
+  # ---------- not answerable from the layer (should refuse, not guess) ----------
+  - {id: u01, kind: unanswerable, question: "What is our profit margin?"}
+  - {id: u02, kind: unanswerable, question: "How many employees do we have?"}
+  - {id: u03, kind: unanswerable, question: "What was the marketing spend last quarter?"}
+  - {id: u04, kind: unanswerable, question: "What is the customer satisfaction score?"}
+
+  # ---------- routing: documents vs data ----------
+  - {id: r01, kind: route, question: "What is the capital of Kerala?", route: docs}
+  - {id: r02, kind: route, question: "Who founded the Golconda Sultanate?", route: docs}
+  - {id: r03, kind: route, question: "Which dance forms originated in Punjab?", route: docs}
+  - {id: r04, kind: route, question: "What crops are grown in Sikkim?", route: docs}
+  - {id: r05, kind: route, question: "Net revenue by region last quarter", route: data}
+  - {id: r06, kind: route, question: "How many customers do we have in Chennai?", route: data}
+  - {id: r07, kind: route, question: "Which product category sells the most units?", route: data}
+  - {id: r08, kind: route, question: "What was our return rate in 2025?", route: data}

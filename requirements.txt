@@ -21,5 +21,9 @@ xxhash==3.6.0
 opencv-python-headless==4.11.0.86
 tree-sitter==0.25.2
 grpcio==1.80.0                 # 1.85 became blocked on 2026-11-19
+# torch_python.dll of 2.15 became blocked on 2026-11-23; install from the CPU index:
+#   pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+torch==2.12.0
+torchvision==0.27.0
 # Semantic layer (see requirements-semantic.txt for the minimal set CI installs)
 -r requirements-semantic.txt

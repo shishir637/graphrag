@@ -239,6 +239,12 @@ def compile_query(q: SemanticQuery, model: SemanticModel, metrics: MetricSet) ->
         dim_cols = [f"COALESCE({', '.join(f'g{i}.{a}' for i in range(len(parts)))}) AS {a}" for a in out_names]
         sql = f"WITH {ctes} SELECT {', '.join(dim_cols + list(q.metrics))} FROM {body}"
 
+    if q.limit and out_names:
+        # rankings ("top 5 cities", "region with the fewest orders") leave out the unknown group: rows whose
+        # dimension is empty (e.g. orders of deleted customers) are not a real city/region and must not win
+        sql = (f"SELECT * FROM ({sql}) AS ranked WHERE "
+               + " AND ".join(f"{a} IS NOT NULL" for a in out_names))
+
     allowed = set(out_names) | set(q.metrics)
     order = []
     for o in q.order_by:

@@ -11,8 +11,11 @@ from .store import client
 from .utils import timer, write_json
 
 
-def build_filter(groups: list[str] | None, sources: list[str] | None) -> models.Filter | None:
+def build_filter(groups: list[str] | None, sources: list[str] | None,
+                 headings: list[str] | None = None) -> models.Filter | None:
     must = []
+    if headings:   # restrict to chunks under any of these headings (e.g. a set of regions)
+        must.append(models.FieldCondition(key="headings", match=models.MatchAny(any=headings)))
     if groups:   # user may only see chunks whose "access" contains one of their groups
         must.append(models.FieldCondition(key="access", match=models.MatchAny(any=groups)))
     if sources:
@@ -27,10 +30,10 @@ def _hits(points, score_key="score"):
 
 
 def retrieve(question: str, groups: list[str] | None = None, sources: list[str] | None = None,
-             save: bool = True) -> dict:
+             save: bool = True, headings: list[str] | None = None) -> dict:
     qc, timings = client(), {}
     groups = groups or ["public"]          # default user only sees public documents
-    flt = build_filter(groups, sources)
+    flt = build_filter(groups, sources, headings)
 
     with timer("embed_query", timings):
         qd = embed_dense([question])[0]

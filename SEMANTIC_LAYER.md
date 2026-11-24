@@ -86,3 +86,32 @@ PostgreSQL + pgvector, to stay with the RAG system's stack and need no server.
   the Qdrant `semantic` collection instead.
 - Tables are loaded into in-memory DuckDB (fine for MBs). For large data, use views over Parquet or point
   DuckDB at the warehouse.
+
+## Evaluation (`rag.py sl-eval`)
+
+The gold set `semantic_layer/eval_questions.yaml` holds 60 questions: simple, breakdown, filter, top-N, synonym,
+typo, multi-metric, disallowed-split, fiscal-date, unanswerable and documents-vs-data routing. Each data
+question carries the request the planner should produce. "Today" is pinned to the set's `as_of` date.
+
+| Metric | How it is scored |
+|---|---|
+| execution_accuracy | gold request and planner request are both run; same groups and values (deterministic) |
+| request_exact (+ metrics/dimensions/filters/dates) | field-by-field comparison with the gold request |
+| refusal_accuracy | unanswerable questions are declined, not guessed |
+| route_accuracy | documents-vs-data router |
+| number_faithfulness | every number in the written answer is in the result rows (rounding, %, lakh/crore/million, totals allowed) |
+| efficiency | seconds per question, Claude calls, tokens, compile retries |
+
+```powershell
+.venv\Scripts\python rag.py sl-eval --tag baseline
+.venv\Scripts\python rag.py sl-eval --tag haiku --planner claude-haiku-5-5
+```
+
+Accuracy and cost helpers measured with it:
+- `semantic/dates.py`: deterministic date resolution (fiscal years, quarters, halves, "since", "last N days").
+- Template answers for one-row results: no model call, so numbers can't be misquoted.
+- Number guard: an unfaithful summary is regenerated once, then replaced by the table.
+- Plan cache in `sl_store/plan_cache.json`, keyed on question, day, model and a hash of the layer files.
+- `semantic/quality.py` data checks (freshness, duplicate keys, orphan rows), reported with every answer.
+- Rankings (`limit`) leave out the unknown group, so orphan rows cannot be "the top region".
+- Result tables are shown to the summariser with full numbers, not scientific notation.

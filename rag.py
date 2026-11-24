@@ -16,7 +16,14 @@ Semantic layer (structured data in data/; see SEMANTIC_LAYER.md):
   python rag.py sl-enrich                  # phase 4: value lists, synonyms, verified queries -> DuckDB + Qdrant
   python rag.py sl-sql '{"metrics": ["net_revenue"], "dimensions": ["regions.region_name"]}'
   python rag.py sl-ask "net revenue by region last quarter"
+  python rag.py sl-eval [--planner claude-haiku-5-5] [--tag name]   # gold-set evaluation (semantic_layer/eval_questions.yaml)
   python rag.py ask "..." --route auto|docs|data   # auto: Claude decides documents vs. data
+
+Graph RAG (Apache AGE in Docker: docker compose -f docker-compose.graph.yml up -d; see GRAPH_RAG.md):
+  python rag.py gr-extract --regions "Kerala,Tamil Nadu" [--model claude-haiku-5-5]   # entities + relations per chunk
+  python rag.py gr-build outputs/gr_extract_south.jsonl   # merge duplicates, tables, communities -> AGE + Qdrant
+  python rag.py gr-ask "question" [--mode auto|vector|local|global|data]
+  python rag.py gr-eval questions|run|score                # graph vs vector RAG comparison
 """
 import argparse
 import os
@@ -56,9 +63,22 @@ def main():
     sub.add_parser("sl-metrics").add_argument("--draft", action="store_true")
     sub.add_parser("sl-sql").add_argument("query", help="SemanticQuery as JSON")
     sub.add_parser("sl-ask").add_argument("question")
+    se = sub.add_parser("sl-eval")
+    se.add_argument("--planner", help="model for routing/planning/summary, e.g. claude-haiku-5-5")
+    se.add_argument("--tag", default="baseline")
     for sp in (a,):
         sp.add_argument("--groups", help="comma-separated access groups of the asking user")
         sp.add_argument("--sources", help="comma-separated file names to restrict the search to")
+    ge = sub.add_parser("gr-extract")
+    ge.add_argument("--regions")
+    ge.add_argument("--model", default="claude-haiku-5-5")
+    ge.add_argument("--workers", type=int, default=8)
+    ge.add_argument("--out", default="outputs/gr_extract.jsonl")
+    sub.add_parser("gr-build").add_argument("paths", nargs="+")
+    ga = sub.add_parser("gr-ask")
+    ga.add_argument("question")
+    ga.add_argument("--mode", default="auto", choices=["auto", "vector", "local", "global", "data"])
+    sub.add_parser("gr-eval").add_argument("stage", choices=["questions", "run", "score"])
     d = sub.add_parser("draft-questions")
     d.add_argument("-n", type=int, default=20)
     d.add_argument("--mix", action="store_true", help="large documents: questions per region, 4 question types")
@@ -100,6 +120,8 @@ def _run(args):
         from semantic.enrich import build_enrichment; build_enrichment()
     elif args.cmd == "sl-sql":
         from semantic.compiler import run_json; run_json(args.query)
+    elif args.cmd == "sl-eval":
+        from semantic.evaluate import run as sl_eval; sl_eval(args.tag, args.planner)
     elif args.cmd == "sl-ask":
         from semantic.answer import answer_data_question, print_data_answer
         print_data_answer(answer_data_question(args.question))
@@ -117,6 +139,16 @@ def _run(args):
         draft_mixed_questions(args.n) if args.mix else draft_questions(args.n)
     elif args.cmd == "eval":
         from rag.evaluate import run_eval; run_eval()
+    elif args.cmd == "gr-extract":
+        sys.argv = ["extract_llm", "--model", args.model, "--workers", str(args.workers), "--out", args.out] +                    (["--regions", args.regions] if args.regions else [])
+        from graph.extract_llm import main as gr_extract; gr_extract()
+    elif args.cmd == "gr-build":
+        from graph.build import build; build(args.paths)
+    elif args.cmd == "gr-ask":
+        from graph.query import answer, print_answer; print_answer(answer(args.question, args.mode))
+    elif args.cmd == "gr-eval":
+        from graph import evaluate as ge
+        {"questions": ge.make_questions, "run": ge.run, "score": ge.score}[args.stage]()
 
 
 def _answer(question, route="auto", groups=None, sources=None):
