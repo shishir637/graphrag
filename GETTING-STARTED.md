@@ -22,7 +22,8 @@ cd context-layer
 cp .env.example .env        # Windows: copy .env.example .env
 ```
 
-Open `.env` and set `CL_DB_PASSWORD` to a long random value. Then:
+Open `.env` and set `CL_DB_PASSWORD` to a long random value and `CL_SECRET_KEY` to a key made with the
+command in the file (it encrypts connector tokens; keep a copy). Then:
 
 ```bash
 docker compose up -d --build
@@ -46,6 +47,14 @@ The first build and start take 10-20 minutes while the models download. Check pr
    building the graph; answering never calls an AI model.
 5. **Playground**: ask a question to check what agents will get back.
 6. **Access**: add team members. Viewers see only the access groups you give them; owners and admins see everything.
+7. **Sources** (optional): connect GitHub (repositories: code and docs become searchable, commits, pull requests,
+   issues and CI runs become metrics such as "median time to merge" or "build failure rate") or a Postgres database
+   (tables copied on a schedule, or queried live). They stay up to date on their own; a GitHub webhook
+   (`https://<public name>/hooks/github/<connector id>`, with the connector's webhook secret) makes it immediate.
+   Each repository is its own access group (`repo-<owner>-<name>`), for passages and numbers.
+
+Each workspace is separate: its people, keys, documents, metrics and sources. With `CL_SIGNUP=open` anyone can
+create a workspace at `/api/v1/signup`; by default owners add people.
 
 ## 4. Connect an AI app
 
@@ -108,8 +117,11 @@ from it once the build is ready.
 | Disconnect someone's Claude or ChatGPT | Agents → Signed-in apps → Disconnect |
 | See every question agents asked | Activity |
 | Check search and metric accuracy | Quality |
+| Review drafts (new metrics, suggested synonyms, metrics a nightly check took out) | Metrics, or `GET /api/v1/semantic/drafts` |
+| Export / import the semantic layer as YAML (review in git) | `GET /api/v1/semantic/export`, `POST /api/v1/semantic/import` |
+| Connect or sync a source | `/api/v1/connectors`, or from the chat with an admin key (`connect_source`) |
 | Update to a new version | `git pull` then `docker compose up -d --build` |
-| Back up | the Docker volumes `app_data`, `documents`, `tables`, `semantic_layer`, `graph_data` (the others are rebuilt) |
+| Back up | the Docker volumes `db_data` and `app_data`, and your `CL_SECRET_KEY` (Qdrant is rebuilt from them) |
 
 ## 6. If something goes wrong
 

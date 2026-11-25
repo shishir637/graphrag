@@ -1,5 +1,8 @@
 # Context Layer: product brief (v0.1, self-hosted)
 
+> 0.5: one server hosts many workspaces (sign-up or invite); each connects sources once (uploads, GitHub, Postgres)
+> that are then kept up to date on their own. See CHANGES.md.
+
 ## Who it is for
 
 **The buyer and daily user is a company's data / IT admin**: the person asked to "let our AI agents use

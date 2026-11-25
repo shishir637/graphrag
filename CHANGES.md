@@ -1,6 +1,44 @@
 # Changes
 
-## Unreleased: evidence quality
+## 0.5.0: workspaces, Postgres, sources kept up to date on their own
+
+One server, many workspaces. Each workspace connects its sources once; Context Layer then picks changes up by itself
+and agents only ask.
+
+**Storage** (everything structured in Postgres; vectors in Qdrant; files per workspace)
+- People, sessions, keys, OAuth sign-ins, audit and settings moved from SQLite to Postgres (`app/db.py`,
+  `migrations/`). `python -m app.migrate_local` moves a 0.4 installation into one workspace.
+- The semantic layer is stored per workspace in Postgres with versions and history; YAML is import/export.
+- Document access groups in Postgres; documents, tables and build outputs in the workspace's folder.
+- Qdrant runs as a server shared by all workspaces (tenant key on every point and search).
+- Secrets (connector tokens, database passwords, the AI extraction key) are encrypted per workspace (`CL_SECRET_KEY`).
+- Docker: `db` (Postgres 17 + Apache AGE + pgvector) and `qdrant` services.
+
+**Workspaces**
+- A person has one account and a role and access groups per workspace; switch from the account menu.
+  `CL_SIGNUP=open` lets anyone create a workspace; default: owners add people.
+- Row-level security in Postgres (forced; the app runs as a role without superuser rights) keeps workspaces apart
+  even if a query forgets its filter. Caches are kept per workspace.
+- Keys have a scope: agent (asks questions) or admin (also sets the workspace up). MCP lists only the tools a key may use.
+
+**Picked up on their own**
+- Connectors: GitHub (code and docs as documents, one access group per repository; commits, pull requests,
+  issues, CI runs and contributors as tables with a ready-made engineering semantic layer of 19 metrics) and
+  Postgres (snapshot, incremental with an `updated_column`, or live). Synced on a schedule and on signed webhooks
+  (`/hooks/github/<id>`); only what changed is fetched and rebuilt. Admin keys can connect sources from the chat
+  (`connect_source`, `list_sources`, `sync_source`).
+- Jobs are queued in Postgres and run by workers in any app process: one job per workspace at a time, workspaces in
+  parallel. Questions no longer wait for a build: indexes are updated in place.
+- The search index is incremental (only new or changed passages are written) and passage ids are content-based.
+- Nightly, every approved metric is run; a broken one is taken out (`needs_review`) with the reason and comes back
+  once it works. Questions no metric matched become synonym suggestions for an owner.
+
+**Answers**
+- Metrics respect row access rules (e.g. only the caller's repositories), in numbers and in known values.
+- The router returns an evidence plan: a "why" question about a metric also gets the number, and a number question
+  with "explain", "policy" or "how is ... calculated" also gets the passages.
+
+## Unreleased (folded into 0.5.0): evidence quality
 
 What an agent receives is now graded, so it can tell real evidence from loosely related text.
 

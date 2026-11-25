@@ -5,6 +5,11 @@ Governed company knowledge for AI agents. Connect documents and data tables once
 evidence - passages with sources, numbers computed from reviewed definitions, knowledge-graph links - and
 the agent writes the answer. **No AI model runs inside Context Layer and no API key is needed**: search,
 re-ranking, entity extraction and metric planning all run locally on CPU.
+One server hosts many **workspaces** (companies, teams, products). Each workspace connects its sources once
+(uploads, GitHub, a Postgres database) and they are then **picked up on their own**: synced on a schedule or a
+webhook, indexed incrementally, metrics drafted and checked every night. Workspaces never see each other's data
+(Postgres row-level security, a workspace filter on every search).
+
 **New here? Follow [GETTING-STARTED.md](GETTING-STARTED.md).** Who it is for: [PRODUCT.md](PRODUCT.md). What changed: [CHANGES.md](CHANGES.md).
 
 ## Use it from Claude or ChatGPT
@@ -26,8 +31,8 @@ background and answers from them once `build_status` says ready.
 ## Install (self-hosted, Docker)
 
 ```bash
-cp .env.example .env          # set CL_DB_PASSWORD (long random)
-docker compose up -d          # app + graph database; the first run downloads ~5 GB of local models
+cp .env.example .env          # set CL_DB_PASSWORD (long random) and CL_SECRET_KEY (see the file)
+docker compose up -d          # app + Postgres + Qdrant; the first run downloads ~5 GB of local models
 ```
 
 Open http://localhost:8080, create the owner account, then follow the checklist on the Overview page:
@@ -37,16 +42,22 @@ the knowledge graph, then connect your first agent. Agents connect to `http://<s
 - To serve other machines: put HTTPS in front (Caddy, nginx, your load balancer), set `CL_BIND=0.0.0.0`
   and `CL_PUBLIC_HOSTS=contextlayer.yourcompany.com` in `.env`.
 - Everything stays in the Docker volumes; there is no outbound traffic except model downloads on first use.
-- Backups: the volumes `app_data` (users, agents, audit), `documents`, `tables` and `graph_data`.
+- Backups: the volumes `db_data` (Postgres: workspaces, people, keys, audit, semantic layer, jobs, connectors,
+  encrypted secrets, graph copy) and `app_data` (each workspace's files); keep `CL_SECRET_KEY` with them.
+  `qdrant_data` can be rebuilt from them ("Prepare documents").
+- Coming from 0.4 (one workspace, SQLite): `docker compose run --rm app python -m app.migrate_local var/app.db`.
 
 ## Run without Docker (development, Windows/macOS/Linux)
 
 ```bash
 python -m venv .venv && .venv/bin/pip install -r requirements.txt     # Windows: .venv\Scripts\...
+docker compose up -d db qdrant                                        # Postgres + Qdrant (publish their ports, or
+set CL_DATABASE_URL=postgresql://rag:<pw>@127.0.0.1:5432/contextlayer QDRANT_URL=http://127.0.0.1:6333)
 python -m app                                                         # http://127.0.0.1:8080
 ```
-The graph database (Apache AGE) is optional: answering reads the graph build file; AGE keeps a copy for
-Cypher queries (`docker compose -f docker-compose.graph.yml up -d`).
+Tests need a throwaway Postgres (`CL_TEST_DATABASE_URL`, default `127.0.0.1:5499`) and optionally Qdrant
+(`CL_TEST_QDRANT_URL`, default `127.0.0.1:6399`). Answering reads the graph build file; Apache AGE keeps a copy
+per workspace for Cypher queries.
 
 The web app is prebuilt in `web/dist`. To change it: `cd web && npm install && npm run dev` (port 5173,
 forwards the API to 8080), then `npm run build`.
@@ -54,12 +65,14 @@ forwards the API to 8080), then `npm run build`.
 | Part | Where |
 |---|---|
 | Web app (React + TypeScript) | `web/src` (pages in `web/src/pages`) |
-| API, sign-in, roles, agents, audit | `app/main.py`, `app/core.py` (SQLite in `var/`) |
-| MCP server for agents | `app/mcp_server.py` (read: ask, search_documents, describe_data, query_metrics, list_metrics, find_connections, explore_entity, list_documents, fetch_passage, build_status; write: add_document, create_upload_link, approve_metric) |
+| API, sign-in, workspaces, roles, agents, audit | `app/main.py`, `app/core.py`, `app/db.py` (Postgres, row-level security; schema in `migrations/`) |
+| Background jobs, scheduler | `app/jobs.py` (queue in Postgres), `app/scheduler.py`, `semantic/monitor.py`, `semantic/learn.py` |
+| Connectors | `connectors/` (GitHub with an engineering semantic layer, Postgres snapshot/live), secrets in `app/vault.py` |
+| MCP server for agents | `app/mcp_server.py` (read: ask, search_documents, describe_data, query_metrics, list_metrics, find_connections, explore_entity, list_documents, fetch_passage, build_status; write: add_document, create_upload_link; admin keys: approve_metric, connect_source, list_sources, sync_source). Each key sees only the tools it may use. |
 | Sign in from Claude / ChatGPT (OAuth 2.1, PKCE, DCR, client metadata documents) | `app/oauth.py` |
-| Routing without a model | `app/router.py` |
+| Routing without a model (evidence plan: primary + secondary sources) | `app/router.py` |
 | Documents | `rag/` (parse incl. JSON records, chunk, incremental embed, hybrid + graph retrieval, re-rank, coverage) |
-| Metrics | `semantic/` + `semantic_layer/` (`ingest.py` Excel/JSON/CSV, `auto_model.py` draft definitions, `rule_planner.py`) |
+| Metrics | `semantic/` (`repo.py` definitions in Postgres with history, `policy.py` approvals, `access.py` row access, `db.py` DuckDB per workspace, `auto_model.py` drafts, `rule_planner.py`); `semantic_layer/` is the first workspace's seed and the YAML import/export format |
 | Knowledge graph | `graph/nlp_extract.py` (GLiNER/spaCy), `graph/build.py`, `graph/search.py`, `graph/access.py` |
 | Benchmarks | `python -m rag.retrieval_eval`, `python -m semantic.rule_eval`, `python -m graph.eval_extraction` |
 | Tests | `python -m pytest tests -q` |

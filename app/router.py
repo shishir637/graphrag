@@ -8,6 +8,11 @@
 
 The route only decides which evidence is gathered first; the calling agent reads the evidence and answers.
 Callers can always force a route with mode=documents|metrics|graph.
+
+plan() adds cheap secondary sources to the primary one (the evidence plan), still without a language model:
+  data + explanation words ("why", "explain", "how is ... calculated", "policy")  -> also documents
+  documents / connections + a question that names a defined metric                 -> also the metric result
+so "why did net revenue drop in Kerala last quarter?" gets the number and the passages that explain it.
 """
 import re
 
@@ -15,6 +20,9 @@ OVERVIEW = re.compile(r"\b(overview|summar(y|ise|ize)|main (themes?|topics?|poin
                       r"across (all|the)|key (themes?|trends?)|what are the (main|major|key)|landscape|outline)\b", re.I)
 CONNECT = re.compile(r"\b(related|relationship|connected|connection|link(ed)?|between|in common|both|compare|"
                      r"comparison|differ(ence|s)?|versus|vs\.?|same as|which of)\b", re.I)
+EXPLAIN = re.compile(r"\b(why|reason|reasons|explain|explanation|cause[sd]?|because|what (drove|caused|happened)|"
+                     r"how (is|are|was|were) .{1,60} (calculated|defined|measured|counted)|polic(y|ies)|definition|"
+                     r"rules?)\b", re.I)
 COUNTING = re.compile(r"\b(how many|how much|number of|count of|count|total|sum of|average|avg|mean|median|"
                       r"top \d+|rank(ed|ing)?|trend|per (month|quarter|year)|by (month|quarter|year|region|city|channel))\b", re.I)
 
@@ -56,3 +64,29 @@ def route(question: str, today=None) -> tuple[str, str]:
     except Exception:                                          # noqa: BLE001
         pass
     return "documents", "a fact to look up"
+
+
+def _names_metric(q: str, today=None) -> bool:
+    """The question names a defined metric (fuller name or counting words), whatever its first word."""
+    from datetime import date
+    try:
+        from semantic.rule_planner import planner
+        p = planner().plan(q, today or date.today())
+    except Exception:                                          # noqa: BLE001 - no data layer
+        return False
+    if not p.answerable:
+        return False
+    terms = [t for t, _ in p.matched.get("metrics", [])]
+    return any(len(t.split()) >= 2 for t in terms) or bool(COUNTING.search(q))
+
+
+def plan(question: str, today=None) -> tuple[str, list[str], str]:
+    """(primary route, secondary sources, reason). Secondary sources are gathered too when the caller may use them."""
+    primary, reason = route(question, today)
+    q = question.strip()
+    extra: list[str] = []
+    if primary == "data" and EXPLAIN.search(q):
+        extra.append("documents")
+    elif primary in ("documents", "connections") and _names_metric(q, today):
+        extra.append("data")
+    return primary, extra, reason

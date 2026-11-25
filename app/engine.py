@@ -657,7 +657,7 @@ def ask(question: str, groups: list[str] | None, capabilities: list[str], mode: 
 
 def _ask(question: str, groups: list[str] | None, capabilities: list[str], mode: str = "auto") -> dict:
     """mode: auto | documents | metrics | graph. groups=None means unrestricted (owner tools only)."""
-    from app.router import route as pick_route
+    from app.router import plan as pick_plan
     from graph import search as GS
     from graph.access import sees_everything, visible
     question = question.strip()
@@ -666,8 +666,9 @@ def _ask(question: str, groups: list[str] | None, capabilities: list[str], mode:
     caps = set(capabilities)
     t0 = time.perf_counter()
     notes = []
+    secondary: list[str] = []
     if mode == "auto":
-        chosen, reason = pick_route(question)
+        chosen, secondary, reason = pick_plan(question)
     else:
         chosen, reason = {"documents": "documents", "metrics": "data", "graph": "connections",
                           "overview": "overview"}.get(mode, mode), f"requested: {mode}"
@@ -711,6 +712,22 @@ def _ask(question: str, groups: list[str] | None, capabilities: list[str], mode:
         if chosen == "overview" and use_graph:
             ov = GS.overview(question, groups, visible)
             out["overview"] = ov["communities"]
+    # the evidence plan: cheap secondary sources (e.g. the number behind a "why" question, or the passages that
+    # explain a number), each labelled so the agent can tell them apart
+    if "documents" in secondary and "documents" in caps and not out["passages"]:
+        s = search(question, g)
+        out["passages"] = s["passages"]
+        out["supporting_evidence"] = s["evidence"]
+        out["route_secondary"] = ["documents"]
+    if "data" in secondary and "data" in caps and not out.get("data"):
+        try:
+            r = metric_query(question=question, groups=groups)
+            if r.get("found"):
+                out["data"] = {k: r.get(k) for k in ("found", "request", "assumptions", "value_corrections", "sql", "rows",
+                                                    "row_count", "planned_by") if r.get(k) is not None}
+                out["route_secondary"] = ["data"]
+        except (ValueError, RuntimeError):
+            pass                                   # the number is extra evidence; its absence is not an error
     if chosen == "data" and (out.get("data") or {}).get("found"):
         out["evidence"] = "exact"                  # computed from the governed metric definitions
     out.setdefault("evidence", "none")

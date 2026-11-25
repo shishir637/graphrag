@@ -14,6 +14,23 @@ question ─► router (Claude) ─┬─ documents ─► RAG: Qdrant hybrid se
                                               ─► DuckDB runs it ─► Claude states the result
 ```
 
+## In the app (0.5): per workspace, in Postgres
+
+Inside Context Layer each workspace has its own semantic layer, stored in Postgres (`sl_definitions`), not in these
+files. The YAML below is the format for **import and export** and the seed of a server's first workspace.
+
+| | |
+|---|---|
+| Where definitions live | `sl_definitions` per workspace: kind (entity, join, metric, synonym, value_list, verified, instructions), definition, status, owner, source, domain, version |
+| History | every change kept in `sl_history` (who, when, the previous definition); the layer version bumps on each change, so planners and caches follow at once |
+| Status | `draft` (not used by agents), `approved`, `needs_review` (a check failed; hidden), `retired` |
+| Who approves (`semantic/policy.py`) | templates (e.g. GitHub) and certified imports: as declared; structure, synonyms and value lists found in the data: automatically; new metrics and changed formulas: an owner or admin |
+| Where it comes from | uploads and connectors (tables -> profile -> drafted entities, joins and metrics), connector templates, YAML import (`POST /api/v1/semantic/import`), dbt-style reviews via export -> git -> import |
+| Kept correct | nightly check (`semantic/monitor.py`): every approved metric is run; failures become `needs_review` with the reason and come back when they work again |
+| Learns | counting questions no metric matched are recorded; repeated unknown words that look like a metric become synonym drafts (`semantic/learn.py`) |
+| Row access | `sl_access_rules`: a group sees only rows whose column has allowed values (e.g. a repository); applied inside every query (`semantic/db.py connect_for`) |
+| Data | each workspace's tables (uploads, GitHub activity, Postgres snapshots) in its folder, or a Postgres database attached live; one cached DuckDB per workspace |
+
 ## Folder layout
 
 ```
