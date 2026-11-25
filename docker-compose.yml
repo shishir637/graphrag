@@ -48,6 +48,10 @@ services:
     command: ["postgres", "-c", "shared_preload_libraries=age", "-c", "work_mem=64MB", "-c", "maintenance_work_mem=256MB"]
     volumes:
       - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rag -d contextlayer"]
+      interval: 5s
+      retries: 30
 
   qdrant:                       # search index (dense + BM25 vectors). Not published outside Docker.
     image: qdrant/qdrant:v1.19.1
@@ -56,10 +60,6 @@ services:
       QDRANT__SERVICE__API_KEY: ${CL_QDRANT_API_KEY:?set CL_QDRANT_API_KEY in .env}
     volumes:
       - qdrant_data:/qdrant/storage
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rag -d contextlayer"]
-      interval: 5s
-      retries: 30
 
   # ---- optional: publish ONLY the MCP endpoint on the internet through Cloudflare (no open ports) ----
   # Quick test (random https://*.trycloudflare.com address, changes on every start, no account needed):
