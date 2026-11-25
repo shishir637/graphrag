@@ -1,21 +1,29 @@
 # Context Layer, self-hosted.
-#   1. cp .env.example .env   and set CL_DB_PASSWORD (no AI model or API key is needed)
+#   1. cp .env.example .env   and set CL_DB_PASSWORD and CL_SECRET_KEY (no AI model or API key is needed)
 #   2. docker compose up -d
 #   3. open http://localhost:8080 and create the owner account
 # Data lives in the named volumes below; `docker compose down` keeps it (add -v to delete everything).
+#   db      Postgres: workspaces, people, keys, audit, semantic layer, documents, graph (+ Apache AGE copy)
+#   qdrant  search vectors (one collection; every point carries its workspace)
+#   app     web app, API and MCP server
 services:
   app:
     build: .
     image: context-layer:0.4.0
     restart: unless-stopped
     depends_on:
-      graphdb: { condition: service_healthy }
+      db: { condition: service_healthy }
+      qdrant: { condition: service_started }
     ports:
       - "${CL_BIND:-127.0.0.1}:${CL_PORT:-8080}:8080"
     environment:
       CL_PUBLIC_HOSTS: ${CL_PUBLIC_HOSTS:-}
       CL_PUBLIC_URL: ${CL_PUBLIC_URL:-}
-      GRAPH_PG_DSN: host=graphdb port=5432 dbname=graphrag user=rag password=${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
+      CL_DATABASE_URL: postgresql://rag:${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}@db:5432/contextlayer
+      GRAPH_PG_DSN: host=db port=5432 dbname=contextlayer user=rag password=${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
+      QDRANT_URL: http://qdrant:6333
+      CL_SECRET_KEY: ${CL_SECRET_KEY:-}
+      CL_SIGNUP: ${CL_SIGNUP:-invite}
       CL_GRAPH_MODE: ${CL_GRAPH_MODE:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"    # lets optional AI extraction reach a local model (Ollama) on this machine
@@ -23,24 +31,30 @@ services:
       - documents:/app/documents
       - tables:/app/data
       - outputs:/app/outputs
-      - search_index:/app/qdrant_data
       - metric_store:/app/sl_store
       - app_data:/app/var
       - semantic_layer:/app/semantic_layer     # reviewed definitions; approvals in the app persist here
       - models:/models
 
-  graphdb:                      # PostgreSQL 17 + Apache AGE: the knowledge graph. Not published outside Docker.
-    image: apache/age:release_PG17_1.7.0
+  db:                           # PostgreSQL 17 + Apache AGE + pgvector. Not published outside Docker.
+    build: ./db
+    image: context-layer-db:17
     restart: unless-stopped
     environment:
       POSTGRES_USER: rag
       POSTGRES_PASSWORD: ${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
-      POSTGRES_DB: graphrag
+      POSTGRES_DB: contextlayer
     command: ["postgres", "-c", "shared_preload_libraries=age", "-c", "work_mem=64MB", "-c", "maintenance_work_mem=256MB"]
     volumes:
-      - graph_data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/data
+
+  qdrant:                       # search index (dense + BM25 vectors). Not published outside Docker.
+    image: qdrant/qdrant:v1.19.1
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rag -d graphrag"]
+      test: ["CMD-SHELL", "pg_isready -U rag -d contextlayer"]
       interval: 5s
       retries: 30
 
@@ -71,9 +85,9 @@ volumes:
   documents:
   tables:
   outputs:
-  search_index:
   metric_store:
   app_data:
   semantic_layer:
   models:
-  graph_data:
+  db_data:
+  qdrant_data:

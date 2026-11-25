@@ -7,6 +7,7 @@ signing in to Context Layer inside Claude or ChatGPT (cla_..., see app/oauth.py)
 Signed-in users act as themselves (their groups; owners and admins see everything and may upload).
 Tools refuse clearly when a capability is missing. Every call is logged as an agent event."""
 import base64
+import contextvars
 import json
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -18,6 +19,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from . import core, engine, jobs
+from . import db as D
 
 READ_ONLY = ToolAnnotations(read_only_hint=True, open_world_hint=False)
 WRITES = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False)
@@ -44,7 +46,34 @@ how things connect. It does not write answers: you do, from the evidence it retu
   call `build_status` until it says ready, then answer from the new files with `ask`.
 You only see what your key allows; if something is refused, say so rather than guessing."""
 
-mcp = MCPServer(name="context-layer", title="Context Layer", instructions=INSTRUCTIONS, version=core.VERSION)
+# who is calling (set by KeyGate for the request): decides which tools are listed
+CALLER: contextvars.ContextVar[dict | None] = contextvars.ContextVar("cl_caller", default=None)
+UPLOAD_TOOLS = {"add_document", "create_upload_link"}
+ADMIN_TOOLS = {"approve_metric"}          # setting the workspace up: admin-scope keys, signed-in owners/admins
+
+
+def allowed_tools(caller: dict | None) -> set[str] | None:
+    """Tool names this caller may see (None: all, e.g. outside a request)."""
+    if caller is None:
+        return None
+    hide = set()
+    if "upload" not in caller.get("capabilities", []):
+        hide |= UPLOAD_TOOLS
+    if caller.get("scope") != "admin":
+        hide |= ADMIN_TOOLS
+    return {t for t in TOOLS if t not in hide}
+
+
+class ScopedServer(MCPServer):
+    """Lists only the tools the caller's key may use, so a question-only key never sees write tools."""
+
+    async def list_tools(self):
+        tools = await super().list_tools()
+        allow = allowed_tools(CALLER.get())
+        return tools if allow is None else [t for t in tools if t.name in allow]
+
+
+mcp = ScopedServer(name="context-layer", title="Context Layer", instructions=INSTRUCTIONS, version=core.VERSION)
 
 
 def _bearer(headers) -> str | None:
@@ -258,8 +287,9 @@ def tool_upload_link(agent: dict, groups: list[str] | None = None, base: str = "
     g = _upload_groups(agent, groups)
     tok = core.new_token("clu_")
     exp = (datetime.now(timezone.utc) + timedelta(minutes=UPLOAD_LINK_MIN)).isoformat(timespec="seconds")
-    core.db().execute("INSERT INTO upload_links VALUES (?, ?, ?, ?, ?, 0)",
-                      (core.token_hash(tok), agent["name"], json.dumps(g), core.now(), exp))
+    core.db().execute("INSERT INTO upload_links (token_hash, tenant_id, principal, groups, created, expires) "
+                      "VALUES (?, ?, ?, ?, ?, ?)",
+                      (core.token_hash(tok), agent["tenant_id"], agent["name"], json.dumps(g), core.now(), exp))
     return {"upload_url": f"{base}/upload/{tok}", "expires_in_minutes": UPLOAD_LINK_MIN, "groups": g,
             "next": "Give this link to the user. After they upload, the page shows a job id: "
                     "call build_status (no arguments shows your latest upload)."}
@@ -280,16 +310,18 @@ def tool_build_status(agent: dict, job_id: str | None = None) -> dict:
 
 
 def tool_approve_metric(agent: dict, name: str) -> dict:
-    if agent.get("kind") != "user" or agent.get("role") not in ("owner", "admin"):
-        raise ToolError("Only a signed-in Context Layer owner or admin can approve metrics.")
+    if agent.get("scope") != "admin":
+        raise ToolError("Only an admin key or a signed-in Context Layer owner or admin can approve metrics.")
     from semantic.auto_model import set_status
     try:
-        r = set_status(name.strip(), "approved", by=agent["email"])
+        r = set_status(name.strip(), "approved", by=agent.get("email") or agent["name"])
     except KeyError as e:
         raise ToolError(f"No metric named {name}. See build_status or the Metrics page for drafts.") from e
     except ValueError as e:
         raise ToolError(str(e)) from e
-    core.log_event("user", agent["email"], "metrics.status", name, {"status": "approved", "via": agent["client"]})
+    who = agent.get("email") or agent["name"]
+    core.log_event("user" if agent.get("kind") == "user" else "agent", who, "metrics.status", name,
+                   {"status": "approved", "via": agent.get("client") or "admin key"})
     return r | {"next": "Approved. Run the data rebuild (Metrics page, or upload again) so query_metrics can use it."}
 
 
@@ -447,7 +479,8 @@ class KeyGate:
             from . import oauth
             from .public import base_url
             tok = _bearer({k.decode().lower(): v.decode() for k, v in scope.get("headers", [])})
-            if resolve(tok, base_url(scope) + "/mcp") is None:
+            caller = core.principal_for_token(tok, base_url(scope) + "/mcp")
+            if caller is None:
                 body = json.dumps({"error": "invalid_token", "error_description":
                                    "Sign in to Context Layer from your AI app, or send 'Authorization: Bearer <key>' "
                                    "(keys are made under Agents in Context Layer)."}).encode()
@@ -457,6 +490,13 @@ class KeyGate:
                                         (b"access-control-expose-headers", b"WWW-Authenticate")]})
                 await send({"type": "http.response.body", "body": body})
                 return
+            t1, t2 = D.TENANT.set(caller["tenant_id"]), CALLER.set(caller)
+            try:
+                await self.app(scope, receive, send)
+            finally:
+                D.TENANT.reset(t1)
+                CALLER.reset(t2)
+            return
         await self.app(scope, receive, send)
 
 

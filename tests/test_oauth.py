@@ -255,5 +255,6 @@ def test_key_with_upload_limited_to_its_groups(pub):
     assert r["isError"] and "your own groups" in r["content"][0]["text"]
     r = mcp(c, tok, "add_document", {"filename": "a.md", "text": "x"}, host={})
     assert r["structuredContent"]["saved"]["groups"] == ["hr"]
-    jobs_ = [j for j in jobs.list_jobs() if j["kind"] == "rebuild"]
+    with core.tenant_scope(c.get("/api/v1/me").json()["user"]["tenant_id"]):     # jobs belong to a workspace
+        jobs_ = [j for j in jobs.list_jobs() if j["kind"] == "rebuild"]
     assert jobs_

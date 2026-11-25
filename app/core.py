@@ -1,118 +1,57 @@
-"""Context Layer app: storage for users, sessions, agents, audit and settings (SQLite, stdlib only),
-plus password hashing and tokens. Everything lives in DATA_DIR (env CL_DATA_DIR, default ./var).
+"""Context Layer app: workspaces (tenants), people, sessions, agent keys, audit and settings in Postgres
+(see app/db.py and migrations/), plus password hashing and tokens.
+
+A person has one account (email + password) and a role and access groups in each workspace they belong to.
+Agent keys, events, settings and upload links belong to one workspace. Files for secrets still live in DATA_DIR
+(env CL_DATA_DIR, default ./var) until the encrypted secrets store replaces them.
 """
 import hashlib
 import hmac
 import json
 import os
 import secrets
-import sqlite3
-import threading
 import time
-from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from .db import current_tenant, db, system, tenant_scope, tx   # noqa: F401  (re-exported)
+
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.environ.get("CL_DATA_DIR", ROOT / "var"))
-DB_PATH = DATA_DIR / "app.db"
 SECRETS_FILE = DATA_DIR / "secrets.json"
 VERSION = "0.4.0"
 SESSION_DAYS = 14
 ROLES = ("owner", "admin", "viewer")
 CAPABILITIES = ("documents", "data", "graph", "upload")
 READ_CAPABILITIES = ("documents", "data", "graph")
+SCOPES = ("agent", "admin")
 ACCESS_TOKEN_S = 3600
 REFRESH_TOKEN_DAYS = 30
-
-_local = threading.local()
-_init_lock = threading.Lock()
-_initialised = False
-
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY, email TEXT UNIQUE NOT NULL, name TEXT NOT NULL, pw_hash TEXT NOT NULL,
-  role TEXT NOT NULL, created TEXT NOT NULL, last_login TEXT, disabled INTEGER NOT NULL DEFAULT 0);
-CREATE TABLE IF NOT EXISTS sessions (
-  token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), created TEXT NOT NULL,
-  expires TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS agents (
-  id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', groups TEXT NOT NULL,
-  capabilities TEXT NOT NULL, token_hash TEXT UNIQUE NOT NULL, prefix TEXT NOT NULL, created TEXT NOT NULL,
-  created_by TEXT NOT NULL, last_used TEXT, calls INTEGER NOT NULL DEFAULT 0, revoked TEXT);
-CREATE TABLE IF NOT EXISTS events (
-  id INTEGER PRIMARY KEY, time TEXT NOT NULL, actor_type TEXT NOT NULL, actor TEXT NOT NULL,
-  action TEXT NOT NULL, target TEXT NOT NULL DEFAULT '', detail TEXT NOT NULL DEFAULT '{}',
-  ok INTEGER NOT NULL DEFAULT 1, seconds REAL);
-CREATE INDEX IF NOT EXISTS events_time ON events(time);
-CREATE INDEX IF NOT EXISTS events_actor ON events(actor_type, actor);
-CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS oauth_clients (
-  client_id TEXT PRIMARY KEY, secret_hash TEXT, name TEXT NOT NULL, redirect_uris TEXT NOT NULL,
-  kind TEXT NOT NULL, created TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS oauth_codes (
-  code_hash TEXT PRIMARY KEY, client_id TEXT NOT NULL, user_id INTEGER NOT NULL REFERENCES users(id),
-  redirect_uri TEXT NOT NULL, challenge TEXT NOT NULL, scope TEXT NOT NULL, resource TEXT, expires TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS oauth_tokens (
-  token_hash TEXT PRIMARY KEY, kind TEXT NOT NULL, family TEXT NOT NULL, client_id TEXT NOT NULL,
-  client_name TEXT NOT NULL, user_id INTEGER NOT NULL REFERENCES users(id), scope TEXT NOT NULL, resource TEXT,
-  created TEXT NOT NULL, expires TEXT NOT NULL, revoked TEXT, last_used TEXT);
-CREATE INDEX IF NOT EXISTS oauth_tokens_family ON oauth_tokens(family);
-CREATE TABLE IF NOT EXISTS upload_links (
-  token_hash TEXT PRIMARY KEY, principal TEXT NOT NULL, groups TEXT NOT NULL, created TEXT NOT NULL,
-  expires TEXT NOT NULL, files INTEGER NOT NULL DEFAULT 0);
-"""
-
-MIGRATIONS = [
-    "ALTER TABLE users ADD COLUMN groups TEXT NOT NULL DEFAULT '[\"public\"]'",
-]
 
 
 def now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def db() -> sqlite3.Connection:
-    """One connection per thread; schema created on first use."""
-    global _initialised
-    c = getattr(_local, "conn", None)
-    if c is None:
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        c = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None)
-        c.row_factory = sqlite3.Row
-        c.execute("PRAGMA journal_mode=WAL")
-        c.execute("PRAGMA foreign_keys=ON")
-        _local.conn = c
-    if not _initialised:
-        with _init_lock:
-            c.executescript(SCHEMA)
-            for m in MIGRATIONS:
-                try:
-                    c.execute(m)
-                except sqlite3.OperationalError:          # already applied
-                    pass
-            _initialised = True
-    return c
-
-
 def reset_for_tests(path: Path):
-    """Point the app at a fresh data folder (tests only)."""
-    global DATA_DIR, DB_PATH, SECRETS_FILE, _initialised
-    DATA_DIR, DB_PATH, SECRETS_FILE = path, path / "app.db", path / "secrets.json"
-    _local.conn = None
-    _initialised = False
+    """Empty every table and point secrets at a fresh folder (tests only)."""
+    global DATA_DIR, SECRETS_FILE
+    import psycopg
+    from . import db as D
+    DATA_DIR, SECRETS_FILE = path, path / "secrets.json"
+    D.migrate()
+    with psycopg.connect(D.url(), autocommit=True) as c:
+        tables = [r[0] for r in c.execute("SELECT tablename FROM pg_tables WHERE schemaname = 'public' "
+                                          "AND tablename <> 'schema_migrations'")]
+        if tables:
+            c.execute("TRUNCATE " + ", ".join(f'"{t}"' for t in tables) + " RESTART IDENTITY CASCADE")
 
 
-@contextmanager
-def tx():
-    c = db()
-    c.execute("BEGIN IMMEDIATE")
-    try:
-        yield c
-        c.execute("COMMIT")
-    except BaseException:
-        c.execute("ROLLBACK")
-        raise
+def _need_tenant() -> str:
+    t = current_tenant()
+    if not t:
+        raise RuntimeError("No workspace in scope.")
+    return t
 
 
 # ------------------------------------------------------------------ hashing and tokens
@@ -140,14 +79,48 @@ def new_token(prefix: str) -> str:
     return prefix + secrets.token_urlsafe(28)
 
 
+# ------------------------------------------------------------------ workspaces
+
+def create_tenant(name: str) -> str:
+    tid = "t_" + secrets.token_hex(6)
+    with system():
+        db().execute("INSERT INTO tenants (id, name, created) VALUES (?, ?, ?)", (tid, name.strip()[:80] or "Workspace", now()))
+    return tid
+
+
+def tenant_count() -> int:
+    with system():
+        return db().execute("SELECT count(*) FROM tenants").fetchone()[0]
+
+
+def get_tenant(tid: str) -> dict | None:
+    r = db().execute("SELECT * FROM tenants WHERE id = ?", (tid,)).fetchone()
+    return {"id": r["id"], "name": r["name"], "created": r["created"], "disabled": r["disabled"]} if r else None
+
+
+def rename_tenant(tid: str, name: str):
+    db().execute("UPDATE tenants SET name = ? WHERE id = ?", (name.strip()[:80] or "Workspace", tid))
+
+
+def user_tenants(user_id: int) -> list[dict]:
+    rows = db().execute("SELECT t.id, t.name, m.role FROM memberships m JOIN tenants t ON t.id = m.tenant_id "
+                        "WHERE m.user_id = ? AND m.disabled = 0 AND NOT t.disabled ORDER BY m.seq", (user_id,))
+    return [{"id": r["id"], "name": r["name"], "role": r["role"]} for r in rows]
+
+
 # ------------------------------------------------------------------ users and sessions
 
 def user_count() -> int:
     return db().execute("SELECT count(*) FROM users").fetchone()[0]
 
 
+_USER = ("SELECT u.id, u.email, u.name, u.pw_hash, u.created, u.last_login, "
+         "(u.disabled + m.disabled) AS disabled, m.role, m.groups, m.tenant_id FROM users u "
+         "JOIN memberships m ON m.user_id = u.id ")
+
+
 def public_user(row) -> dict:
-    return {k: row[k] for k in ("id", "email", "name", "role", "created", "last_login")} | \
+    return {k: row[k] for k in ("id", "email", "name", "role", "created", "last_login", "tenant_id")} | \
            {"disabled": bool(row["disabled"]), "groups": json.loads(row["groups"] or '["public"]')}
 
 
@@ -156,44 +129,85 @@ def validate_password(pw: str):
         raise ValueError("Use at least 10 characters for the password.")
 
 
-def create_user(email: str, name: str, password: str, role: str) -> dict:
+def _clean_email(email: str) -> str:
     email = email.strip().lower()
     if "@" not in email or len(email) > 200:
         raise ValueError("Enter a valid email address.")
+    return email
+
+
+def create_user(email: str, name: str, password: str, role: str, tenant_id: str | None = None) -> dict:
+    """Add a person to the workspace. Someone who already has an account (in another workspace) is added with
+    their existing password."""
+    email = _clean_email(email)
+    tid = tenant_id or _need_tenant()
     if role not in ROLES:
         raise ValueError(f"Role must be one of {', '.join(ROLES)}.")
-    validate_password(password)
     with tx() as c:
-        if c.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
-            raise ValueError("A user with this email already exists.")
-        cur = c.execute("INSERT INTO users (email, name, pw_hash, role, created) VALUES (?, ?, ?, ?, ?)",
-                        (email, name.strip()[:80] or email, hash_password(password), role, now()))
-        return public_user(c.execute("SELECT * FROM users WHERE id = ?", (cur.lastrowid,)).fetchone())
+        u = c.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+        if u is None:
+            validate_password(password)
+            uid = c.execute("INSERT INTO users (email, name, pw_hash, created) VALUES (?, ?, ?, ?) RETURNING id",
+                            (email, name.strip()[:80] or email, hash_password(password), now())).fetchone()[0]
+        else:
+            uid = u["id"]
+            if c.execute("SELECT 1 FROM memberships WHERE user_id = ? AND tenant_id = ?", (uid, tid)).fetchone():
+                raise ValueError("A user with this email already exists.")
+        c.execute("INSERT INTO memberships (user_id, tenant_id, role, created) VALUES (?, ?, ?, ?)", (uid, tid, role, now()))
+        return public_user(c.execute(_USER + "WHERE u.id = ? AND m.tenant_id = ?", (uid, tid)).fetchone())
 
 
-def login(email: str, password: str) -> tuple[dict, str] | None:
-    row = db().execute("SELECT * FROM users WHERE email = ?", (email.strip().lower(),)).fetchone()
+def signup(email: str, name: str, password: str, organisation: str) -> dict:
+    """A new workspace with this person as its owner."""
+    email = _clean_email(email)
+    validate_password(password)
+    if db().execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
+        raise ValueError("An account with this email already exists. Sign in instead.")
+    tid = create_tenant(organisation or name or email)
+    with tenant_scope(tid):
+        set_setting("organisation", organisation.strip()[:80])
+        return create_user(email, name, password, "owner", tid)
+
+
+def login(email: str, password: str, tenant_id: str | None = None) -> tuple[dict, str] | None:
+    email = email.strip().lower()
+    row = db().execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
     if row is None:
         check_password(password, hash_password("timing-equaliser"))     # same cost whether or not the user exists
         return None
     if row["disabled"] or not check_password(password, row["pw_hash"]):
         return None
+    tenants = user_tenants(row["id"])
+    pick = next((t for t in tenants if t["id"] == tenant_id), None) if tenant_id else (tenants[0] if tenants else None)
+    if pick is None:
+        return None
     token = new_token("cls_")
     exp = (datetime.now(timezone.utc) + timedelta(days=SESSION_DAYS)).isoformat(timespec="seconds")
     with tx() as c:
-        c.execute("INSERT INTO sessions VALUES (?, ?, ?, ?)", (token_hash(token), row["id"], now(), exp))
+        c.execute("INSERT INTO sessions (token_hash, user_id, tenant_id, created, expires) VALUES (?, ?, ?, ?, ?)",
+                  (token_hash(token), row["id"], pick["id"], now(), exp))
         c.execute("UPDATE users SET last_login = ? WHERE id = ?", (now(), row["id"]))
         c.execute("DELETE FROM sessions WHERE expires < ?", (now(),))
-    return public_user(row), token
+        u = c.execute(_USER + "WHERE u.id = ? AND m.tenant_id = ?", (row["id"], pick["id"])).fetchone()
+    return public_user(u), token
 
 
 def session_user(token: str | None) -> dict | None:
     if not token:
         return None
-    row = db().execute("SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id "
-                       "WHERE s.token_hash = ? AND s.expires > ? AND u.disabled = 0",
+    row = db().execute(_USER.replace("FROM users u", "FROM sessions s JOIN users u ON u.id = s.user_id") +
+                       "AND m.tenant_id = s.tenant_id JOIN tenants t ON t.id = s.tenant_id "
+                       "WHERE s.token_hash = ? AND s.expires > ? AND u.disabled = 0 AND m.disabled = 0 AND NOT t.disabled",
                        (token_hash(token), now())).fetchone()
     return public_user(row) if row else None
+
+
+def switch_tenant(token: str, tenant_id: str) -> dict:
+    u = session_user(token)
+    if u is None or tenant_id not in {t["id"] for t in user_tenants(u["id"])}:
+        raise PermissionError("You are not a member of that workspace.")
+    db().execute("UPDATE sessions SET tenant_id = ? WHERE token_hash = ?", (tenant_id, token_hash(token)))
+    return session_user(token)
 
 
 def logout(token: str | None):
@@ -202,13 +216,14 @@ def logout(token: str | None):
 
 
 def list_users() -> list[dict]:
-    return [public_user(r) for r in db().execute("SELECT * FROM users ORDER BY created")]
+    return [public_user(r) for r in db().execute(_USER + "WHERE m.tenant_id = ? ORDER BY m.seq", (_need_tenant(),))]
 
 
 def update_user(user_id: int, role: str | None = None, disabled: bool | None = None,
                 groups: list[str] | None = None) -> dict:
+    tid = _need_tenant()
     with tx() as c:
-        row = c.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        row = c.execute("SELECT * FROM memberships WHERE user_id = ? AND tenant_id = ?", (user_id, tid)).fetchone()
         if row is None:
             raise KeyError(user_id)
         new_role = role or row["role"]
@@ -216,18 +231,20 @@ def update_user(user_id: int, role: str | None = None, disabled: bool | None = N
         if new_role not in ROLES:
             raise ValueError("Unknown role.")
         if row["role"] == "owner" and (new_role != "owner" or new_disabled):
-            owners = c.execute("SELECT count(*) FROM users WHERE role = 'owner' AND disabled = 0").fetchone()[0]
+            owners = c.execute("SELECT count(*) FROM memberships WHERE tenant_id = ? AND role = 'owner' AND disabled = 0",
+                               (tid,)).fetchone()[0]
             if owners <= 1:
                 raise ValueError("There must always be at least one active owner.")
         g = json.loads(row["groups"]) if groups is None else sorted({x.strip() for x in groups if x.strip()})
         if not g:
             raise ValueError("A user needs at least one access group.")
-        c.execute("UPDATE users SET role = ?, disabled = ?, groups = ? WHERE id = ?",
-                  (new_role, new_disabled, json.dumps(g), user_id))
+        c.execute("UPDATE memberships SET role = ?, disabled = ?, groups = ? WHERE user_id = ? AND tenant_id = ?",
+                  (new_role, new_disabled, json.dumps(g), user_id, tid))
         if new_disabled:
-            c.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
-            c.execute("UPDATE oauth_tokens SET revoked = ? WHERE user_id = ? AND revoked IS NULL", (now(), user_id))
-        return public_user(c.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone())
+            c.execute("DELETE FROM sessions WHERE user_id = ? AND tenant_id = ?", (user_id, tid))
+            c.execute("UPDATE oauth_tokens SET revoked = ? WHERE user_id = ? AND tenant_id = ? AND revoked IS NULL",
+                      (now(), user_id, tid))
+        return public_user(c.execute(_USER + "WHERE u.id = ? AND m.tenant_id = ?", (user_id, tid)).fetchone())
 
 
 def change_password(user_id: int, old: str, new: str):
@@ -244,16 +261,25 @@ def change_password(user_id: int, old: str, new: str):
 def public_agent(row) -> dict:
     return {"id": row["id"], "name": row["name"], "description": row["description"],
             "groups": json.loads(row["groups"]), "capabilities": json.loads(row["capabilities"]),
+            "scope": row["scope"], "tenant_id": row["tenant_id"],
             "prefix": row["prefix"], "created": row["created"], "created_by": row["created_by"],
             "last_used": row["last_used"], "calls": row["calls"], "revoked": row["revoked"]}
 
 
-def create_agent(name: str, description: str, groups: list[str], capabilities: list[str], by: str) -> tuple[dict, str]:
+def create_agent(name: str, description: str, groups: list[str], capabilities: list[str], by: str,
+                 scope: str = "agent") -> tuple[dict, str]:
+    """scope agent: asks questions (and uploads if allowed). scope admin: may also set the workspace up
+    (connect sources, import definitions, approve metrics) over the API or MCP."""
+    tid = _need_tenant()
     name = " ".join(name.split())[:60]
     if not name:
         raise ValueError("Give the agent a name, for example the app or team that will use it.")
+    if scope not in SCOPES:
+        raise ValueError("Scope must be agent or admin.")
     groups = sorted({g.strip() for g in groups if g.strip()})
     caps = sorted({c for c in capabilities if c in CAPABILITIES})
+    if scope == "admin":
+        caps = sorted(set(caps) | {"upload"})
     if not caps:
         raise ValueError("Pick at least one thing the agent may use: documents, data or the knowledge graph.")
     if ("documents" in caps or "graph" in caps) and not groups:
@@ -261,10 +287,10 @@ def create_agent(name: str, description: str, groups: list[str], capabilities: l
     token = new_token("clk_")
     aid = secrets.token_hex(5)
     with tx() as c:
-        c.execute("INSERT INTO agents (id, name, description, groups, capabilities, token_hash, prefix, created, "
-                  "created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                  (aid, name, description.strip()[:300], json.dumps(groups), json.dumps(caps), token_hash(token),
-                   token[:8], now(), by))
+        c.execute("INSERT INTO agents (id, tenant_id, name, description, groups, capabilities, scope, token_hash, prefix, "
+                  "created, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                  (aid, tid, name, description.strip()[:300], json.dumps(groups), json.dumps(caps), scope,
+                   token_hash(token), token[:8], now(), by))
         return public_agent(c.execute("SELECT * FROM agents WHERE id = ?", (aid,)).fetchone()), token
 
 
@@ -301,16 +327,20 @@ def revoke_agent(aid: str) -> dict:
 
 
 def agent_for_token(token: str | None) -> dict | None:
+    """Which key is this (in any workspace)? A key of a disabled workspace does not work."""
     if not token:
         return None
-    r = db().execute("SELECT * FROM agents WHERE token_hash = ? AND revoked IS NULL", (token_hash(token),)).fetchone()
+    with system():
+        r = db().execute("SELECT a.* FROM agents a JOIN tenants t ON t.id = a.tenant_id "
+                         "WHERE a.token_hash = ? AND a.revoked IS NULL AND NOT t.disabled", (token_hash(token),)).fetchone()
     return public_agent(r) if r else None
 
 
 def touch_agent(aid: str):
     if aid.startswith("user:"):
         return
-    db().execute("UPDATE agents SET calls = calls + 1, last_used = ? WHERE id = ?", (now(), aid))
+    with system():
+        db().execute("UPDATE agents SET calls = calls + 1, last_used = ? WHERE id = ?", (now(), aid))
 
 
 # ------------------------------------------------------------------ who is calling /mcp
@@ -318,23 +348,28 @@ def touch_agent(aid: str):
 def principal_for_token(token: str | None, resource: str | None = None) -> dict | None:
     """An agent key (clk_...) or a token from "sign in to Context Layer" in Claude / ChatGPT (cla_...).
 
-    Signed-in users act as themselves: their access groups (owners and admins: every group), all read
-    capabilities, and upload if they are an owner or admin. A token only works for the address it was issued for."""
+    Signed-in users act as themselves in the workspace they signed in to: their access groups (owners and admins:
+    every group), all read capabilities, and upload if they are an owner or admin. A token only works for the
+    address it was issued for. Every principal carries its workspace (tenant_id)."""
     if not token:
         return None
     if not token.startswith("cla_"):
         a = agent_for_token(token)
         return a | {"kind": "key"} if a else None
-    r = db().execute("SELECT t.client_name, t.client_id, t.resource, u.* FROM oauth_tokens t JOIN users u "
-                     "ON u.id = t.user_id WHERE t.token_hash = ? AND t.kind = 'access' AND t.revoked IS NULL "
-                     "AND t.expires > ? AND u.disabled = 0", (token_hash(token), now())).fetchone()
+    r = db().execute("SELECT t.client_name, t.client_id, t.resource, t.tenant_id, u.id, u.email, u.name, m.role, m.groups "
+                     "FROM oauth_tokens t JOIN users u ON u.id = t.user_id "
+                     "JOIN memberships m ON m.user_id = u.id AND m.tenant_id = t.tenant_id "
+                     "JOIN tenants w ON w.id = t.tenant_id "
+                     "WHERE t.token_hash = ? AND t.kind = 'access' AND t.revoked IS NULL AND t.expires > ? "
+                     "AND u.disabled = 0 AND m.disabled = 0 AND NOT w.disabled", (token_hash(token), now())).fetchone()
     if r is None:
         return None
     if resource and r["resource"] and r["resource"].rstrip("/").lower() != resource.rstrip("/").lower():
         return None
     admin = r["role"] in ("owner", "admin")
     return {"id": f"user:{r['id']}", "kind": "user", "user_id": r["id"], "email": r["email"], "role": r["role"],
-            "name": f"{r['name']} via {r['client_name']}", "client": r["client_name"],
+            "name": f"{r['name']} via {r['client_name']}", "client": r["client_name"], "tenant_id": r["tenant_id"],
+            "scope": "admin" if admin else "agent",
             "groups": json.loads(r["groups"] or '["public"]'), "all_groups": admin,
             "capabilities": list(READ_CAPABILITIES) + (["upload"] if admin else [])}
 
@@ -347,15 +382,23 @@ def touch_token(token: str):
 
 def log_event(actor_type: str, actor: str, action: str, target: str = "", detail: dict | None = None,
               ok: bool = True, seconds: float | None = None):
-    db().execute("INSERT INTO events (time, actor_type, actor, action, target, detail, ok, seconds) "
-                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                 (now(), actor_type, actor, action, target[:300], json.dumps(detail or {}, ensure_ascii=False)[:4000],
-                  int(ok), None if seconds is None else round(seconds, 3)))
+    """Record in the current workspace's log; events outside any workspace (e.g. a failed sign-in) go to the
+    server log (tenant '')."""
+    tid = current_tenant() or ""
+    args = (tid, now(), actor_type, actor, action, target[:300], json.dumps(detail or {}, ensure_ascii=False)[:4000],
+            int(ok), None if seconds is None else round(seconds, 3))
+    sql = ("INSERT INTO events (tenant_id, time, actor_type, actor, action, target, detail, ok, seconds) "
+           "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    if tid:
+        db().execute(sql, args)
+    else:
+        with system():
+            db().execute(sql, args)
 
 
 def list_events(actor_type: str | None = None, actor: str | None = None, q: str | None = None,
                 since: str | None = None, limit: int = 200) -> list[dict]:
-    sql, args = "SELECT * FROM events WHERE 1=1", []
+    sql, args = "SELECT * FROM events WHERE tenant_id = ?", [_need_tenant()]
     if actor_type:
         sql += " AND actor_type = ?"; args.append(actor_type)
     if actor:
@@ -363,32 +406,49 @@ def list_events(actor_type: str | None = None, actor: str | None = None, q: str 
     if since:
         sql += " AND time >= ?"; args.append(since)
     if q:
-        sql += " AND (action LIKE ? OR target LIKE ? OR detail LIKE ?)"; args += [f"%{q}%"] * 3
+        sql += " AND (action ILIKE ? OR target ILIKE ? OR detail ILIKE ?)"; args += [f"%{q}%"] * 3
     sql += " ORDER BY id DESC LIMIT ?"; args.append(max(1, min(limit, 5000)))
-    return [dict(r) | {"detail": json.loads(r["detail"]), "ok": bool(r["ok"])} for r in db().execute(sql, args)]
+    return [{k: r[k] for k in r.keys() if k != "tenant_id"} | {"detail": json.loads(r["detail"]), "ok": bool(r["ok"])}
+            for r in db().execute(sql, args)]
 
 
 def usage_by_day(days: int = 14) -> list[dict]:
     since = (datetime.now(timezone.utc) - timedelta(days=days - 1)).date().isoformat()
     rows = db().execute("SELECT substr(time, 1, 10) AS day, count(*) AS calls, sum(1 - ok) AS errors FROM events "
-                        "WHERE actor_type = 'agent' AND time >= ? GROUP BY day ORDER BY day", (since,)).fetchall()
+                        "WHERE tenant_id = ? AND actor_type = 'agent' AND time >= ? GROUP BY day ORDER BY day",
+                        (_need_tenant(), since)).fetchall()
     by = {r["day"]: (r["calls"], r["errors"]) for r in rows}
     start = datetime.now(timezone.utc).date() - timedelta(days=days - 1)
     return [{"day": (start + timedelta(days=i)).isoformat(),
              "calls": by.get((start + timedelta(days=i)).isoformat(), (0, 0))[0],
-             "errors": by.get((start + timedelta(days=i)).isoformat(), (0, 0))[1]} for i in range(days)]
+             "errors": int(by.get((start + timedelta(days=i)).isoformat(), (0, 0))[1] or 0)} for i in range(days)]
 
 
 # ------------------------------------------------------------------ settings and secrets
 
 def get_setting(key: str, default=None):
-    r = db().execute("SELECT value FROM kv WHERE key = ?", (key,)).fetchone()
+    """A setting of the current workspace (default when no workspace is in scope)."""
+    tid = current_tenant()
+    if not tid:
+        return default
+    r = db().execute("SELECT value FROM settings WHERE tenant_id = ? AND key = ?", (tid, key)).fetchone()
     return json.loads(r["value"]) if r else default
 
 
 def set_setting(key: str, value):
-    db().execute("INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                 (key, json.dumps(value)))
+    db().execute("INSERT INTO settings (tenant_id, key, value) VALUES (?, ?, ?) "
+                 "ON CONFLICT (tenant_id, key) DO UPDATE SET value = excluded.value",
+                 (_need_tenant(), key, json.dumps(value)))
+
+
+def get_system_setting(key: str, default=None):
+    r = db().execute("SELECT value FROM system_settings WHERE key = ?", (key,)).fetchone()
+    return json.loads(r["value"]) if r else default
+
+
+def set_system_setting(key: str, value):
+    db().execute("INSERT INTO system_settings (key, value) VALUES (?, ?) "
+                 "ON CONFLICT (key) DO UPDATE SET value = excluded.value", (key, json.dumps(value)))
 
 
 def load_secrets():

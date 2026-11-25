@@ -69,10 +69,10 @@ CORS = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET
 
 
 def _secret() -> bytes:
-    s = core.get_setting("oauth_hmac")
+    s = core.get_system_setting("oauth_hmac")
     if not s:
         s = secrets.token_hex(32)
-        core.set_setting("oauth_hmac", s)
+        core.set_system_setting("oauth_hmac", s)
     return bytes.fromhex(s)
 
 
@@ -181,7 +181,8 @@ def get_client(client_id: str) -> dict | None:
         doc = _fetch_cimd(client_id)
         if doc is None:
             return None
-        core.db().execute("INSERT OR REPLACE INTO oauth_clients VALUES (?, NULL, ?, ?, 'cimd', ?)",
+        core.db().execute("INSERT INTO oauth_clients VALUES (?, NULL, ?, ?, 'cimd', ?) ON CONFLICT (client_id) DO UPDATE "
+                          "SET name = excluded.name, redirect_uris = excluded.redirect_uris, created = excluded.created",
                           (client_id, doc["name"], json.dumps(doc["redirect_uris"]), core.now()))
         r = core.db().execute("SELECT * FROM oauth_clients WHERE client_id = ?", (client_id,)).fetchone()
     if r is None:
@@ -365,9 +366,10 @@ async def decide(request: Request):
         core.log_event("user", user["email"], "oauth.deny", client["name"])
         return _back(params["redirect_uri"], issuer, error="access_denied", state=params.get("state"))
     code = "clo_" + secrets.token_urlsafe(32)
-    core.db().execute("INSERT INTO oauth_codes VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    core.db().execute("INSERT INTO oauth_codes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                       (core.token_hash(code), client["client_id"], user["id"], params["redirect_uri"],
-                       params["code_challenge"], SCOPE, params.get("resource") or resource_url(request), _later(CODE_TTL_S)))
+                       params["code_challenge"], SCOPE, params.get("resource") or resource_url(request), _later(CODE_TTL_S),
+                       user["tenant_id"]))
     core.db().execute("DELETE FROM oauth_codes WHERE expires < ?", (core.now(),))
     core.log_event("user", user["email"], "oauth.allow", client["name"], {"client_id": client["client_id"]})
     return _back(params["redirect_uri"], issuer, code=code, state=params.get("state"))
@@ -393,15 +395,16 @@ def _client_auth(request: Request, form) -> tuple[dict | None, JSONResponse | No
     return client, None
 
 
-def issue(client: dict, user_id: int, resource: str | None, family: str | None = None) -> dict:
+def issue(client: dict, user_id: int, resource: str | None, family: str | None = None,
+          tenant_id: str | None = None) -> dict:
     access, refresh = core.new_token("cla_"), core.new_token("clr_")
     fam = family or secrets.token_hex(8)
     with core.tx() as c:
         for tok, kind, ttl in ((access, "access", core.ACCESS_TOKEN_S), (refresh, "refresh", core.REFRESH_TOKEN_DAYS * 86400)):
             c.execute("INSERT INTO oauth_tokens (token_hash, kind, family, client_id, client_name, user_id, scope, "
-                      "resource, created, expires) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                      "resource, created, expires, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                       (core.token_hash(tok), kind, fam, client["client_id"], client["name"], user_id, SCOPE,
-                       resource, core.now(), _later(ttl)))
+                       resource, core.now(), _later(ttl), tenant_id))
         c.execute("DELETE FROM oauth_tokens WHERE expires < ?", (core.now(),))
     return {"access_token": access, "token_type": "Bearer", "expires_in": core.ACCESS_TOKEN_S,
             "refresh_token": refresh, "scope": SCOPE}
@@ -440,7 +443,7 @@ async def token(request: Request):
         u = core.db().execute("SELECT disabled FROM users WHERE id = ?", (row["user_id"],)).fetchone()
         if u is None or u["disabled"]:
             return _err("invalid_grant", "The user is disabled.")
-        return JSONResponse(issue(client, row["user_id"], row["resource"]), headers={"Cache-Control": "no-store", **CORS})
+        return JSONResponse(issue(client, row["user_id"], row["resource"], None, row["tenant_id"]), headers={"Cache-Control": "no-store", **CORS})
     if grant == "refresh_token":
         rt = str(form.get("refresh_token", ""))
         row = core.db().execute("SELECT t.*, u.disabled FROM oauth_tokens t JOIN users u ON u.id = t.user_id "
@@ -455,7 +458,7 @@ async def token(request: Request):
         core.db().execute("UPDATE oauth_tokens SET revoked = ? WHERE token_hash = ?", (core.now(), row["token_hash"]))
         core.db().execute("UPDATE oauth_tokens SET revoked = ? WHERE family = ? AND kind = 'access' AND revoked IS NULL",
                           (core.now(), row["family"]))
-        return JSONResponse(issue(client, row["user_id"], row["resource"], row["family"]),
+        return JSONResponse(issue(client, row["user_id"], row["resource"], row["family"], row["tenant_id"]),
                             headers={"Cache-Control": "no-store", **CORS})
     return _err("unsupported_grant_type", "Use authorization_code or refresh_token.")
 
@@ -478,12 +481,12 @@ async def revoke(request: Request):
 def grants(user_id: int | None = None) -> list[dict]:
     q = ("SELECT t.family, t.client_name, t.client_id, t.user_id, u.email, min(t.created) AS since, "
          "max(t.last_used) AS last_used FROM oauth_tokens t JOIN users u ON u.id = t.user_id "
-         "WHERE t.revoked IS NULL AND t.expires > ? AND t.kind = 'refresh'")
-    args: list = [core.now()]
+         "WHERE t.revoked IS NULL AND t.expires > ? AND t.kind = 'refresh' AND t.tenant_id = ?")
+    args: list = [core.now(), core.current_tenant()]
     if user_id is not None:
         q += " AND t.user_id = ?"
         args.append(user_id)
-    rows = core.db().execute(q + " GROUP BY t.family ORDER BY since DESC", args).fetchall()
+    rows = core.db().execute(q + " GROUP BY t.family, t.client_name, t.client_id, t.user_id, u.email ORDER BY since DESC", args).fetchall()
     used = {r["family"]: r["lu"] for r in core.db().execute(
         "SELECT family, max(last_used) AS lu FROM oauth_tokens GROUP BY family")}
     return [{"id": r["family"], "app": r["client_name"], "user": r["email"], "user_id": r["user_id"],
@@ -491,7 +494,7 @@ def grants(user_id: int | None = None) -> list[dict]:
 
 
 def revoke_grant(family: str, user_id: int | None = None) -> bool:
-    q, args = "SELECT 1 FROM oauth_tokens WHERE family = ?", [family]
+    q, args = "SELECT 1 FROM oauth_tokens WHERE family = ? AND tenant_id = ?", [family, core.current_tenant()]
     if user_id is not None:
         q += " AND user_id = ?"
         args.append(user_id)

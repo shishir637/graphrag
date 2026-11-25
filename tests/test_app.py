@@ -82,7 +82,10 @@ def test_agents_and_mcp(client):
     assert c.post("/api/v1/agents", headers=H, json={"name": "x", "capabilities": []}).status_code == 400
     r = c.post("/api/v1/agents", headers=H, json={"name": "Support bot", "groups": ["public"], "capabilities": ["documents"]}).json()
     token, aid = r["token"], r["agent"]["id"]
-    assert token.startswith("clk_") and token not in (core.DATA_DIR / "app.db").read_bytes().decode("latin-1")
+    assert token.startswith("clk_")
+    with core.system():                                   # only a hash of the key is stored
+        stored = [str(v) for r in core.db().execute("SELECT * FROM agents") for v in r]
+    assert stored and not any(token in v for v in stored)
     init = {"jsonrpc": "2.0", "id": 1, "method": "initialize",
             "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "t", "version": "1"}}}
     hdr = {"accept": "application/json, text/event-stream"}

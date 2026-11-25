@@ -6,6 +6,7 @@ import contextlib
 import csv
 import io
 import json
+import os
 import re
 import time
 from collections import defaultdict, deque
@@ -15,8 +16,10 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Respon
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 from . import core, engine, jobs, oauth
+from . import db as D
 from . import mcp_server as M
 
 core.load_secrets()
@@ -49,6 +52,22 @@ async def security_headers(request: Request, call_next):
     resp.headers.setdefault("Referrer-Policy", "same-origin")
     resp.headers.setdefault("X-Frame-Options", "DENY")
     return resp
+
+
+@app.middleware("http")
+async def workspace_scope(request: Request, call_next):
+    """Every web request runs in the workspace of the signed-in session (row-level security in Postgres keeps
+    other workspaces' rows out). /mcp and upload links resolve their workspace from their own token."""
+    tid = None
+    tok = request.cookies.get(COOKIE)
+    if tok and not request.url.path.startswith("/mcp"):
+        u = await run_in_threadpool(core.session_user, tok)
+        tid = u["tenant_id"] if u else None
+    reset = D.TENANT.set(tid)
+    try:
+        return await call_next(request)
+    finally:
+        D.TENANT.reset(reset)
 
 
 app.include_router(oauth.router)
@@ -109,11 +128,18 @@ class SetupIn(BaseModel):
 class LoginIn(BaseModel):
     email: str
     password: str
+    workspace: str | None = None
+
+
+def signup_mode() -> str:
+    """CL_SIGNUP: open (anyone can create a workspace), invite (default: owners add people) or off."""
+    m = os.environ.get("CL_SIGNUP", "invite").strip().lower()
+    return m if m in ("open", "invite", "off") else "invite"
 
 
 @app.get("/api/v1/setup")
 def setup_state():
-    return {"needs_setup": core.user_count() == 0, "version": core.VERSION,
+    return {"needs_setup": core.user_count() == 0, "version": core.VERSION, "signup": signup_mode(),
             "organisation": core.get_setting("organisation", "")}
 
 
@@ -121,27 +147,41 @@ def setup_state():
 def setup(body: SetupIn, request: Request, response: Response):
     if core.user_count() > 0:
         raise HTTPException(409, "Context Layer is already set up. Sign in instead.")
+    return _new_workspace(body, request, response, "setup")
+
+
+def _new_workspace(body: SetupIn, request: Request, response: Response, action: str) -> dict:
     try:
-        u = core.create_user(body.email, body.name, body.password, "owner")
+        u = core.signup(body.email, body.name, body.password, body.organisation)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    core.set_setting("organisation", body.organisation.strip()[:80])
-    _, token = core.login(body.email, body.password)
+    _, token = core.login(body.email, body.password, u["tenant_id"])
     _set_session(response, token, request)
-    audit(u, "setup", body.organisation)
+    with core.tenant_scope(u["tenant_id"]):
+        audit(u, action, body.organisation)
     return {"user": u}
+
+
+@app.post("/api/v1/signup")
+def signup(body: SetupIn, request: Request, response: Response):
+    """Create a new workspace (CL_SIGNUP=open). The person becomes its owner."""
+    if signup_mode() != "open":
+        raise HTTPException(403, "Sign-up is closed on this server. Ask a workspace owner to add you.")
+    _rate_limit(f"signup:{request.client.host if request.client else '?'}", 5, 3600)
+    return _new_workspace(body, request, response, "signup")
 
 
 @app.post("/api/v1/login")
 def login(body: LoginIn, request: Request, response: Response):
     _rate_limit(f"login:{request.client.host if request.client else '?'}")
-    res = core.login(body.email, body.password)
+    res = core.login(body.email, body.password, body.workspace)
     if res is None:
         core.log_event("user", body.email.strip().lower()[:200], "login", "", ok=False)
         raise HTTPException(401, "Email or password is not correct.")
     u, token = res
     _set_session(response, token, request)
-    audit(u, "login")
+    with core.tenant_scope(u["tenant_id"]):
+        audit(u, "login")
     return {"user": u}
 
 
@@ -154,7 +194,23 @@ def logout(request: Request, response: Response):
 
 @app.get("/api/v1/me")
 def me(u: dict = Depends(current_user)):
-    return {"user": u, "organisation": core.get_setting("organisation", ""), "version": core.VERSION}
+    return {"user": u, "organisation": core.get_setting("organisation", ""), "version": core.VERSION,
+            "workspace": core.get_tenant(u["tenant_id"]), "workspaces": core.user_tenants(u["id"])}
+
+
+class SwitchIn(BaseModel):
+    workspace: str
+
+
+@app.post("/api/v1/workspaces/switch")
+def switch_workspace(body: SwitchIn, request: Request, u: dict = Depends(current_user)):
+    try:
+        nu = core.switch_tenant(request.cookies.get(COOKIE), body.workspace)
+    except PermissionError as e:
+        raise HTTPException(403, str(e))
+    with core.tenant_scope(nu["tenant_id"]):
+        audit(nu, "workspace.switch", body.workspace)
+    return {"user": nu}
 
 
 class PasswordIn(BaseModel):
@@ -189,7 +245,7 @@ def overview(u: dict = Depends(ANY)):
     return {"status": st, "checklist": checklist, "usage": core.usage_by_day(14),
             "agents": {"active": len(active), "total": len(agents)},
             "top_agents": sorted(active, key=lambda a: -a["calls"])[:5],
-            "problems": problems, "job": jobs.running() and jobs.public(jobs.running())}
+            "problems": problems, "job": jobs.running_mine()}
 
 
 # ------------------------------------------------------------------ documents
@@ -311,7 +367,7 @@ def start_job(kind: str, u: dict = Depends(ADMIN)):
 
 @app.get("/api/v1/jobs")
 def list_jobs(u: dict = Depends(ANY)):
-    return {"jobs": jobs.list_jobs(), "running": jobs.running() and jobs.public(jobs.running())}
+    return {"jobs": jobs.list_jobs(), "running": jobs.running_mine()}
 
 
 @app.get("/api/v1/jobs/{job_id}")
@@ -329,6 +385,7 @@ class AgentIn(BaseModel):
     description: str = ""
     groups: list[str] = Field(default_factory=lambda: ["public"])
     capabilities: list[str] = Field(default_factory=lambda: ["documents"])
+    scope: str = "agent"
 
 
 class AgentPatch(BaseModel):
@@ -346,10 +403,12 @@ def agents(u: dict = Depends(ANY)):
 def create_agent(body: AgentIn, u: dict = Depends(ADMIN)):
     try:
         groups = engine.clean_groups(body.groups)
-        a, token = core.create_agent(body.name, body.description, groups, body.capabilities, u["email"])
+        a, token = core.create_agent(body.name, body.description, groups, body.capabilities, u["email"],
+                                     body.scope)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    audit(u, "agents.create", a["name"], {"groups": a["groups"], "capabilities": a["capabilities"]})
+    audit(u, "agents.create", a["name"], {"groups": a["groups"], "capabilities": a["capabilities"],
+                                           "scope": a["scope"]})
     return {"agent": a, "token": token}
 
 
@@ -507,9 +566,9 @@ def disconnect_app(gid: str, u: dict = Depends(ANY)):
 # ------------------------------------------------------------------ one-time upload links (create_upload_link)
 
 def _link(token: str):
-    r = core.db().execute("SELECT * FROM upload_links WHERE token_hash = ? AND expires > ?",
-                          (core.token_hash(token), core.now())).fetchone()
-    return r
+    with core.system():
+        return core.db().execute("SELECT * FROM upload_links WHERE token_hash = ? AND expires > ?",
+                                 (core.token_hash(token), core.now())).fetchone()
 
 
 UPLOAD_FORM = """<h1>Add files</h1><p class="muted">They are added to Context Layer for <b>{who}</b>, visible to: {groups}.
@@ -536,6 +595,12 @@ async def upload_files(token: str, request: Request, files: list[UploadFile] = F
         return oauth.page("Link expired", "<h1>This link has expired</h1><p>Ask your AI app for a new upload link.</p>", 404)
     if r["files"] + len(files) > 50:
         return oauth.page("Too many files", "<h1>Too many files</h1><p>One link takes up to 50 files.</p>", 400)
+    with core.tenant_scope(r["tenant_id"]):
+        return await _upload_into(token, r, files)
+
+
+async def _upload_into(token: str, r, files: list[UploadFile]):
+    import html as H
     saved, errors = [], []
     for f in files:
         data = await f.read()
@@ -668,6 +733,7 @@ class OrgIn(BaseModel):
 @app.put("/api/v1/settings/organisation")
 def set_org(body: OrgIn, u: dict = Depends(OWNER)):
     core.set_setting("organisation", body.organisation.strip()[:80])
+    core.rename_tenant(u["tenant_id"], body.organisation)
     audit(u, "settings.organisation", body.organisation[:80])
     return {"ok": True}
 

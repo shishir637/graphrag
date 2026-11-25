@@ -30,7 +30,13 @@ class _Log(io.TextIOBase):
 
 
 def running() -> dict | None:
+    """The job running now (any workspace: one job at a time on this server until the job queue moves to Postgres)."""
     return next((_jobs[j] for j in reversed(_order) if _jobs[j]["status"] == "running"), None)
+
+
+def running_mine() -> dict | None:
+    j = running()
+    return public(j) if j and _mine(j) else None
 
 
 def public(job: dict) -> dict:
@@ -38,13 +44,17 @@ def public(job: dict) -> dict:
            {"log": job["log"][-60:], "queue_position": (_queue.index(job["id"]) + 1) if job["id"] in _queue else None}
 
 
+def _mine(j: dict) -> bool:
+    return j.get("tenant") == core.current_tenant()
+
+
 def list_jobs(limit: int = 20) -> list[dict]:
-    return [public(_jobs[j]) for j in reversed(_order[-limit:])]
+    return [public(_jobs[j]) for j in reversed(_order) if _mine(_jobs[j])][:limit]
 
 
 def get(job_id: str) -> dict | None:
     j = _jobs.get(job_id)
-    return public(j) if j else None
+    return public(j) if j and _mine(j) else None
 
 
 _qlock = threading.Lock()
@@ -53,7 +63,7 @@ _queue: list[str] = []
 
 def _new(kind: str, label: str, by: str, status: str) -> dict:
     job = {"id": secrets.token_hex(5), "kind": kind, "label": label, "status": status, "started": None,
-           "finished": None, "by": by, "error": None, "log": [], "info": {}}
+           "finished": None, "by": by, "error": None, "log": [], "info": {}, "tenant": core.current_tenant()}
     _jobs[job["id"]] = job
     _order.append(job["id"])
     for old in _order[:-50]:
@@ -69,7 +79,7 @@ def _launch(job: dict, fn):
     def run():
         t = core.timer()
         log = _Log(job)
-        with LOCK:
+        with LOCK, core.tenant_scope(job["tenant"]):
             try:
                 with redirect_stdout(log), redirect_stderr(log):
                     fn()
@@ -110,7 +120,7 @@ def enqueue(kind: str, label: str, make_fn, by: str, info: dict) -> dict:
     with _qlock:
         for jid in _queue:
             j = _jobs[jid]
-            if j["kind"] == kind:
+            if j["kind"] == kind and _mine(j):
                 for k, v in info.items():
                     if isinstance(v, list):
                         j["info"].setdefault(k, [])
@@ -128,4 +138,5 @@ def enqueue(kind: str, label: str, make_fn, by: str, info: dict) -> dict:
 
 def info(job_id: str) -> dict:
     j = _jobs.get(job_id)
+    j = j if j and _mine(j) else None
     return dict(j["info"]) if j else {}
