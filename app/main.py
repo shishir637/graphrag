@@ -34,8 +34,16 @@ async def lifespan(app):
     # a fresh MCP app (and session manager) per server start: a manager can only be run once
     global _mcp_asgi
     _mcp_asgi = M.http_app()
-    async with M.mcp.session_manager.run():
-        yield
+    if os.environ.get("CL_WORKERS", "2") != "0":
+        jobs.start_workers()
+    from . import scheduler
+    scheduler.start()
+    try:
+        async with M.mcp.session_manager.run():
+            yield
+    finally:
+        scheduler.stop()
+        jobs.stop_workers()
 
 
 app = FastAPI(title="Context Layer", version=core.VERSION, docs_url=None, redoc_url=None, lifespan=lifespan)
@@ -387,6 +395,32 @@ def semantic_import(body: LayerImportIn, u: dict = Depends(ADMIN)):
         raise HTTPException(400, f"Not imported: {str(e)[:400]}")
     audit(u, "semantic.import", ", ".join(sorted(body.files)), n)
     return {"imported": n}
+
+
+class DefinitionStatusIn(BaseModel):
+    status: str
+
+
+@app.put("/api/v1/semantic/{kind}/{name}/status")
+def set_definition_status(kind: str, name: str, body: DefinitionStatusIn, u: dict = Depends(ADMIN)):
+    """Approve, send back to draft, or retire any definition (e.g. a suggested synonym)."""
+    from semantic import repo
+    if kind not in repo.KINDS or body.status not in repo.STATUSES:
+        raise HTTPException(400, "Unknown kind or status.")
+    try:
+        r = repo.set_status(kind, name, body.status, u["email"])
+    except KeyError:
+        raise HTTPException(404, "No such definition.")
+    audit(u, "semantic.status", f"{kind} {name}", {"status": body.status})
+    return {"definition": r}
+
+
+@app.get("/api/v1/semantic/drafts")
+def semantic_drafts(u: dict = Depends(ANY)):
+    """Everything waiting for a person: drafts and definitions a check took out (needs_review)."""
+    from semantic import repo
+    return {"items": [{k: r[k] for k in ("kind", "name", "status", "source", "note", "definition", "updated_at")}
+                      for kind in repo.KINDS for r in repo.rows(kind, ("draft", "needs_review"))]}
 
 
 @app.get("/api/v1/semantic/history")

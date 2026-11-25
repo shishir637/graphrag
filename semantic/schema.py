@@ -97,7 +97,7 @@ class Metric(BaseModel):
     time_column: str | None = None              # entity.column used for date ranges and cumulative ordering
     format: Literal["currency", "number", "percent"] = "number"
     owner: str = ""
-    status: Literal["draft", "approved"] = "draft"
+    status: Literal["draft", "approved", "needs_review"] = "draft"   # needs_review: a check failed; hidden
 
     @model_validator(mode="after")
     def _by_type(self):

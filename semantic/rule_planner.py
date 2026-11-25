@@ -91,7 +91,7 @@ class RulePlanner:
     def __init__(self, model, metrics, enrichment, values: dict[str, list[str]]):
         self.model, self.metrics = model, metrics
         self.values = values
-        self.approved = [m for m in metrics.metrics if m.status == "approved"] or list(metrics.metrics)
+        self.approved = [m for m in metrics.metrics if m.status == "approved"] or             [m for m in metrics.metrics if m.status == "draft"]
         approved_names = {m.name for m in self.approved}
         self.metric_terms: dict[str, str] = {}                      # term -> metric
         for m in self.approved:

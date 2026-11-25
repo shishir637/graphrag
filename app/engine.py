@@ -448,6 +448,19 @@ JOBS = {
 }
 
 
+def _register_jobs():
+    from app import jobs
+    me = globals()                       # looked up when the job runs (so tests and plug-ins can replace a step)
+    for kind, (label, fn, _) in JOBS.items():
+        jobs.register(kind, label, lambda info, _n=fn.__name__: me[_n]())
+    jobs.register("rebuild", "Adding uploaded files", lambda info: me["rebuild"](info))
+    jobs.register("monitor", "Checking metric definitions", lambda info: __import__("semantic.monitor").monitor.run())
+    jobs.register("learn", "Suggesting synonyms from unanswered questions",
+                  lambda info: __import__("semantic.learn").learn.run())
+
+
+_register_jobs()
+
 
 # ------------------------------------------------------------------ quality
 
@@ -698,7 +711,18 @@ def _ask(question: str, groups: list[str] | None, capabilities: list[str], mode:
     out["timings_s"] = {"total": round(time.perf_counter() - t0, 3)}
     out["found"] = bool((out.get("data") or {}).get("found") or out.get("graph") and out["graph"].get("relations")
                         or out.get("overview") or out["evidence"] in ("strong", "partial", "unscored"))
+    _note_gap(question, chosen, out, capabilities)
     return out
+
+
+def _note_gap(question: str, chosen: str, out: dict, capabilities):
+    """Questions the layer could not serve feed the weekly synonym suggestions (semantic/learn.py)."""
+    from app.router import COUNTING
+    from semantic.learn import record
+    if "data" in capabilities and COUNTING.search(question) and not (out.get("data") or {}).get("found"):
+        record(question, "no_metric")
+    elif not out["found"]:
+        record(question, "no_evidence")
 
 
 def _all_chunk_groups() -> set:

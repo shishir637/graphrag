@@ -104,9 +104,7 @@ def _need(agent: dict, cap: str):
 
 
 def _wait():
-    if not jobs.LOCK.acquire(timeout=180):
-        raise ToolError("Context Layer is rebuilding its data. Try again in a few minutes.")
-    jobs.LOCK.release()
+    """Questions no longer wait for builds: indexes are updated in place, so the last good version answers."""
 
 
 def run(agent: dict, tool: str, args: dict, fn, wait: bool = True) -> dict:
