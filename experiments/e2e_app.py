@@ -57,7 +57,10 @@ r = httpx.post(BASE + "/mcp", json=init, headers=MH | {"authorization": f"Bearer
 check("MCP initialize with key", r.status_code == 200 and "Context Layer" in r.text)
 lst = httpx.post(BASE + "/mcp", json={"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
                  headers=MH | {"authorization": f"Bearer {full}"}).json()["result"]["tools"]
-check("MCP lists 9 read-only tools", len(lst) == 9 and all(t["annotations"]["readOnlyHint"] for t in lst), ", ".join(t["name"] for t in lst))
+WRITE_TOOLS = {"add_document", "create_upload_link", "approve_metric"}
+check("MCP lists 13 tools, only the upload/approve ones write",
+      len(lst) == 13 and all(t["annotations"]["readOnlyHint"] == (t["name"] not in WRITE_TOOLS) for t in lst),
+      ", ".join(t["name"] for t in lst))
 
 res, s = mcp(full, "ask", {"question": "Who heads the department that owns GridSense?"})
 sc = res.get("structuredContent", {})
@@ -99,7 +102,7 @@ pid = res["structuredContent"]["passages"][0]["id"]
 res, s = mcp(full, "fetch_passage", {"passage_id": pid})
 check("fetch_passage", res["structuredContent"]["found"])
 res, s = mcp(full, "list_documents", {})
-check("list_documents", len(res["structuredContent"]["documents"]) >= 5)
+check("list_documents", len(res["structuredContent"]["documents"]) >= 4)       # the 4 Lumora documents
 res, s = mcp(full, "ask", {"question": "Give me an overview of the main themes in Kerala", "mode": "overview"})
 check("overview mode returns communities", res["structuredContent"].get("overview") is not None, f"route={res['structuredContent']['route']}")
 
