@@ -163,6 +163,11 @@ def _plan_prompt(question: str, ctx: dict) -> str:
 def _layer_version() -> str:
     """Fingerprint of the reviewed layer: any change to a definition invalidates cached plans."""
     import hashlib
+    from .repo import in_workspace
+    if in_workspace():
+        from app.db import current_tenant
+        from . import repo
+        return f"{current_tenant()}:{repo.layer_version()}"
     from .config import LAYER_DIR
     h = hashlib.sha1()
     for f in sorted(LAYER_DIR.glob("*")):

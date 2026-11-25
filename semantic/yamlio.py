@@ -37,17 +37,47 @@ def _plain(obj):
     return obj
 
 
-def load_model(path: Path = MODEL_FILE) -> SemanticModel:
-    return SemanticModel.model_validate(_plain(read(path)))
+def _workspace() -> bool:
+    """Inside a workspace (the app), definitions come from Postgres; scripts and tests without one read the files."""
+    try:
+        from .repo import in_workspace
+        return in_workspace()
+    except ImportError:
+        return False
 
 
-def load_metrics(path: Path = METRICS_FILE) -> MetricSet:
-    return MetricSet.model_validate(_plain(read(path)))
+def load_model(path: Path | None = None) -> SemanticModel:
+    if path is None and _workspace():
+        from . import repo
+        return repo.load_model()
+    return SemanticModel.model_validate(_plain(read(path or MODEL_FILE)))
 
 
-def load_enrichment(path: Path = ENRICHMENT_FILE) -> Enrichment:
-    return Enrichment.model_validate(_plain(read(path)))
+def load_metrics(path: Path | None = None) -> MetricSet:
+    if path is None and _workspace():
+        from . import repo
+        return repo.load_metrics()
+    return MetricSet.model_validate(_plain(read(path or METRICS_FILE)))
 
 
-def load_verified(path: Path = VERIFIED_FILE) -> VerifiedSet:
-    return VerifiedSet.model_validate(_plain(read(path)))
+def load_enrichment(path: Path | None = None) -> Enrichment:
+    if path is None and _workspace():
+        from . import repo
+        return repo.load_enrichment()
+    return Enrichment.model_validate(_plain(read(path or ENRICHMENT_FILE)))
+
+
+def load_verified(path: Path | None = None) -> VerifiedSet:
+    if path is None and _workspace():
+        from . import repo
+        return repo.load_verified()
+    return VerifiedSet.model_validate(_plain(read(path or VERIFIED_FILE)))
+
+
+def load_instructions(path: Path | None = None) -> str:
+    if path is None and _workspace():
+        from . import repo
+        return repo.load_instructions()
+    from .config import INSTRUCTIONS_FILE
+    f = path or INSTRUCTIONS_FILE
+    return f.read_text(encoding="utf-8") if f.exists() else ""

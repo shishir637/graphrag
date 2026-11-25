@@ -159,7 +159,22 @@ def _new_workspace(body: SetupIn, request: Request, response: Response, action: 
     _set_session(response, token, request)
     with core.tenant_scope(u["tenant_id"]):
         audit(u, action, body.organisation)
+        if action == "setup":
+            _seed_layer(u["email"])
     return {"user": u}
+
+
+def _seed_layer(by: str):
+    """The server's first workspace starts with the reviewed layer shipped in semantic_layer/ (if any), so an
+    existing single-workspace installation keeps its metrics. New sign-ups start empty."""
+    from semantic import repo
+    from semantic.config import LAYER_DIR
+    if (LAYER_DIR / "model.yaml").exists() and os.environ.get("CL_SEED_LAYER", "1") != "0":
+        try:
+            n = repo.import_dir(LAYER_DIR, source="import", by=by, certified=True)
+            core.log_event("system", by, "semantic.import", "semantic_layer/", n)
+        except Exception as e:                               # noqa: BLE001 - a bad seed must not block setup
+            core.log_event("system", by, "semantic.import", "semantic_layer/", {"error": str(e)[:300]}, ok=False)
 
 
 @app.post("/api/v1/signup")
@@ -345,6 +360,43 @@ def set_metric_status(name: str, body: MetricStatusIn, u: dict = Depends(ADMIN))
         raise HTTPException(400, str(e))
     audit(u, "metrics.status", name, {"status": body.status})
     return r
+
+
+class LayerImportIn(BaseModel):
+    files: dict[str, str]
+    certified: bool = True
+
+
+@app.get("/api/v1/semantic/export")
+def semantic_export(u: dict = Depends(ADMIN)):
+    """The workspace's semantic layer as YAML files (for review in git, or to move it to another workspace)."""
+    from semantic import repo
+    audit(u, "semantic.export")
+    return {"files": repo.export_texts()}
+
+
+@app.post("/api/v1/semantic/import")
+def semantic_import(body: LayerImportIn, u: dict = Depends(ADMIN)):
+    """Import YAML layer files. certified=true: the definitions were reviewed elsewhere (dbt, git) and keep their
+    status; otherwise new metrics arrive as drafts."""
+    from semantic import repo
+    allowed = {"model.yaml", "metrics.yaml", "enrichment.yaml", "verified_queries.yaml", "instructions.md"}
+    if not body.files or not set(body.files) <= allowed:
+        raise HTTPException(400, f"Send files named {', '.join(sorted(allowed))}.")
+    try:
+        n = repo.import_texts(body.files, source="import", by=u["email"], certified=body.certified)
+    except Exception as e:                                       # noqa: BLE001 - validation errors are shown
+        raise HTTPException(400, f"Not imported: {str(e)[:400]}")
+    audit(u, "semantic.import", ", ".join(sorted(body.files)), n)
+    return {"imported": n}
+
+
+@app.get("/api/v1/semantic/history")
+def semantic_history(kind: str, name: str, u: dict = Depends(ANY)):
+    from semantic import repo
+    if kind not in repo.KINDS:
+        raise HTTPException(400, "Unknown kind.")
+    return {"history": repo.history(kind, name), "current": repo.get(kind, name)}
 
 
 @app.get("/api/v1/graph")

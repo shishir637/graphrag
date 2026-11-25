@@ -51,7 +51,13 @@ def main(argv=None):
     if "oauth_hmac" in kv:
         with system():
             core.set_system_setting("oauth_hmac", kv["oauth_hmac"])
-    print(f"Moved into workspace {tid}: {core.user_count()} people, events {n}.")
+    from semantic import repo
+    from semantic.config import LAYER_DIR
+    layer = {}
+    if (LAYER_DIR / "model.yaml").exists():
+        with tenant_scope(tid):
+            layer = repo.import_dir(LAYER_DIR, source="import", by="migrate_local", certified=True)
+    print(f"Moved into workspace {tid}: {core.user_count()} people, events {n}, semantic layer {layer}.")
 
 
 if __name__ == "__main__":

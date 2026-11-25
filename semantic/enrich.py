@@ -117,6 +117,16 @@ def build_enrichment(embed: bool = True) -> dict:
             print("   -", p)
         raise SystemExit(f"{len(problems)} enrichment problems - nothing was stored")
 
+    from .repo import in_workspace
+    if in_workspace():                       # the app: known values go to Postgres with the definitions
+        from . import repo
+        repo.save_value_lists(values)
+        result = {"store": "postgres", "synonyms": len(enrichment.synonyms),
+                  "value_lists": {d: len(v) for d, v in values.items()}, "verified_queries": len(compiled)}
+        print(f"  {result['synonyms']} synonyms, {sum(result['value_lists'].values())} values in "
+              f"{len(values)} lists, {len(compiled)} verified queries checked")
+        return result
+
     STORE_DIR.mkdir(exist_ok=True)
     STORE_DB.unlink(missing_ok=True)
     store = duckdb.connect(str(STORE_DB))
@@ -148,6 +158,12 @@ def build_enrichment(embed: bool = True) -> dict:
 
 # --- read side, used when answering ---
 def load_store() -> dict:
+    from .repo import in_workspace
+    if in_workspace():
+        from . import repo
+        from .yamlio import load_enrichment
+        return {"synonyms": [(x.term, x.target) for x in load_enrichment().synonyms], "values": repo.value_lists(),
+                "instructions": repo.load_instructions()}
     if not STORE_DB.exists():
         raise SystemExit("semantic layer store not built - run `python rag.py sl-enrich` first")
     s = duckdb.connect(str(STORE_DB), read_only=True)

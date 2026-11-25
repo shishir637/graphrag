@@ -123,7 +123,8 @@ def draft_metrics(n: int = 8) -> list[dict]:
         "; dimensions: " + ", ".join(f"{e.name}.{d.column} [{d.type}]" for d in e.dimensions)
         for e in model.entities)
     existing = "\n".join(f"- {m.name}: {m.description}" for m in metrics.metrics)
-    rules = INSTRUCTIONS_FILE.read_text(encoding="utf-8") if INSTRUCTIONS_FILE.exists() else ""
+    from .yamlio import load_instructions
+    rules = load_instructions()
     resp = claude().messages.parse(
         model=CLAUDE_MODEL, max_tokens=16000, output_config={"effort": "low"},
         messages=[{"role": "user", "content":

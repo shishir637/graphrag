@@ -322,7 +322,7 @@ def tool_approve_metric(agent: dict, name: str) -> dict:
     who = agent.get("email") or agent["name"]
     core.log_event("user" if agent.get("kind") == "user" else "agent", who, "metrics.status", name,
                    {"status": "approved", "via": agent.get("client") or "admin key"})
-    return r | {"next": "Approved. Run the data rebuild (Metrics page, or upload again) so query_metrics can use it."}
+    return r | {"next": "Approved. query_metrics can use it now."}
 
 
 TOOLS = {"ask": tool_ask, "search_documents": tool_search, "describe_data": tool_describe_data,

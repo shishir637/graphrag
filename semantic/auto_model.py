@@ -41,11 +41,33 @@ def _dim_type(role: str, dtype: str) -> str:
     return "text"
 
 
+def _ws() -> bool:
+    from .repo import in_workspace
+    return in_workspace()
+
+
+def _current() -> tuple[dict, dict, dict]:
+    """The layer as plain dicts: from the workspace (Postgres) in the app, else from the YAML files."""
+    if _ws():
+        from . import repo
+        model = {"version": 1, "entities": [r["definition"] for r in repo.rows("entity")],
+                 "joins": [r["definition"] for r in repo.rows("join")]}
+        metrics = {"version": 1, "metrics": [r["definition"] | {"status": r["status"] if r["status"] in ("draft", "approved")
+                                                                   else "draft", "owner": r["owner"]}
+                                             for r in repo.rows("metric", repo.STATUSES)]}
+        en = {"version": 1, "synonyms": [r["definition"] for r in repo.rows("synonym", repo.STATUSES)],
+              "value_list_dimensions": [r["name"] for r in repo.rows("value_list", repo.STATUSES)]}
+        return model, metrics, en
+    model = read(MODEL_FILE) if MODEL_FILE.exists() else {"version": 1, "entities": [], "joins": []}
+    metrics = read(METRICS_FILE) if METRICS_FILE.exists() else {"version": 1, "metrics": []}
+    en = read(ENRICHMENT_FILE) if ENRICHMENT_FILE.exists() else {"version": 1, "synonyms": [], "value_list_dimensions": []}
+    return model, metrics, en
+
+
 def draft(approve: bool = False) -> dict:
     prof = read_json("sl_1_profile.json")
     new_files = not MODEL_FILE.exists()
-    model = read(MODEL_FILE) if MODEL_FILE.exists() else {"version": 1, "entities": [], "joins": []}
-    metrics = read(METRICS_FILE) if METRICS_FILE.exists() else {"version": 1, "metrics": []}
+    model, metrics, en = _current()
     if "joins" not in model:
         model["joins"] = []
     have = {e["table"] for e in model["entities"]}
@@ -147,11 +169,14 @@ def draft(approve: bool = False) -> dict:
         from .schema import MetricSet, SemanticModel
         SemanticModel.model_validate(_plain(model))
         MetricSet.model_validate(_plain(metrics))
+    if (added_entities or added_joins) and _ws():
+        return _store_in_workspace(model, metrics, en, added_entities, added_metrics, added_joins, synonyms_out,
+                                   words_before, approve)
+    if added_entities or added_joins:
         write(MODEL_FILE, model, "Semantic model (source of truth). Entities marked 'Drafted from the data profile'\n"
                                  "were written by semantic/auto_model.py and should be reviewed." if new_files else "")
         write(METRICS_FILE, metrics, "Metric definitions (source of truth). Agents see only status: approved."
               if new_files else "")
-        en = read(ENRICHMENT_FILE) if ENRICHMENT_FILE.exists() else {"version": 1, "synonyms": [], "value_list_dimensions": []}
         vl = set(en.get("value_list_dimensions") or [])
         for e in model["entities"]:
             if e["name"] in added_entities:
@@ -171,11 +196,47 @@ def draft(approve: bool = False) -> dict:
     return {"entities": added_entities, "metrics": added_metrics, "joins": added_joins}
 
 
+def _store_in_workspace(model, metrics, en, added_entities, added_metrics, added_joins, synonyms_out, words_before,
+                        approve) -> dict:
+    """Store the drafts in the workspace's layer. The approval policy decides: entities, joins, synonyms and value
+    lists found in the data are approved; new metrics stay drafts until an owner approves them."""
+    from . import repo
+    from .schema import Enrichment, MetricSet, SemanticModel
+    vl = set(en.get("value_list_dimensions") or [])
+    for e in model["entities"]:
+        if e["name"] in added_entities:
+            vl |= {f"{e['name']}.{d['name']}" for d in e["dimensions"] if d["type"] == "category"}
+    taken = {x["term"].lower() for x in en.get("synonyms") or []} | {str(m["label"]).lower() for m in metrics["metrics"]}
+    syn = list(en.get("synonyms") or [])
+    for term, target in synonyms_out:
+        clash = " " not in term and (term.lower() in words_before or re.sub(r"s$", "", term.lower()) in words_before)
+        if term.lower() not in taken and not clash:
+            syn.append({"term": term, "target": target})
+            taken.add(term.lower())
+    new_m = [m for m in metrics["metrics"] if m["name"] in added_metrics]
+    repo.import_layer(SemanticModel.model_validate(_plain(model)),
+                      MetricSet.model_validate({"version": 1, "metrics": _plain(new_m)}) if new_m else None,
+                      Enrichment.model_validate({"version": 1, "synonyms": _plain(syn),
+                                                 "value_list_dimensions": sorted(vl)}),
+                      source="auto_draft", by="auto_model")
+    if approve:
+        for m in added_metrics:
+            repo.set_status("metric", m, "approved", "auto_model")
+    return {"entities": added_entities, "metrics": added_metrics, "joins": added_joins}
+
+
 def set_status(name: str, status: str, by: str = "") -> dict:
     """Approve or un-approve a metric. Approving records who reviewed it as the owner if none is set
     (every approved metric needs an owner)."""
     if status not in ("draft", "approved"):
         raise ValueError("status is draft or approved")
+    if _ws():
+        from . import repo
+        r = repo.get("metric", name)
+        if r is None or r["status"] == "retired":
+            raise KeyError(name)
+        repo.set_status("metric", name, status, by or "reviewer")
+        return {"name": name, "status": status}
     metrics = read(METRICS_FILE)
     for m in metrics["metrics"]:
         if m["name"] == name:

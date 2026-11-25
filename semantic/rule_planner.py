@@ -449,13 +449,18 @@ def planner() -> RulePlanner:
     from .answer import _layer_version
     from .enrich import load_store
     from .yamlio import load_enrichment, load_metrics, load_model
-    v = _layer_version()
-    if _cache.get("v") != v:
+    v = _layer_version()                         # per workspace (and its layer version) inside the app
+    key = v.split(":", 1)[0] if ":" in v else ""
+    hit = _cache.get(key)
+    if hit is None or hit[0] != v:
         try:
             store = load_store()
         except SystemExit:                       # catalog not built yet (fresh install): build it, no model needed
             from .enrich import build_enrichment
             build_enrichment(embed=False)
             store = load_store()
-        _cache.update(v=v, p=RulePlanner(load_model(), load_metrics(), load_enrichment(), store["values"]))
-    return _cache["p"]
+        hit = (v, RulePlanner(load_model(), load_metrics(), load_enrichment(), store["values"]))
+        _cache[key] = hit
+        while len(_cache) > 256:                 # many workspaces: keep the most recent planners
+            _cache.pop(next(iter(_cache)))
+    return hit[1]

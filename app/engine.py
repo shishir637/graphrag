@@ -165,6 +165,19 @@ def save_table(filename: str, data: bytes) -> list[str]:
 
 
 def metrics() -> dict:
+    """Every metric of the workspace (drafts included, with status) and the dimensions, for the Metrics page."""
+    if _in_workspace():
+        from semantic import repo
+        dims = [{"name": f"{r['name']}.{d['name']}", "label": d.get("label") or d["name"],
+                 "description": d.get("description", "")}
+                for r in repo.rows("entity") for d in r["definition"].get("dimensions", [])]
+        keep = ("name", "label", "description", "type", "format", "expression", "filters")
+        return {"metrics": [{k: r["definition"].get(k) for k in keep} |
+                            {"owner": r["owner"], "status": r["status"], "source": r["source"], "version": r["version"],
+                             "domain": r["domain"], "updated_by": r["updated_by"], "updated_at": r["updated_at"]}
+                            for r in repo.rows("metric")],
+                "dimensions": dims, "reviewed_in": "this workspace (every change is kept in the history)"}
+
     def load(path):
         try:
             return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
@@ -242,12 +255,26 @@ def status() -> dict:
         "documents": {"count": len(docs), "ready": sum(d["status"] == "ready" for d in docs),
                       "pending": sum(d["status"] != "ready" for d in docs),
                       "passages": sum(d["passages"] for d in docs), "indexed": iso(_chunk_stats()[1])},
-        "data": {"tables": len(tables()), "metrics": len(metrics()["metrics"]), "ready": SC.STORE_DB.exists(),
-                 "prepared": iso(_mtime(SC.STORE_DB))},
+        "data": _data_status(),
         "graph": {"ready": graph_ready(), "built": graph.get("built") if graph else None,
                   "entities": graph.get("entities") if graph else 0, "relations": graph.get("relations") if graph else 0},
         "postgres": {"ok": pg_ok, "message": pg_msg},
     }
+
+
+def _in_workspace() -> bool:
+    from .db import current_tenant
+    return bool(current_tenant())
+
+
+def _data_status() -> dict:
+    n = len(metrics()["metrics"])
+    if _in_workspace():
+        from semantic import repo
+        st = repo.get_state()
+        return {"tables": len(tables()), "metrics": n, "ready": bool(repo.value_lists()) or n > 0,
+                "prepared": st.get("updated_at")}
+    return {"tables": len(tables()), "metrics": n, "ready": SC.STORE_DB.exists(), "prepared": iso(_mtime(SC.STORE_DB))}
 
 
 # ------------------------------------------------------------------ jobs (run in the background by app.jobs)
@@ -556,8 +583,12 @@ _ASK_CACHE: "dict[tuple, tuple[float, dict]]" = {}
 
 def _sources_version() -> tuple:
     from semantic import config as S
-    paths = [OUT_DIR / "2_chunks.json", OUT_DIR / "4_index.json", OUT_DIR / "_graph_build.json", ACCESS_FILE,
-             S.STORE_DB, *sorted(S.LAYER_DIR.glob("*.yaml")), S.INSTRUCTIONS_FILE]
+    paths = [OUT_DIR / "2_chunks.json", OUT_DIR / "4_index.json", OUT_DIR / "_graph_build.json", ACCESS_FILE]
+    if _in_workspace():
+        from semantic import repo
+        from .db import current_tenant
+        return (current_tenant(), repo.layer_version(), *(_mtime(p) for p in paths))
+    paths += [S.STORE_DB, *sorted(S.LAYER_DIR.glob("*.yaml")), S.INSTRUCTIONS_FILE]
     return tuple(_mtime(p) for p in paths)
 
 
