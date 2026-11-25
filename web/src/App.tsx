@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { api, setMcpUrl, setUnauthorizedHandler, type User } from './api'
 import { Icon, Spinner, ToastProvider } from './ui'
+import { Guide, useGuideAutoOpen } from './Guide'
 import Overview from './pages/Overview'
 import Documents from './pages/Documents'
 import DataTables from './pages/DataTables'
@@ -27,6 +28,7 @@ const NAV: { sec?: string; to?: string; label?: string; icon?: string }[] = [
 
 function Shell({ s, onLogout }: { s: Session; onLogout: () => void }) {
   const [open, setOpen] = useState(false)
+  const [guide, setGuide] = useGuideAutoOpen()
   const loc = useLocation()
   useEffect(() => setOpen(false), [loc.pathname])
   const initials = s.user.name.split(/\s+/).map((x) => x[0]).join('').slice(0, 2).toUpperCase()
@@ -36,6 +38,8 @@ function Shell({ s, onLogout }: { s: Session; onLogout: () => void }) {
         <div><b>Context Layer</b><span>{s.organisation || 'Your organisation'}</span></div></div>
       {NAV.map((n, i) => n.sec ? <div key={i} className="navsec">{n.sec}</div> :
         <NavLink key={n.to} to={n.to!} end={n.to === '/'} className={({ isActive }) => `nav${isActive ? ' active' : ''}`}><Icon name={n.icon!} />{n.label}</NavLink>)}
+      <button className="nav" style={{ background: 'none', border: 0, font: 'inherit', cursor: 'pointer', textAlign: 'left' }}
+        onClick={() => setGuide(true)}><Icon name="play" />Getting started</button>
       <div className="foot"><div className="avatar">{initials}</div>
         <div className="who"><b>{s.user.name}</b><span>{s.user.role}</span></div>
         <button className="btn ghost sm" onClick={onLogout} title="Sign out" aria-label="Sign out"><Icon name="out" size={16} /></button></div>
@@ -58,6 +62,7 @@ function Shell({ s, onLogout }: { s: Session; onLogout: () => void }) {
       </Routes>
     </div>
     {open && <div className="modal-bg" style={{ zIndex: 25, background: 'rgb(0 0 0 / .3)' }} onClick={() => setOpen(false)} />}
+    <Guide open={guide} onClose={() => setGuide(false)} />
   </div>
 }
 

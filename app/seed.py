@@ -32,11 +32,11 @@ def seed_new_workspace(by: str) -> dict:
     return {"ontology": "generic"}
 
 
-def seed_first_workspace(by: str) -> dict:
-    """Run inside the new workspace's scope."""
+def seed_first_workspace(by: str, force: bool = False) -> dict:
+    """Run inside the new workspace's scope. force: also when CL_SEED_LAYER=0 ("try sample data")."""
     from semantic import repo
     from semantic.config import DATA_DIR, LAYER_DIR, TABLE_EXTS
-    if os.environ.get("CL_SEED_LAYER", "1") == "0" or not (LAYER_DIR / "model.yaml").exists():
+    if (os.environ.get("CL_SEED_LAYER", "1") == "0" and not force) or not (LAYER_DIR / "model.yaml").exists():
         return seed_new_workspace(by)
     from graph.config import SCHEMA_FILE
     from graph.ontology import seed_file, seed_generic

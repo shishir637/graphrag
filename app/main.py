@@ -261,17 +261,58 @@ def overview(u: dict = Depends(ANY)):
     st = engine.status()
     agents = core.list_agents()
     active = [a for a in agents if not a["revoked"]]
+    from . import guide
+    f = guide.facts(u)
     checklist = [
+        {"id": "named", "label": "Name your workspace", "done": f["named"], "to": "/settings"},
+        {"id": "source", "label": "Connect a source or upload files", "done": f["source"], "to": "/sources/documents"},
         {"id": "documents", "label": "Add and prepare documents", "done": st["documents"]["ready"] > 0, "to": "/sources/documents"},
         {"id": "data", "label": "Add data tables for metrics", "done": st["data"]["ready"], "to": "/sources/data", "optional": True},
         {"id": "graph", "label": "Build the knowledge graph", "done": st["graph"]["ready"], "to": "/knowledge/graph", "optional": True},
-        {"id": "agent", "label": "Connect your first agent", "done": bool(active), "to": "/agents"},
+        {"id": "drafts", "label": "Review drafts waiting for approval", "done": f["built"] and f["drafts"] == 0,
+         "to": "/knowledge/metrics", "optional": True},
+        {"id": "agent", "label": "Connect your first agent", "done": bool(active) or f["connected"], "to": "/agents"},
+        {"id": "ask", "label": "Ask a first question", "done": f["asked"], "to": "/playground"},
     ]
     problems = [e for e in core.list_events(limit=200) if not e["ok"]][:6]
     return {"status": st, "checklist": checklist, "usage": core.usage_by_day(14),
             "agents": {"active": len(active), "total": len(agents)},
             "top_agents": sorted(active, key=lambda a: -a["calls"])[:5],
             "problems": problems, "job": jobs.running_mine()}
+
+
+# ------------------------------------------------------------------ getting-started guide
+
+@app.get("/api/v1/guide")
+def get_guide(request: Request, u: dict = Depends(ANY)):
+    """The steps for this person (by role), each ticked from the workspace's real state."""
+    from . import guide
+    from .public import base_url
+    return guide.steps(u, base_url(request.scope))
+
+
+@app.post("/api/v1/guide/dismiss")
+def dismiss_guide(u: dict = Depends(ANY)):
+    from . import guide
+    return guide.dismiss(u)
+
+
+@app.post("/api/v1/guide/reset")
+def reset_guide(u: dict = Depends(ANY)):
+    from . import guide
+    return guide.reset(u)
+
+
+@app.post("/api/v1/guide/sample")
+def load_sample_data(u: dict = Depends(ADMIN)):
+    """Load the sample sales tables and their metrics into an empty workspace."""
+    from . import guide
+    try:
+        out = guide.load_sample(u["email"])
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+    audit(u, "guide.sample", "", {k: v for k, v in out.items() if k != "layer"})
+    return {"loaded": out}
 
 
 # ------------------------------------------------------------------ documents

@@ -59,6 +59,14 @@ and agents only ask.
 - Activity is kept for `event_retention_days` (default 90, deleted nightly); questions can be stored as a hash and
   length instead of text (`PUT /api/v1/settings/privacy`).
 
+**Getting started guide**
+- Opens on a person's first sign-in to a workspace (dismissible; "Getting started" in the menu reopens it). Owners and
+  admins: name the workspace, connect a source (or try sample data), watch the build, review drafts, connect an AI
+  app (MCP link, Claude, ChatGPT, Claude Code and Cursor snippets, key scopes), ask a test question. Viewers: what
+  they can see, connect their own Claude or ChatGPT, ask a first question.
+- Every step is ticked from the workspace's real state; the Overview checklist uses the same facts.
+- API: `GET /api/v1/guide`, `POST /api/v1/guide/dismiss`, `POST /api/v1/guide/reset`, `POST /api/v1/guide/sample`.
+
 **Answers**
 - Metrics respect row access rules (e.g. only the caller's repositories), in numbers and in known values.
 - The router returns an evidence plan: a "why" question about a metric also gets the number, and a number question
