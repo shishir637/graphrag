@@ -114,7 +114,8 @@ def tool_ask(agent: dict, question: str, mode: str = "auto") -> dict:
 def tool_search(agent: dict, query: str, top_k: int = 5, files: list[str] | None = None) -> dict:
     _need(agent, "documents")
     r = engine.search(query, agent["groups"], top_k, files, use_graph="graph" in agent["capabilities"])
-    return {"query": query, "passages": r["passages"], "entities_found": r["entities"], "guidance": engine.GUIDANCE}
+    return {"query": query, "evidence": r["evidence"], "passages": r["passages"], "entities_found": r["entities"],
+            "guidance": engine.GUIDANCE}
 
 
 def tool_describe_data(agent: dict) -> dict:

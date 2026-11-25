@@ -1,5 +1,24 @@
 # Changes
 
+## Unreleased: evidence quality
+
+What an agent receives is now graded, so it can tell real evidence from loosely related text.
+
+- Each passage carries `relevance` (0–1, from the re-ranker) and an `evidence` label: strong, partial or weak.
+  Every answer has a top-level `evidence` (strong / partial / weak / none, or `exact` for metric results).
+- Passages the re-ranker judges unrelated (relevance below 0.02, `CL_MIN_RELEVANCE`) are no longer returned.
+  Before, a question the sources do not cover still got five passages and `found: true`. Now it gets
+  `evidence: none`, `found: false` and a note.
+- Near-identical passages (e.g. the same paragraph in two versions of a file) take one slot, not several.
+- The top three passages include the text just before and after them when it belongs to the same section and
+  the caller may see it, so a list or table split by the chunker arrives whole. Passages are no longer cut at
+  2,000 characters (limit 4,000).
+- Each passage says when its source file was last updated. The guidance tells agents to prefer the newer
+  source when passages disagree, and not to state facts only weak passages support.
+- Repeat questions: the same question from callers with the same groups and capabilities returns the stored
+  evidence (`cached: true`) for up to 10 minutes. This is an exact match only, because a similarity cache
+  would confuse "revenue in 2024" with "revenue in 2025". Any rebuild, access change or new day clears it.
+
 ## 0.4.0 (25 Nov 2026): optional AI extraction for the knowledge graph
 
 A third graph quality, **ai**, next to fast (spaCy) and accurate (GLiNER + spaCy). An AI model reads each
