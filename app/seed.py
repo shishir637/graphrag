@@ -33,4 +33,7 @@ def seed_first_workspace(by: str) -> dict:
         return {}
     tables = copy_tree_files(ROOT / "data", DATA_DIR.resolve_now(), set(TABLE_EXTS))
     layer = repo.import_dir(LAYER_DIR, source="import", by=by, certified=True)
+    if tables:                                    # known values (cities, channels...) for questions and agents
+        from semantic.enrich import build_enrichment
+        build_enrichment(embed=False)
     return {"tables": tables, "layer": layer}

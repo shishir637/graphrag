@@ -6,4 +6,5 @@ mcp>=2.3,<3
 psycopg[binary,pool]>=3.2
 cryptography>=42
 httpx>=0.27
+pytz            # DuckDB needs it for time-zone-aware columns from database sources
 pyyaml>=6

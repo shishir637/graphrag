@@ -192,6 +192,8 @@ def run_sync(info: dict):
     core.db().execute("UPDATE connectors SET state = ?::jsonb, last_run = ?, last_ok = ?, last_error = NULL, next_run = ? "
                       "WHERE id = ?", (json.dumps(res.state), core.now(), core.now(), _later(r["every_minutes"]), cid))
     print(f"  {res.summary}")
+    if res.summary.get("live_tables_changed"):
+        changed.append({"file": "live tables", "kind": "table"})
     if changed or res.deleted:
         docs = [c for c in changed if c["kind"] == "document"] or             ([{"kind": "document", "file": f"{len(res.deleted)} removed"}] if res.deleted else [])
         engine.rebuild({"files": docs + [c for c in changed if c["kind"] == "table"],
@@ -232,6 +234,22 @@ def webhook(kind: str, cid: str, body: bytes, signature: str, event: str) -> tup
         queue_sync(cid, "webhook")
         core.log_event("system", f"connector:{r['name']}", "connector.webhook", kind, {"event": event})
     return 202, "sync queued"
+
+
+def live_sources() -> list[dict]:
+    """Database connectors in live mode of the current workspace, for semantic/db.py to attach read-only."""
+    t = core.current_tenant()
+    if not t:
+        return []
+    out = []
+    for r in core.db().execute("SELECT * FROM connectors WHERE tenant_id = ? AND kind = 'postgres' AND status = 'active'",
+                               (t,)):
+        tables = (r["state"] or {}).get("live_tables") or {}
+        if (r["config"] or {}).get("mode") == "live" and tables:
+            dsn = vault.get(_secret_name(r["id"], "dsn"))
+            if dsn:
+                out.append({"alias": f"src_{r['id']}", "dsn": dsn, "tables": tables})
+    return out
 
 
 def install():

@@ -135,7 +135,8 @@ def run(agent: dict, tool: str, args: dict, fn, wait: bool = True) -> dict:
 def tool_ask(agent: dict, question: str, mode: str = "auto") -> dict:
     if mode not in ("auto", "documents", "metrics", "graph", "overview"):
         raise ToolError("mode must be auto, documents, metrics, graph or overview")
-    return engine.ask(question, agent["groups"], agent["capabilities"], mode)
+    return engine.ask(question, None if agent.get("all_groups") and agent.get("kind") == "user" else agent["groups"],
+                      agent["capabilities"], mode)
 
 
 def tool_search(agent: dict, query: str, top_k: int = 5, files: list[str] | None = None) -> dict:
@@ -145,9 +146,14 @@ def tool_search(agent: dict, query: str, top_k: int = 5, files: list[str] | None
             "guidance": engine.GUIDANCE}
 
 
+def _row_groups(agent: dict) -> list[str] | None:
+    """Owners and admins see every row; everyone else only rows their groups allow (row access rules)."""
+    return None if agent.get("all_groups") else agent["groups"]
+
+
 def tool_describe_data(agent: dict) -> dict:
     _need(agent, "data")
-    return engine.describe_data()
+    return engine.describe_data(_row_groups(agent))
 
 
 def tool_metrics(agent: dict, metrics: list[str] | None = None, dimensions: list[str] | None = None,
@@ -159,15 +165,15 @@ def tool_metrics(agent: dict, metrics: list[str] | None = None, dimensions: list
         req = {"metrics": metrics, "dimensions": dimensions or [], "filters": filters or [],
                "order_by": order_by or [], "limit": limit, "period": period,
                "start_date": start_date, "end_date": end_date}
-        return engine.metric_query({k: v for k, v in req.items() if v not in (None, [], "")})
+        return engine.metric_query({k: v for k, v in req.items() if v not in (None, [], "")}, groups=_row_groups(agent))
     if not question:
         raise ToolError("Give metric names (see describe_data) or a question.")
-    return engine.metric_query(question=question)
+    return engine.metric_query(question=question, groups=_row_groups(agent))
 
 
 def tool_list_metrics(agent: dict) -> dict:
     _need(agent, "data")
-    d = engine.describe_data()
+    d = engine.describe_data(_row_groups(agent))
     return {"metrics": [{k: m[k] for k in ("name", "label", "description", "format")} for m in d["metrics"]],
             "dimensions": [{k: x[k] for k in ("name", "label", "type") if k in x} for x in d["dimensions"]]}
 

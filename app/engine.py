@@ -145,9 +145,16 @@ def delete_document(name: str):
 
 
 def all_groups() -> list[str]:
+    """Every access group in use: on documents and in row access rules for metrics (e.g. GitHub repositories)."""
     g = {"public"}
     for d in documents():
         g.update(d["groups"])
+    if _in_workspace():
+        try:
+            from semantic.access import rules
+            g.update(r["group"] for r in rules())
+        except Exception:                                      # noqa: BLE001
+            pass
     return sorted(g)
 
 
@@ -547,13 +554,14 @@ def search(query: str, groups: list[str], top_k: int = 5, files: list[str] | Non
             "entities": [e["name"] for e in g.get("entities", [])], "timings_s": ret["timings_s"]}
 
 
-def metric_query(request: dict | None = None, question: str | None = None) -> dict:
+def metric_query(request: dict | None = None, question: str | None = None, groups: list[str] | None = None) -> dict:
     """A structured request (metric and dimension names; the agent fills it in) or a plain question
-    (the rule planner fills it in). The compiler writes the SQL; DuckDB runs it."""
+    (the rule planner fills it in). The compiler writes the SQL; DuckDB runs it on the rows the caller's groups
+    may see (row access rules; groups=None: all rows)."""
     from semantic.answer import fix_values, template_answer, today
     from semantic.compiler import CompileError, compile_query
     from semantic.dates import resolve
-    from semantic.db import connect
+    from semantic.db import connect_for
     from semantic.enrich import load_store
     from semantic.schema import SemanticQuery
     from semantic.yamlio import load_metrics, load_model
@@ -590,7 +598,7 @@ def metric_query(request: dict | None = None, question: str | None = None) -> di
         compiled = compile_query(q, model, mets)
     except CompileError as e:
         raise ValueError(str(e)) from e
-    df = connect().execute(compiled.sql).df()
+    df = connect_for(groups, model).execute(compiled.sql).df()
     rows = json.loads(df.head(200).to_json(orient="records", date_format="iso"))
     summary = template_answer(q, rows)
     return {"found": not df.empty, "answer": summary, "planned_by": how,
@@ -680,7 +688,7 @@ def _ask(question: str, groups: list[str] | None, capabilities: list[str], mode:
            "notes": notes, "guidance": GUIDANCE}
     g = groups if groups is not None else sorted(_all_chunk_groups())
     if chosen == "data":
-        r = metric_query(question=question)
+        r = metric_query(question=question, groups=groups)
         out["answer"] = r.get("answer")
         out["data"] = {k: r.get(k) for k in ("found", "request", "assumptions", "value_corrections", "sql", "rows",
                                             "row_count", "not_answerable", "metrics", "planned_by") if r.get(k) is not None}
@@ -738,14 +746,20 @@ def explore_entity(name: str, groups: list[str] | None) -> dict | None:
     return GS.entity(name, groups, visible)
 
 
-def describe_data() -> dict:
-    """Everything an agent needs to fill in a metric request itself."""
+def describe_data(groups: list[str] | None = None) -> dict:
+    """Everything an agent needs to fill in a metric request itself (known values limited to the rows the
+    caller's groups may see)."""
     from semantic.enrich import load_store
     from semantic.rule_planner import planner
     from semantic.yamlio import load_metrics, load_model, load_verified
     planner()                                    # builds the catalog on first use
     model, mets = load_model(), load_metrics()
     store = load_store()
+    from semantic.access import row_filters
+    try:
+        limits = row_filters(groups) or {}
+    except Exception:                                          # noqa: BLE001
+        limits = {}
     dims = []
     for e in model.entities:
         for d in e.dimensions:
@@ -757,7 +771,17 @@ def describe_data() -> dict:
                 item["grains"] = ["day", "week", "month", "quarter", "year", "fiscal_quarter", "fiscal_year"]
                 item["use_as"] = f"{ref}__month (etc.)"
             if ref in store["values"]:
-                item["values"] = store["values"][ref][:60]
+                vals = store["values"][ref]
+                if e.name in limits:                           # restricted rows: only values the caller may see
+                    conds = limits[e.name]
+                    if not conds:
+                        vals = []                              # no rows of this entity for this caller
+                    elif any(c == d.column for c, _ in conds):
+                        allowed = {v for col, vs in conds if col == d.column for v in vs}
+                        vals = [v for v in vals if v in allowed]
+                    else:
+                        vals = []                              # known values may come from rows hidden from them
+                item["values"] = vals[:60]
             dims.append(item)
     try:
         examples = [{"question": v.question, "request": v.query.model_dump(mode="json", exclude_defaults=True)}

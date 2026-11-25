@@ -53,8 +53,9 @@ _routers: list[_Router] = []
 
 
 def _install_router():
-    if not _routers:
-        _routers.extend([_Router(sys.stdout), _Router(sys.stderr)])
+    """Wrap the current stdout/stderr (again if something, e.g. a test runner, replaced them since)."""
+    if not (isinstance(sys.stdout, _Router) and isinstance(sys.stderr, _Router)):
+        _routers[:] = [_Router(sys.stdout), _Router(sys.stderr)]
         sys.stdout, sys.stderr = _routers
 
 

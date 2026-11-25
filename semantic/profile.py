@@ -96,7 +96,9 @@ def detect_joins(con, profiles: dict) -> list[dict]:
 
 def profile_all() -> dict:
     con = connect()
-    tables = [r[0] for r in con.execute("SELECT table_name FROM duckdb_tables()").fetchall()]
+    # the workspace's own tables and views (live database sources are views); not tables of attached catalogs
+    tables = [r[0] for r in con.execute("SELECT table_name FROM information_schema.tables WHERE table_catalog = "
+                                        "current_database() AND table_schema = 'main' ORDER BY table_name").fetchall()]
     profiles = {t: profile_table(con, t) for t in sorted(tables)}
     joins = detect_joins(con, profiles)
     result = {"tables": profiles, "suggested_joins": joins}
