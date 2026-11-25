@@ -3,7 +3,7 @@
   local   127.0.0.1, localhost, ::1 (and the Docker service name "app"): everything - admin web app, API, MCP
   public  names in CL_PUBLIC_HOSTS (comma separated; "*.trycloudflare.com" style wildcards allowed), e.g. a
           Cloudflare Tunnel hostname: only the MCP endpoint, its sign-in pages (/.well-known, /oauth), one-time
-          upload links (/upload) and the health check, unless
+          upload links (/upload), connector webhooks (/hooks) and the health check, unless
           CL_PUBLIC_ADMIN=1 also publishes the admin web app (put Cloudflare Access or a VPN in front first)
   other   refused with 421 (protects against DNS rebinding)
 
@@ -15,7 +15,7 @@ import os
 import time
 
 LOCAL = {"127.0.0.1", "localhost", "::1", "[::1]", "app", "testserver"}
-PUBLIC_PATHS = ("/mcp", "/api/v1/health", "/.well-known", "/oauth", "/upload")
+PUBLIC_PATHS = ("/mcp", "/api/v1/health", "/.well-known", "/oauth", "/upload", "/hooks")
 
 
 def _host(scope) -> str:

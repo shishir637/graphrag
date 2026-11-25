@@ -31,6 +31,15 @@ CACHE = OUT_DIR / "_graph_cache" / "ai"         # per workspace
 PROMPT_VERSION = "ai-v1"
 KEY_ENV = "CL_AI_API_KEY"
 
+
+def _key_value() -> str:
+    """The workspace's own key (encrypted in Postgres), else the server's environment variable."""
+    try:
+        from app.vault import value
+        return value(KEY_ENV)
+    except ImportError:
+        return os.environ.get(KEY_ENV) or ""
+
 PROVIDERS = {
     "anthropic": {"label": "Claude (Anthropic API)", "base_url": "https://api.anthropic.com", "model": "claude-haiku-5-5",
                   "needs_key": True, "workers": 8},
@@ -58,7 +67,7 @@ def config() -> dict:
         "model": os.environ.get("CL_AI_MODEL") or saved.get("model") or d["model"],
         "base_url": (os.environ.get("CL_AI_BASE_URL") or saved.get("base_url") or d["base_url"]).rstrip("/"),
         "workers": max(1, min(32, int(os.environ.get("CL_AI_WORKERS") or saved.get("workers") or d["workers"]))),
-        "api_key": os.environ.get(KEY_ENV) or "",
+        "api_key": _key_value(),
     }
 
 

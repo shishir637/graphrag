@@ -1,0 +1,157 @@
+# Ready-made engineering semantic layer for the GitHub connector (source: template, approved on import).
+# Tables are written by connectors/github.py; every table carries repo_id so access can be limited per repository.
+model:
+  version: 1
+  entities:
+    - name: github_repos
+      table: github_repos
+      label: Repositories
+      description: One row per connected GitHub repository.
+      primary_key: repo_id
+      dimensions:
+        - {name: repo_id, column: repo_id, type: category, label: Repository, description: "owner/name of the repository."}
+        - {name: language, column: language, type: category, label: Language, description: Main programming language.}
+        - {name: created_at, column: created_at, type: time, label: Created, description: When the repository was created.}
+      measures:
+        - {name: stars, column: stars, agg: sum, label: Stars, description: GitHub stars.}
+    - name: github_commits
+      table: github_commits
+      label: Commits
+      description: One row per commit on the default branch.
+      primary_key: sha
+      dimensions:
+        - {name: sha, column: sha, type: key, label: Commit, description: Commit SHA.}
+        - {name: repo_id, column: repo_id, type: category, label: Repository, description: "owner/name of the repository."}
+        - {name: author_login, column: author_login, type: category, label: Author, description: GitHub login of the author.}
+        - {name: committed_at, column: committed_at, type: time, label: Commit date, description: When the commit was made.}
+    - name: github_pull_requests
+      table: github_pull_requests
+      label: Pull requests
+      description: One row per pull request.
+      primary_key: pr_id
+      dimensions:
+        - {name: pr_id, column: pr_id, type: key, label: Pull request, description: "owner/name#number."}
+        - {name: repo_id, column: repo_id, type: category, label: Repository, description: "owner/name of the repository."}
+        - {name: author_login, column: author_login, type: category, label: Author, description: Who opened it.}
+        - {name: state, column: state, type: category, label: State, description: "open or closed."}
+        - {name: created_at, column: created_at, type: time, label: Opened, description: When it was opened.}
+        - {name: merged_at, column: merged_at, type: time, label: Merged, description: When it was merged (empty if not).}
+    - name: github_issues
+      table: github_issues
+      label: Issues
+      description: One row per issue (pull requests excluded).
+      primary_key: issue_id
+      dimensions:
+        - {name: issue_id, column: issue_id, type: key, label: Issue, description: "owner/name#number."}
+        - {name: repo_id, column: repo_id, type: category, label: Repository, description: "owner/name of the repository."}
+        - {name: author_login, column: author_login, type: category, label: Reporter, description: Who opened it.}
+        - {name: state, column: state, type: category, label: State, description: "open or closed."}
+        - {name: labels, column: labels, type: text, label: Labels, description: Comma-separated labels.}
+        - {name: created_at, column: created_at, type: time, label: Opened, description: When it was opened.}
+    - name: github_ci_runs
+      table: github_ci_runs
+      label: CI runs
+      description: One row per GitHub Actions workflow run (build).
+      primary_key: run_id
+      dimensions:
+        - {name: run_id, column: run_id, type: key, label: Run, description: Workflow run id.}
+        - {name: repo_id, column: repo_id, type: category, label: Repository, description: "owner/name of the repository."}
+        - {name: workflow, column: workflow, type: category, label: Workflow, description: Workflow name.}
+        - {name: branch, column: branch, type: category, label: Branch, description: Branch the run was for.}
+        - {name: conclusion, column: conclusion, type: category, label: Result, description: "success, failure, cancelled..."}
+        - {name: created_at, column: created_at, type: time, label: Started, description: When the run started.}
+    - name: github_contributors
+      table: github_contributors
+      label: Contributors
+      description: One row per contributor and repository.
+      primary_key: contributor_id
+      dimensions:
+        - {name: contributor_id, column: contributor_id, type: key, label: Contributor, description: "owner/name/login."}
+        - {name: repo_id, column: repo_id, type: category, label: Repository, description: "owner/name of the repository."}
+        - {name: login, column: login, type: category, label: Login, description: GitHub login.}
+  joins:
+    - {from_entity: github_commits, from_column: repo_id, to_entity: github_repos, to_column: repo_id, relationship: many_to_one}
+    - {from_entity: github_pull_requests, from_column: repo_id, to_entity: github_repos, to_column: repo_id, relationship: many_to_one}
+    - {from_entity: github_issues, from_column: repo_id, to_entity: github_repos, to_column: repo_id, relationship: many_to_one}
+    - {from_entity: github_ci_runs, from_column: repo_id, to_entity: github_repos, to_column: repo_id, relationship: many_to_one}
+    - {from_entity: github_contributors, from_column: repo_id, to_entity: github_repos, to_column: repo_id, relationship: many_to_one}
+
+metrics:
+  version: 1
+  metrics:
+    - {name: repositories, label: Repositories, description: Number of connected repositories., type: simple,
+       entity: github_repos, expression: count(DISTINCT github_repos.repo_id), owner: engineering, status: approved}
+    - {name: commits, label: Commits, description: Commits on the default branch., type: simple, entity: github_commits,
+       expression: count(*), time_column: github_commits.committed_at, owner: engineering, status: approved}
+    - {name: commit_authors, label: Commit authors, description: Distinct people who committed., type: simple,
+       entity: github_commits, expression: count(DISTINCT github_commits.author_login),
+       time_column: github_commits.committed_at, owner: engineering, status: approved}
+    - {name: pull_requests_opened, label: Pull requests opened, description: Pull requests opened., type: simple,
+       entity: github_pull_requests, expression: count(*), time_column: github_pull_requests.created_at,
+       owner: engineering, status: approved}
+    - {name: pull_requests_merged, label: Pull requests merged, description: Pull requests that were merged (counted on their merge date).,
+       type: simple, entity: github_pull_requests, expression: count(*), filters: ["github_pull_requests.merged_at IS NOT NULL"],
+       time_column: github_pull_requests.merged_at, owner: engineering, status: approved}
+    - {name: open_pull_requests, label: Open pull requests, description: Pull requests still open., type: simple,
+       entity: github_pull_requests, expression: count(*), filters: ["github_pull_requests.state = 'open'"],
+       owner: engineering, status: approved}
+    - {name: median_hours_to_merge, label: Median time to merge (hours), description: "Median hours from opening to merging a pull request (cycle time).",
+       type: simple, entity: github_pull_requests, expression: median(github_pull_requests.hours_to_merge),
+       filters: ["github_pull_requests.merged_at IS NOT NULL"], time_column: github_pull_requests.merged_at,
+       owner: engineering, status: approved}
+    - {name: average_hours_to_merge, label: Average time to merge (hours), description: Average hours from opening to merging a pull request.,
+       type: simple, entity: github_pull_requests, expression: avg(github_pull_requests.hours_to_merge),
+       filters: ["github_pull_requests.merged_at IS NOT NULL"], time_column: github_pull_requests.merged_at,
+       owner: engineering, status: approved}
+    - {name: issues_opened, label: Issues opened, description: Issues opened (pull requests excluded)., type: simple,
+       entity: github_issues, expression: count(*), time_column: github_issues.created_at, owner: engineering, status: approved}
+    - {name: open_issues, label: Open issues, description: Issues still open., type: simple, entity: github_issues,
+       expression: count(*), filters: ["github_issues.state = 'open'"], owner: engineering, status: approved}
+    - {name: bugs_reported, label: Bugs reported, description: Issues labelled as a bug., type: simple, entity: github_issues,
+       expression: count(*), filters: ["github_issues.is_bug"], time_column: github_issues.created_at,
+       owner: engineering, status: approved}
+    - {name: open_bugs, label: Open bugs, description: Issues labelled as a bug that are still open., type: simple,
+       entity: github_issues, expression: count(*), filters: ["github_issues.is_bug", "github_issues.state = 'open'"],
+       owner: engineering, status: approved}
+    - {name: median_hours_to_close_issue, label: Median time to close an issue (hours), description: Median hours from opening to closing an issue.,
+       type: simple, entity: github_issues, expression: median(github_issues.hours_to_close),
+       filters: ["github_issues.state = 'closed'"], time_column: github_issues.created_at, owner: engineering, status: approved}
+    - {name: ci_runs, label: CI runs, description: Completed workflow runs (builds)., type: simple, entity: github_ci_runs,
+       expression: count(*), filters: ["github_ci_runs.status = 'completed'"], time_column: github_ci_runs.created_at,
+       owner: engineering, status: approved}
+    - {name: ci_failures, label: Failed CI runs, description: Completed workflow runs that failed., type: simple,
+       entity: github_ci_runs, expression: count(*), filters: ["github_ci_runs.conclusion = 'failure'"],
+       time_column: github_ci_runs.created_at, owner: engineering, status: approved}
+    - {name: build_failure_rate, label: Build failure rate, description: Share of completed CI runs that failed., type: ratio,
+       entity: github_ci_runs, numerator: ci_failures, denominator: ci_runs, format: percent, owner: engineering, status: approved}
+    - {name: average_build_minutes, label: Average build time (minutes), description: Average duration of completed CI runs.,
+       type: simple, entity: github_ci_runs, expression: avg(github_ci_runs.duration_minutes),
+       filters: ["github_ci_runs.status = 'completed'"], time_column: github_ci_runs.created_at, owner: engineering, status: approved}
+    - {name: contributors, label: Contributors, description: Distinct people who contributed., type: simple,
+       entity: github_contributors, expression: count(DISTINCT github_contributors.login), owner: engineering, status: approved}
+    - {name: contributions, label: Contributions, description: Commits counted by GitHub per contributor, summed., type: simple,
+       entity: github_contributors, expression: sum(github_contributors.contributions), owner: engineering, status: approved}
+
+enrichment:
+  version: 1
+  synonyms:
+    - {term: PRs, target: pull_requests_opened}
+    - {term: pull requests, target: pull_requests_opened}
+    - {term: merged PRs, target: pull_requests_merged}
+    - {term: merges, target: pull_requests_merged}
+    - {term: cycle time, target: median_hours_to_merge}
+    - {term: time to merge, target: median_hours_to_merge}
+    - {term: builds, target: ci_runs}
+    - {term: failed builds, target: ci_failures}
+    - {term: build failures, target: ci_failures}
+    - {term: bugs, target: bugs_reported}
+    - {term: repos, target: repositories}
+    - {term: repo, target: github_repos.repo_id}
+    - {term: developer, target: github_commits.author_login}
+  value_list_dimensions:
+    - github_repos.repo_id
+    - github_repos.language
+    - github_pull_requests.state
+    - github_issues.state
+    - github_ci_runs.conclusion
+    - github_ci_runs.workflow

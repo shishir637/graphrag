@@ -49,7 +49,7 @@ You only see what your key allows; if something is refused, say so rather than g
 # who is calling (set by KeyGate for the request): decides which tools are listed
 CALLER: contextvars.ContextVar[dict | None] = contextvars.ContextVar("cl_caller", default=None)
 UPLOAD_TOOLS = {"add_document", "create_upload_link"}
-ADMIN_TOOLS = {"approve_metric"}          # setting the workspace up: admin-scope keys, signed-in owners/admins
+ADMIN_TOOLS = {"approve_metric", "connect_source", "list_sources", "sync_source"}          # setting the workspace up: admin-scope keys, signed-in owners/admins
 
 
 def allowed_tools(caller: dict | None) -> set[str] | None:
@@ -295,10 +295,10 @@ def tool_upload_link(agent: dict, groups: list[str] | None = None, base: str = "
 
 def tool_build_status(agent: dict, job_id: str | None = None) -> dict:
     from . import jobs as J
-    mine = [j for j in J.list_jobs(50) if j["kind"] == "rebuild" and (j["by"] == agent["name"] or agent.get("all_groups"))]
+    mine = [j for j in J.list_jobs(50) if j["kind"] in ("rebuild", "sync") and (j["by"] == agent["name"] or agent.get("all_groups"))]
     if job_id:
         j = J.get(job_id.strip())
-        if j is None or j["kind"] != "rebuild":
+        if j is None or j["kind"] not in ("rebuild", "sync"):
             raise ToolError("No upload job with that id. Call build_status without a job_id to see recent ones.")
     elif mine:
         j = mine[0]
@@ -323,11 +323,50 @@ def tool_approve_metric(agent: dict, name: str) -> dict:
     return r | {"next": "Approved. query_metrics can use it now."}
 
 
+def _need_admin(agent: dict):
+    if agent.get("scope") != "admin":
+        raise ToolError("Only an admin key or a signed-in owner or admin can set up sources.")
+
+
+def tool_connect_source(agent: dict, kind: str, config: dict, secrets: dict | None = None, name: str = "",
+                        groups: list[str] | None = None, every_minutes: int = 360) -> dict:
+    _need_admin(agent)
+    from connectors import manage
+    try:
+        c = manage.create(kind, name, config, secrets or {}, groups, every_minutes, agent.get("email") or agent["name"])
+    except ValueError as e:
+        raise ToolError(str(e)) from e
+    t = manage.test(c["id"])
+    if not t.get("ok"):
+        manage.delete(c["id"], agent["name"])
+        raise ToolError(f"Could not reach the source: {t.get('detail')}")
+    job = manage.queue_sync(c["id"], agent["name"])
+    return {"connector": c, "check": t, "job_id": job["id"],
+            "next": "The first sync is running. Call build_status with this job_id; after that it stays up to date on its own."}
+
+
+def tool_list_sources(agent: dict) -> dict:
+    _need_admin(agent)
+    from connectors import manage
+    return {"sources": manage.list_all(), "kinds": manage.catalog()}
+
+
+def tool_sync_source(agent: dict, connector_id: str) -> dict:
+    _need_admin(agent)
+    from connectors import manage
+    try:
+        job = manage.queue_sync(connector_id.strip(), agent["name"])
+    except KeyError as e:
+        raise ToolError("No source with that id (see list_sources).") from e
+    return {"job_id": job["id"], "status": job["status"]}
+
+
 TOOLS = {"ask": tool_ask, "search_documents": tool_search, "describe_data": tool_describe_data,
          "query_metrics": tool_metrics, "list_metrics": tool_list_metrics, "find_connections": tool_connections,
          "explore_entity": tool_entity, "list_documents": tool_list_documents, "fetch_passage": tool_fetch,
          "add_document": tool_add_document, "create_upload_link": tool_upload_link, "build_status": tool_build_status,
-         "approve_metric": tool_approve_metric}
+         "approve_metric": tool_approve_metric, "connect_source": tool_connect_source,
+         "list_sources": tool_list_sources, "sync_source": tool_sync_source}
 
 
 # ------------------------------------------------------------------ MCP registrations
@@ -463,6 +502,33 @@ def _approve(ctx: Context, name: str) -> dict[str, Any]:
     confirm with the user first, and show them the definition (label, expression) you are approving."""
     a = _agent(ctx)
     return run(a, "approve_metric", {"name": name}, lambda: tool_approve_metric(a, name), wait=False)
+
+
+@mcp.tool(name="connect_source", annotations=WRITES, structured_output=True)
+def _connect_source(ctx: Context, kind: str, config: dict[str, Any], secrets: dict[str, str] | None = None,
+                    name: str = "", groups: list[str] | None = None, every_minutes: int = 360) -> dict[str, Any]:
+    """Connect a source that Context Layer then keeps up to date on its own (admin keys only).
+    kind "github": config {"repos": ["owner/name"]}, secrets {"token": "..."} (optional for public repositories);
+    each repository becomes its own access group repo-<owner>-<name>. kind "postgres": config {"schemas": ["public"],
+    "tables": [...], "mode": "snapshot" or "live"}, secrets {"dsn": "postgresql://user:pass@host/db"}.
+    Checks access first, then starts the first sync and returns its job_id."""
+    a = _agent(ctx)
+    return run(a, "connect_source", {"kind": kind, "name": name, "config": config, "groups": groups},
+               lambda: tool_connect_source(a, kind, config, secrets, name, groups, every_minutes), wait=False)
+
+
+@mcp.tool(name="list_sources", annotations=READ_ONLY, structured_output=True)
+def _list_sources(ctx: Context) -> dict[str, Any]:
+    """The connected sources (admin keys only): kind, settings, schedule, last sync and errors."""
+    a = _agent(ctx)
+    return run(a, "list_sources", {}, lambda: tool_list_sources(a), wait=False)
+
+
+@mcp.tool(name="sync_source", annotations=WRITES, structured_output=True)
+def _sync_source(ctx: Context, connector_id: str) -> dict[str, Any]:
+    """Sync a connected source now instead of waiting for its schedule (admin keys only). Returns a job_id."""
+    a = _agent(ctx)
+    return run(a, "sync_source", {"connector_id": connector_id}, lambda: tool_sync_source(a, connector_id), wait=False)
 
 
 class KeyGate:

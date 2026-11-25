@@ -23,6 +23,8 @@ from . import db as D
 from . import mcp_server as M
 
 core.load_secrets()
+from connectors import manage as connectors   # noqa: E402  (registers the sync job and the scheduler hook)
+connectors.install()
 WEB = core.ROOT / "web" / "dist"
 COOKIE = "cl_session"
 MAX_UPLOAD_MB = 200
@@ -395,6 +397,97 @@ def semantic_import(body: LayerImportIn, u: dict = Depends(ADMIN)):
         raise HTTPException(400, f"Not imported: {str(e)[:400]}")
     audit(u, "semantic.import", ", ".join(sorted(body.files)), n)
     return {"imported": n}
+
+
+# ------------------------------------------------------------------ connectors (sources kept up to date on their own)
+
+class ConnectorIn(BaseModel):
+    kind: str
+    name: str = ""
+    config: dict = Field(default_factory=dict)
+    secrets: dict[str, str] = Field(default_factory=dict)
+    groups: list[str] | None = None
+    every_minutes: int = 360
+    sync_now: bool = True
+
+
+class ConnectorPatch(BaseModel):
+    config: dict | None = None
+    secrets: dict[str, str] | None = None
+    groups: list[str] | None = None
+    every_minutes: int | None = None
+    status: str | None = None
+
+
+@app.get("/api/v1/connectors")
+def list_connectors(u: dict = Depends(ANY)):
+    return {"connectors": connectors.list_all(), "kinds": connectors.catalog()}
+
+
+@app.post("/api/v1/connectors")
+def add_connector(body: ConnectorIn, u: dict = Depends(ADMIN)):
+    try:
+        c = connectors.create(body.kind, body.name, body.config, body.secrets, body.groups, body.every_minutes, u["email"])
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    audit(u, "connector.add", c["name"], {"kind": c["kind"], "config": c["config"], "groups": c["groups"]})
+    job = connectors.queue_sync(c["id"], u["email"]) if body.sync_now else None
+    return {"connector": c, "job": job}
+
+
+@app.patch("/api/v1/connectors/{cid}")
+def change_connector(cid: str, body: ConnectorPatch, u: dict = Depends(ADMIN)):
+    try:
+        c = connectors.update(cid, body.config, body.secrets, body.groups, body.every_minutes, body.status)
+    except KeyError:
+        raise HTTPException(404, "No such connector.")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    changed = [k for k, v in body.model_dump().items() if v is not None and k != "secrets"]
+    audit(u, "connector.update", c["name"], {"changed": changed + (["secrets"] if body.secrets else [])})
+    return {"connector": c}
+
+
+@app.delete("/api/v1/connectors/{cid}")
+def remove_connector(cid: str, u: dict = Depends(ADMIN)):
+    try:
+        out = connectors.delete(cid, u["email"])
+    except KeyError:
+        raise HTTPException(404, "No such connector.")
+    audit(u, "connector.delete", cid, out)
+    return out
+
+
+@app.post("/api/v1/connectors/{cid}/test")
+def test_connector(cid: str, u: dict = Depends(ADMIN)):
+    try:
+        return connectors.test(cid)
+    except KeyError:
+        raise HTTPException(404, "No such connector.")
+    except Exception as e:                                   # noqa: BLE001 - shown to the admin
+        return {"ok": False, "detail": f"{type(e).__name__}: {str(e)[:300]}"}
+
+
+@app.post("/api/v1/connectors/{cid}/sync")
+def sync_connector(cid: str, u: dict = Depends(ADMIN)):
+    try:
+        job = connectors.queue_sync(cid, u["email"])
+    except KeyError:
+        raise HTTPException(404, "No such connector.")
+    audit(u, "connector.sync", cid)
+    return {"job": job}
+
+
+@app.post("/hooks/{kind}/{cid}", include_in_schema=False)
+async def connector_webhook(kind: str, cid: str, request: Request):
+    """Webhooks from sources (GitHub push / pull request / issues): signed with the connector's webhook secret."""
+    body = await request.body()
+    if len(body) > 5 * 2 ** 20:
+        return JSONResponse({"detail": "too large"}, 413)
+    status, msg = await run_in_threadpool(connectors.webhook, kind, cid, body,
+                                          request.headers.get("x-hub-signature-256", ""),
+                                          request.headers.get("x-github-event", ""))
+    return JSONResponse({"detail": msg}, status)
 
 
 class DefinitionStatusIn(BaseModel):

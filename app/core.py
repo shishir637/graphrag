@@ -460,6 +460,11 @@ def load_secrets():
 
 
 def save_secret(name: str, value: str | None):
+    """Inside a workspace: encrypted in Postgres for that workspace only (app/vault.py)."""
+    if current_tenant():
+        from . import vault
+        vault.put(name, value)
+        return
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     data = json.loads(SECRETS_FILE.read_text(encoding="utf-8")) if SECRETS_FILE.exists() else {}
     if value:
