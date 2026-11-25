@@ -108,17 +108,18 @@ export function useLoad<T>(path: string | null, deps: unknown[] = []) {
 }
 
 /* ---------------- background jobs ---------------- */
+const active = (j: Job) => j.status === 'queued' || j.status === 'running'
 export function useJob(onDone?: (j: Job) => void) {
   const [job, setJob] = useState<Job | null>(null)
   const toast = useToast()
   const doneRef = useRef(onDone); doneRef.current = onDone
   useEffect(() => {
-    if (!job || job.status !== 'running') return
+    if (!job || !active(job)) return
     const t = window.setInterval(async () => {
       try {
         const { job: j } = await api<{ job: Job }>(`/jobs/${job.id}`)
         setJob(j)
-        if (j.status !== 'running') {
+        if (!active(j)) {
           j.status === 'done' ? toast(`${j.label}: done`) : toast(`${j.label} failed: ${j.error}`, true)
           doneRef.current?.(j)
         }
@@ -129,14 +130,14 @@ export function useJob(onDone?: (j: Job) => void) {
   const start = async (kind: string) => {
     try { const { job: j } = await api<{ job: Job }>(`/jobs/${kind}`, { method: 'POST' }); setJob(j) } catch (e: any) { toast(e.message, true) }
   }
-  return { job, start, running: job?.status === 'running', attach: setJob }
+  return { job, start, running: !!job && active(job), attach: setJob }
 }
 
 export function JobPanel({ job }: { job: Job | null }) {
   if (!job) return null
   return <div className={`callout ${job.status === 'failed' ? 'bad' : ''}`} style={{ marginBottom: 16 }}>
-    <div className="row">{job.status === 'running' ? <Spinner /> : job.status === 'done' ? <Badge kind="ok">done</Badge> : <Badge kind="bad">failed</Badge>}
-      <b>{job.label}</b>{job.status === 'running' && <span className="muted small">The first run downloads the local search models (about 5 GB) and can take several minutes.</span>}</div>
+    <div className="row">{active(job) ? <Spinner /> : job.status === 'done' ? <Badge kind="ok">done</Badge> : <Badge kind="bad">failed</Badge>}
+      <b>{job.label}</b>{job.status === 'queued' && <span className="muted small">Waiting for this workspace's current build to finish.</span>}{job.status === 'running' && <span className="muted small">The first run downloads the local search models (about 5 GB) and can take several minutes.</span>}</div>
     {job.error && <div className="small" style={{ marginTop: 6 }}>{job.error}</div>}
     {job.log.length > 0 && <pre className="joblog">{job.log.slice(-12).join('\n')}</pre>}
   </div>

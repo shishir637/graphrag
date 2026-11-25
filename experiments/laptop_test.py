@@ -55,7 +55,7 @@ def job(kind):
     while True:
         time.sleep(15)
         j = c.get(f"/api/v1/jobs/{jid}").json()["job"]
-        if j["status"] != "running":
+        if j["status"] not in ("queued", "running"):
             log(f"job {kind}: {j['status']} in {time.perf_counter() - t0:.0f}s; last log: {' | '.join(j['log'][-3:])}"
                 + (f" ERROR {j['error']}" if j.get("error") else ""))
             return j["status"] == "done"

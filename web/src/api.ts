@@ -6,7 +6,7 @@ export interface Agent {
   created: string; created_by: string; last_used: string | null; calls: number; revoked: string | null
 }
 export interface Doc { name: string; size: number; modified: string; groups: string[]; passages: number; status: 'ready' | 'new' | 'changed' }
-export interface Job { id: string; kind: string; label: string; status: 'running' | 'done' | 'failed'; started: string; finished: string | null; by: string; error: string | null; log: string[] }
+export interface Job { id: string; kind: string; label: string; status: 'queued' | 'running' | 'done' | 'failed'; started: string; finished: string | null; by: string; error: string | null; log: string[] }
 export interface Event { id: number; time: string; actor_type: 'agent' | 'user'; actor: string; action: string; target: string; detail: Record<string, unknown>; ok: boolean; seconds: number | null }
 export interface Source { id: string; source: string; pages: number[]; section: string; text: string; score?: number | null; highlights?: string[]; included_for?: string }
 export interface Answer {

@@ -57,10 +57,9 @@ r = httpx.post(BASE + "/mcp", json=init, headers=MH | {"authorization": f"Bearer
 check("MCP initialize with key", r.status_code == 200 and "Context Layer" in r.text)
 lst = httpx.post(BASE + "/mcp", json={"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
                  headers=MH | {"authorization": f"Bearer {full}"}).json()["result"]["tools"]
-WRITE_TOOLS = {"add_document", "create_upload_link", "approve_metric"}
-check("MCP lists 13 tools, only the upload/approve ones write",
-      len(lst) == 13 and all(t["annotations"]["readOnlyHint"] == (t["name"] not in WRITE_TOOLS) for t in lst),
-      ", ".join(t["name"] for t in lst))
+# 0.5: a key sees only the tools it may use; this key has no upload and no admin scope -> the 10 read tools
+check("MCP lists only the 10 read tools to a question-only key",
+      len(lst) == 10 and all(t["annotations"]["readOnlyHint"] for t in lst), ", ".join(t["name"] for t in lst))
 
 res, s = mcp(full, "ask", {"question": "Who heads the department that owns GridSense?"})
 sc = res.get("structuredContent", {})
