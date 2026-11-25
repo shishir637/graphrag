@@ -295,7 +295,8 @@ def _store(store, read_json, entities, relations, comms, chunk_ids, t0):
     age = {"stored_in_age": False}
     try:                                   # Apache AGE copy for Cypher queries; answering works without it
         store.reset_graph()
-        store.load(entities, relations, chunks)
+        loaded = store.load(entities, relations, chunks)
+        print(f"  graph database copy: {loaded['age_edges']} strongest links in {loaded['age_seconds']}s", flush=True)
         c = store.conn()
         with c.cursor() as cur:
             cur.executemany("UPDATE public.kg_entities SET community_l0 = %s, community_l1 = %s WHERE id = %s",
@@ -304,7 +305,7 @@ def _store(store, read_json, entities, relations, comms, chunk_ids, t0):
                             "VALUES (%s, %s, %s, %s, %s, %s)",
                             [(x["id"], x["level"], x["parent"], len(x["entity_ids"]), x["entity_ids"], x["profile"])
                              for x in comms])
-        age = store.stats() | {"stored_in_age": True}
+        age = store.stats() | loaded | {"stored_in_age": True}
     except Exception as e:                                         # noqa: BLE001 - reported, not fatal
         age["age_error"] = f"{type(e).__name__}: {str(e).splitlines()[0][:200]}"
         print(f"  graph database not used ({age['age_error']}); answering reads the build file", flush=True)

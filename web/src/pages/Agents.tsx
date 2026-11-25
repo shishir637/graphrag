@@ -7,6 +7,7 @@ import { Badge, CAP_LABEL, Copy, CopyBlock, Empty, ErrorBox, GroupChips, Icon, L
 interface Resp { agents: Agent[]; groups: string[]; capabilities: string[]; tools: { name: string; description: string }[] }
 const CAP_HELP: Record<string, string> = {
   documents: 'Search and quote documents in its groups', data: 'Compute business numbers from reviewed metrics', graph: 'Answer questions that connect facts (uses documents in its groups)',
+  upload: 'Add documents and tables from a chat (shared with its own groups only)',
 }
 
 function snippets(token: string) {
@@ -50,8 +51,16 @@ export default function Agents({ s }: { s: Session }) {
     <PageHead title="Agents" sub="Each AI agent or app gets its own key. The key decides what it may read and use; every call is logged under its name.">
       {admin && <button className="btn primary" onClick={() => setWizard(true)}><Icon name="plus" size={16} />Connect an agent</button>}
     </PageHead>
-    <div className="card" style={{ marginBottom: 16 }}><div className="bd between"><div><b>Connection address for all agents</b><div className="muted small">Model Context Protocol (Streamable HTTP). Each agent adds its own key.</div></div>
-      <div style={{ minWidth: 0, flex: '1 1 300px', maxWidth: 480 }}><Copy value={MCP_URL} /></div></div></div>
+    <div className="card" style={{ marginBottom: 16 }}><div className="bd between"><div><b>Connection address for all agents</b><div className="muted small">Model Context Protocol (Streamable HTTP).</div></div>
+      <div style={{ minWidth: 0, flex: '1 1 300px', maxWidth: 480 }}><Copy value={MCP_URL} /></div></div>
+      <div className="bd small" style={{ borderTop: '1px solid var(--line)' }}><b>Use it in Claude or ChatGPT (no key needed)</b>
+        <ol style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+          <li><b>Claude</b>: Settings → Connectors → Add custom connector, paste the address. <b>ChatGPT</b>: with developer mode on, create an app with this address and choose OAuth sign-in.</li>
+          <li>A Context Layer sign-in page opens: sign in with your Context Layer email and password, then Allow.</li>
+          <li>Ask questions, or attach files and ask to add them: Context Layer builds them in the background. The AI comes from the user's own Claude or ChatGPT plan.</li>
+        </ol>
+        <div className="muted tiny" style={{ marginTop: 6 }}>Claude and ChatGPT connect from the internet, so they need the public address (Cloudflare Tunnel). People see what their groups allow; owners and admins can also add files.</div></div></div>
+    <ConnectedApps admin={admin} />
     <div className="card">{active.length ?
       <div className="tablewrap"><table className="t"><thead><tr><th>Agent</th><th>Documents in groups</th><th>May use</th><th>Calls</th><th>Last used</th><th>Key</th>{admin && <th />}</tr></thead>
         <tbody>{active.map((a) => <tr key={a.id}><td><b>{a.name}</b>{a.description && <div className="tiny muted">{a.description}</div>}<div className="tiny muted">added {ago(a.created)} by {a.created_by}</div></td>
@@ -64,7 +73,7 @@ export default function Agents({ s }: { s: Session }) {
         Give Claude, ChatGPT, Cursor, Copilot or your own bot one governed link to your company knowledge.</Empty>}</div>
     {revoked.length > 0 && <p className="small"><a href="#" onClick={(e) => { e.preventDefault(); setShowRevoked(!showRevoked) }}>{showRevoked ? 'Hide' : 'Show'} {revoked.length} revoked</a></p>}
     {showRevoked && <div className="card"><table className="t"><tbody>{revoked.map((a) => <tr key={a.id} className="dim"><td><b>{a.name}</b></td><td>revoked {ago(a.revoked)}</td><td>{a.calls} calls</td></tr>)}</tbody></table></div>}
-    <div className="card" style={{ marginTop: 16 }}><div className="hd"><h2>What agents can do</h2><span className="muted small">All tools are read-only</span></div>
+    <div className="card" style={{ marginTop: 16 }}><div className="hd"><h2>What agents can do</h2><span className="muted small">Read-only, except add_document, create_upload_link and approve_metric</span></div>
       <table className="t"><tbody>{data.tools.map((t) => <tr key={t.name}><td className="mono" style={{ whiteSpace: 'nowrap' }}>{t.name}</td><td className="small">{t.description}</td></tr>)}</tbody></table></div>
     {wizard && <Wizard groups={data.groups} onClose={() => { setWizard(false); reload() }} />}
     {edit && <AccessDialog agent={edit} groups={data.groups} onClose={() => setEdit(null)} onDone={() => { setEdit(null); reload(); toast('Access updated. It applies from the agent’s next call.') }} />}
@@ -121,4 +130,15 @@ function AccessDialog({ agent, groups, onClose, onDone }: { agent: Agent; groups
   return <Modal title={`Access: ${agent.name}`} onClose={onClose} footer={<><button className="btn" onClick={onClose}>Cancel</button>
     <button className="btn primary" disabled={!caps.length} onClick={async () => { try { await api(`/agents/${agent.id}`, { method: 'PATCH', json: { groups: g, capabilities: caps } }); onDone() } catch (e: any) { toast(e.message, true) } }}>Save</button></>}>
     <AccessFields groups={Array.from(new Set([...groups, ...agent.groups])).sort()} g={g} setG={setG} caps={caps} setCaps={setCaps} /></Modal>
+}
+
+interface ConnectedApp { id: string; app: string; user: string; since: string; last_used: string | null }
+
+function ConnectedApps({ admin }: { admin: boolean }) {
+  const { data, reload } = useLoad<{ apps: ConnectedApp[] }>('/connected-apps'); const toast = useToast()
+  if (!data || !data.apps.length) return null
+  return <div className="card" style={{ marginBottom: 16 }}><div className="hd"><h2>Signed-in apps</h2><span className="muted small">{admin ? 'Everyone' : 'Yours'}: people who connected Claude, ChatGPT or another app by signing in</span></div>
+    <div className="tablewrap"><table className="t"><thead><tr><th>App</th><th>Person</th><th>Connected</th><th>Last used</th><th /></tr></thead>
+      <tbody>{data.apps.map((a) => <tr key={a.id}><td><b>{a.app}</b></td><td className="small">{a.user}</td><td className="small muted">{ago(a.since)}</td><td className="small muted">{ago(a.last_used)}</td>
+        <td style={{ textAlign: 'right' }}><button className="btn sm danger" onClick={async () => { try { await api(`/connected-apps/${a.id}/revoke`, { method: 'POST' }); reload(); toast('Disconnected') } catch (e: any) { toast(e.message, true) } }}>Disconnect</button></td></tr>)}</tbody></table></div></div>
 }

@@ -89,3 +89,19 @@ def test_graph_search_respects_groups(tmp_path, monkeypatch):
     assert all("c3" not in x["passages"] for x in r["relations"])                    # finance-only link hidden
     e = GS.entity("grid analytics", ["public"], vis)
     assert e["name"] == "Grid Analytics" and all(l["entity"] != "GridSense" for l in e["links"])
+
+
+def test_graph_forgets_deleted_and_edited_passages(tmp_path, monkeypatch):
+    """Re-running extraction after uploads keeps unchanged passages, re-reads edited ones and drops deleted ones."""
+    import json
+    import graph.nlp_extract as N
+    cf, out = tmp_path / "c.json", tmp_path / "e.jsonl"
+    monkeypatch.setattr(N, "CHUNKS", cf)
+    cf.write_text(json.dumps([{"chunk_id": "a", "text": "Asha Rao leads the Pune office.", "headings": [], "source": "x.md"},
+                              {"chunk_id": "b", "text": "Ravi Kumar works in Delhi.", "headings": [], "source": "y.md"}]))
+    N.extract_all(out, mode="fast")
+    cf.write_text(json.dumps([{"chunk_id": "b", "text": "Meera Iyer works in Chennai.", "headings": [], "source": "y.md"}]))
+    N.extract_all(out, mode="fast")
+    recs = [json.loads(x) for x in out.read_text().splitlines()]
+    names = {e["name"] for r in recs for e in r["entities"]}
+    assert [r["chunk_id"] for r in recs] == ["b"] and "Chennai" in names and not {"Asha Rao", "Ravi Kumar", "Delhi"} & names

@@ -312,6 +312,82 @@ def eval_graph():
     main([str(out)])
 
 
+# ------------------------------------------------------------------ uploads from a chat (Claude, ChatGPT) or an upload link
+
+TABLE_FIRST = {".csv", ".xlsx", ".xls", ".parquet"}       # go to data tables (metrics) unless kind="document"
+TEXT_EXTS = {".txt", ".md", ".csv", ".json", ".jsonl", ".ndjson", ".html", ".htm"}
+
+
+def ingest_upload(filename: str, data: bytes, groups: list[str], kind: str = "auto") -> dict:
+    """Save one uploaded file as a document (search + graph) or a data table (metrics). Does not rebuild."""
+    from semantic.ingest import ACCEPTED
+    name = safe_filename(filename)
+    ext = Path(name).suffix.lower()
+    if kind not in ("auto", "document", "table"):
+        raise ValueError("kind must be auto, document or table")
+    if kind == "auto":
+        kind = "table" if ext in TABLE_FIRST else "document"
+    if not data:
+        raise ValueError(f"{name}: the file is empty.")
+    if kind == "table":
+        if ext not in ACCEPTED:
+            raise ValueError(f"{name}: data tables must be CSV, Excel, JSON, JSON Lines or Parquet.")
+        return {"file": name, "kind": "table", "tables": save_table(name, data)}
+    d = save_document(name, data, groups)
+    return {"file": d["name"], "kind": "document", "groups": d["groups"]}
+
+
+def rebuild(info: dict):
+    """The rebuild after uploads: documents (then the graph, if it is in use) and/or data tables."""
+    files = info.get("files", [])
+    kinds = {f["kind"] for f in files}
+    print(f"Rebuilding for {len(files)} new file(s): {', '.join(f['file'] for f in files)}")
+    if "document" in kinds:
+        prepare_documents()
+        if info.get("graph"):
+            build_graph()
+    if "table" in kinds:
+        prepare_data()
+
+
+def queue_rebuild(saved: list[dict], by: str) -> dict:
+    from app import jobs
+    return jobs.enqueue("rebuild", "Adding uploaded files", rebuild, by,
+                        {"files": saved, "graph": graph_ready() or bool(info_graph_wanted())})
+
+
+def info_graph_wanted() -> bool:
+    from app import core
+    return bool(core.get_setting("graph_on_upload", False))
+
+
+def rebuild_report(job: dict, info: dict) -> dict:
+    """What the uploaded files turned into, for build_status."""
+    out = {"job_id": job["id"], "status": job["status"], "queue_position": job.get("queue_position"),
+           "started": job["started"], "finished": job["finished"], "error": job["error"],
+           "steps": [l for l in job["log"] if l.startswith(("[", "Rebuilding"))][-12:], "files": []}
+    docs = {d["name"]: d for d in documents()} if job["status"] == "done" else {}
+    drafted = []
+    if job["status"] == "done" and any(f["kind"] == "table" for f in info.get("files", [])):
+        drafted = [m["name"] for m in metrics()["metrics"] if (m.get("status") or "") == "draft"]
+    for f in info.get("files", []):
+        r = dict(f)
+        if f["kind"] == "document" and f["file"] in docs:
+            r["passages"] = docs[f["file"]]["passages"]
+            r["ready"] = docs[f["file"]]["status"] == "ready"
+        out["files"].append(r)
+    if job["status"] == "done":
+        g = graph_overview() or {}
+        out["graph"] = {"entities": g.get("entities"), "relations": g.get("relations")} if g else None
+        out["metrics_waiting_for_approval"] = drafted
+        out["next"] = ("Ready. Use ask or search_documents to answer from the new files"
+                       + (". New metric definitions are drafts: an admin approves them on the Metrics page "
+                          "before query_metrics uses them." if drafted else "."))
+    elif job["status"] in ("running", "queued"):
+        out["next"] = "Still building. Check again with build_status in about 30 seconds."
+    return out
+
+
 JOBS = {
     "documents": ("Preparing documents", prepare_documents, "admin"),
     "data": ("Preparing data tables", prepare_data, "admin"),

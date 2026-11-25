@@ -216,6 +216,11 @@ class Extractor:
         return "Place" if "Place" in self.labels.values() else next(iter(self.labels.values()))
 
 
+def _th(chunk: dict) -> str:
+    import hashlib
+    return hashlib.sha1(chunk["text"].encode("utf-8")).hexdigest()[:12]
+
+
 def extract_all(out: Path, mode: str = "accurate", relations: str = "cooc", ids: list[str] | None = None,
                 resume: bool = True) -> Path:
     chunks = json.loads(CHUNKS.read_text(encoding="utf-8"))
@@ -224,7 +229,22 @@ def extract_all(out: Path, mode: str = "accurate", relations: str = "cooc", ids:
         chunks = [c for c in chunks if c["chunk_id"] in keep]
     done = set()
     if resume and out.exists():
-        done = {json.loads(line)["chunk_id"] for line in out.read_text(encoding="utf-8").splitlines() if line.strip()}
+        # keep only results for passages that still exist with the same text: a deleted or edited document
+        # must not leave its old entities in the graph (records from before 0.3 have no hash: kept)
+        want = {c["chunk_id"]: _th(c) for c in chunks}
+        kept, dropped = {}, 0
+        for line in out.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            r = json.loads(line)
+            if ids is None and (r["chunk_id"] not in want or r.get("th", want[r["chunk_id"]]) != want[r["chunk_id"]]):
+                dropped += 1
+                continue
+            kept[r["chunk_id"]] = line
+        if dropped and ids is None:
+            out.write_text("".join(x + "\n" for x in kept.values()), encoding="utf-8")
+            print(f"  removed {dropped} passages that were deleted or changed", flush=True)
+        done = set(kept)
     else:
         out.write_text("", encoding="utf-8")
     todo = [c for c in chunks if c["chunk_id"] not in done]
@@ -232,7 +252,7 @@ def extract_all(out: Path, mode: str = "accurate", relations: str = "cooc", ids:
     t0 = time.perf_counter()
     with out.open("a", encoding="utf-8") as f:
         for i, c in enumerate(todo, 1):
-            f.write(json.dumps(ex.run(c), ensure_ascii=False) + "\n")
+            f.write(json.dumps(ex.run(c) | {"th": _th(c)}, ensure_ascii=False) + "\n")
             if i % 50 == 0 or i == len(todo):
                 f.flush()
                 print(f"  {i}/{len(todo)} passages ({time.perf_counter() - t0:.0f}s)", flush=True)

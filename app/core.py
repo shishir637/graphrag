@@ -17,10 +17,13 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.environ.get("CL_DATA_DIR", ROOT / "var"))
 DB_PATH = DATA_DIR / "app.db"
 SECRETS_FILE = DATA_DIR / "secrets.json"
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 SESSION_DAYS = 14
 ROLES = ("owner", "admin", "viewer")
-CAPABILITIES = ("documents", "data", "graph")
+CAPABILITIES = ("documents", "data", "graph", "upload")
+READ_CAPABILITIES = ("documents", "data", "graph")
+ACCESS_TOKEN_S = 3600
+REFRESH_TOKEN_DAYS = 30
 
 _local = threading.local()
 _init_lock = threading.Lock()
@@ -44,7 +47,25 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS events_time ON events(time);
 CREATE INDEX IF NOT EXISTS events_actor ON events(actor_type, actor);
 CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS oauth_clients (
+  client_id TEXT PRIMARY KEY, secret_hash TEXT, name TEXT NOT NULL, redirect_uris TEXT NOT NULL,
+  kind TEXT NOT NULL, created TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS oauth_codes (
+  code_hash TEXT PRIMARY KEY, client_id TEXT NOT NULL, user_id INTEGER NOT NULL REFERENCES users(id),
+  redirect_uri TEXT NOT NULL, challenge TEXT NOT NULL, scope TEXT NOT NULL, resource TEXT, expires TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS oauth_tokens (
+  token_hash TEXT PRIMARY KEY, kind TEXT NOT NULL, family TEXT NOT NULL, client_id TEXT NOT NULL,
+  client_name TEXT NOT NULL, user_id INTEGER NOT NULL REFERENCES users(id), scope TEXT NOT NULL, resource TEXT,
+  created TEXT NOT NULL, expires TEXT NOT NULL, revoked TEXT, last_used TEXT);
+CREATE INDEX IF NOT EXISTS oauth_tokens_family ON oauth_tokens(family);
+CREATE TABLE IF NOT EXISTS upload_links (
+  token_hash TEXT PRIMARY KEY, principal TEXT NOT NULL, groups TEXT NOT NULL, created TEXT NOT NULL,
+  expires TEXT NOT NULL, files INTEGER NOT NULL DEFAULT 0);
 """
+
+MIGRATIONS = [
+    "ALTER TABLE users ADD COLUMN groups TEXT NOT NULL DEFAULT '[\"public\"]'",
+]
 
 
 def now() -> str:
@@ -65,6 +86,11 @@ def db() -> sqlite3.Connection:
     if not _initialised:
         with _init_lock:
             c.executescript(SCHEMA)
+            for m in MIGRATIONS:
+                try:
+                    c.execute(m)
+                except sqlite3.OperationalError:          # already applied
+                    pass
             _initialised = True
     return c
 
@@ -121,7 +147,8 @@ def user_count() -> int:
 
 
 def public_user(row) -> dict:
-    return {k: row[k] for k in ("id", "email", "name", "role", "created", "last_login")} | {"disabled": bool(row["disabled"])}
+    return {k: row[k] for k in ("id", "email", "name", "role", "created", "last_login")} | \
+           {"disabled": bool(row["disabled"]), "groups": json.loads(row["groups"] or '["public"]')}
 
 
 def validate_password(pw: str):
@@ -178,7 +205,8 @@ def list_users() -> list[dict]:
     return [public_user(r) for r in db().execute("SELECT * FROM users ORDER BY created")]
 
 
-def update_user(user_id: int, role: str | None = None, disabled: bool | None = None) -> dict:
+def update_user(user_id: int, role: str | None = None, disabled: bool | None = None,
+                groups: list[str] | None = None) -> dict:
     with tx() as c:
         row = c.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
         if row is None:
@@ -191,9 +219,14 @@ def update_user(user_id: int, role: str | None = None, disabled: bool | None = N
             owners = c.execute("SELECT count(*) FROM users WHERE role = 'owner' AND disabled = 0").fetchone()[0]
             if owners <= 1:
                 raise ValueError("There must always be at least one active owner.")
-        c.execute("UPDATE users SET role = ?, disabled = ? WHERE id = ?", (new_role, new_disabled, user_id))
+        g = json.loads(row["groups"]) if groups is None else sorted({x.strip() for x in groups if x.strip()})
+        if not g:
+            raise ValueError("A user needs at least one access group.")
+        c.execute("UPDATE users SET role = ?, disabled = ?, groups = ? WHERE id = ?",
+                  (new_role, new_disabled, json.dumps(g), user_id))
         if new_disabled:
             c.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+            c.execute("UPDATE oauth_tokens SET revoked = ? WHERE user_id = ? AND revoked IS NULL", (now(), user_id))
         return public_user(c.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone())
 
 
@@ -275,7 +308,39 @@ def agent_for_token(token: str | None) -> dict | None:
 
 
 def touch_agent(aid: str):
+    if aid.startswith("user:"):
+        return
     db().execute("UPDATE agents SET calls = calls + 1, last_used = ? WHERE id = ?", (now(), aid))
+
+
+# ------------------------------------------------------------------ who is calling /mcp
+
+def principal_for_token(token: str | None, resource: str | None = None) -> dict | None:
+    """An agent key (clk_...) or a token from "sign in to Context Layer" in Claude / ChatGPT (cla_...).
+
+    Signed-in users act as themselves: their access groups (owners and admins: every group), all read
+    capabilities, and upload if they are an owner or admin. A token only works for the address it was issued for."""
+    if not token:
+        return None
+    if not token.startswith("cla_"):
+        a = agent_for_token(token)
+        return a | {"kind": "key"} if a else None
+    r = db().execute("SELECT t.client_name, t.client_id, t.resource, u.* FROM oauth_tokens t JOIN users u "
+                     "ON u.id = t.user_id WHERE t.token_hash = ? AND t.kind = 'access' AND t.revoked IS NULL "
+                     "AND t.expires > ? AND u.disabled = 0", (token_hash(token), now())).fetchone()
+    if r is None:
+        return None
+    if resource and r["resource"] and r["resource"].rstrip("/").lower() != resource.rstrip("/").lower():
+        return None
+    admin = r["role"] in ("owner", "admin")
+    return {"id": f"user:{r['id']}", "kind": "user", "user_id": r["id"], "email": r["email"], "role": r["role"],
+            "name": f"{r['name']} via {r['client_name']}", "client": r["client_name"],
+            "groups": json.loads(r["groups"] or '["public"]'), "all_groups": admin,
+            "capabilities": list(READ_CAPABILITIES) + (["upload"] if admin else [])}
+
+
+def touch_token(token: str):
+    db().execute("UPDATE oauth_tokens SET last_used = ? WHERE token_hash = ?", (now(), token_hash(token)))
 
 
 # ------------------------------------------------------------------ events (activity + audit)

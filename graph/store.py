@@ -71,9 +71,18 @@ def reset_graph():
     """)
 
 
-def load(entities: list[dict], relations: list[dict], chunks: list[dict], batch: int = 500):
-    """Bulk load: vertices grouped by label, edges grouped by type, UNWIND per batch."""
+AGE_MAX_EDGES = 20000          # the Cypher copy keeps the strongest links; answering reads the full build file
+AGE_TIME_BUDGET_S = 180        # never let the copy block the app for long
+
+
+def load(entities: list[dict], relations: list[dict], chunks: list[dict], batch: int = 500) -> dict:
+    """Bulk load: vertices grouped by label, edges grouped by (type, source label, target label) so each MATCH
+    uses that label's id index. Only links seen in 2+ sentences (or typed links) are copied, strongest first,
+    up to AGE_MAX_EDGES, within AGE_TIME_BUDGET_S. Returns what was loaded."""
+    import time as _t
+    t0 = _t.perf_counter()
     c = conn()
+    label_of = {e["id"]: _label(e["type"]) for e in entities}
     by_type: dict[str, list] = {}
     for e in entities:
         by_type.setdefault(e["type"], []).append(
@@ -84,20 +93,34 @@ def load(entities: list[dict], relations: list[dict], chunks: list[dict], batch:
             cypher(f"UNWIND $rows AS r CREATE (:{_label(typ)} {{id: r.id, name: r.name, description: r.description, "
                    f"degree: r.degree}})", {"rows": rows[i:i + batch]})
         # property index on id for this label (AGE stores properties as agtype)
-        c.execute(f'CREATE INDEX IF NOT EXISTS "{typ}_id" ON {GRAPH_NAME}."{typ}" '
+        c.execute(f'CREATE INDEX IF NOT EXISTS "{typ}_id" ON {GRAPH_NAME}."{_label(typ)}" '
                   f"(ag_catalog.agtype_access_operator(properties, '\"id\"'::agtype))")
 
-    by_rel: dict[str, list] = {}
-    for r in relations:
-        by_rel.setdefault(r["type"], []).append(
-            {"s": r["source_id"], "t": r["target_id"], "weight": r["weight"], "mentions": r["count"],
-             "description": r["description"][:800], "chunk_ids": r["chunk_ids"][:20]})
-    for typ, rows in by_rel.items():
-        c.execute("SELECT create_elabel(%s, %s)", (GRAPH_NAME, _label(typ)))
+    keep = [r for r in relations if r["type"] != "MENTIONS" and (r["type"] != "RELATED_TO" or r.get("count", 1) >= 2)]
+    keep = sorted(keep, key=lambda r: -float(r.get("weight") or 0))[:AGE_MAX_EDGES]
+    groups: dict[tuple, list] = {}
+    for r in keep:
+        key = (_label(r["type"]), label_of.get(r["source_id"]), label_of.get(r["target_id"]))
+        if key[1] and key[2]:
+            groups.setdefault(key, []).append(
+                {"s": r["source_id"], "t": r["target_id"], "weight": r["weight"], "mentions": r["count"],
+                 "description": r["description"][:800], "chunk_ids": r["chunk_ids"][:20]})
+    loaded, stopped = 0, False
+    made = set()
+    for (typ, la, lb), rows in groups.items():
+        if typ not in made:
+            c.execute("SELECT create_elabel(%s, %s)", (GRAPH_NAME, typ))
+            made.add(typ)
         for i in range(0, len(rows), batch):
-            cypher(f"UNWIND $rows AS r MATCH (a {{id: r.s}}), (b {{id: r.t}}) "
-                   f"CREATE (a)-[:{_label(typ)} {{weight: r.weight, mentions: r.mentions, description: r.description, "
+            if _t.perf_counter() - t0 > AGE_TIME_BUDGET_S:
+                stopped = True
+                break
+            cypher(f"UNWIND $rows AS r MATCH (a:{la} {{id: r.s}}), (b:{lb} {{id: r.t}}) "
+                   f"CREATE (a)-[:{typ} {{weight: r.weight, mentions: r.mentions, description: r.description, "
                    f"chunk_ids: r.chunk_ids}}]->(b)", {"rows": rows[i:i + batch]})
+            loaded += len(rows[i:i + batch])
+        if stopped:
+            break
 
     with c.cursor() as cur:
         cur.executemany("INSERT INTO public.kg_entities (id, name, type, description, aliases, degree) "
@@ -108,6 +131,8 @@ def load(entities: list[dict], relations: list[dict], chunks: list[dict], batch:
                         [(e["id"], cid) for e in entities for cid in e["chunk_ids"]])
         cur.executemany("INSERT INTO public.kg_chunks VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
                         [(ch["chunk_id"], ch["source"], ch["headings"], ch["text"]) for ch in chunks])
+    return {"age_vertices": len(entities), "age_edges": loaded, "age_edges_skipped": len(relations) - loaded,
+            "age_stopped_at_time_budget": stopped, "age_seconds": round(_t.perf_counter() - t0, 1)}
 
 
 def neighbourhood(seed_ids: list[str], limit: int = 200) -> list[dict]:

@@ -5,7 +5,7 @@ import { Badge, ErrorBox, Loading, PageHead, useLoad, useToast } from '../ui'
 
 interface S {
   organisation: string; version: string
-  ai_model: { inside: boolean; note: string }; mcp: { url: string; transport: string; auth: string }
+  ai_model: { inside: boolean; note: string }; mcp: { url: string; public_url: string | null; transport: string; auth: string }
   models: Record<string, string>; graph_mode: string
   storage: { data_folder: string; graph_database: string; graph_database_ok: boolean; graph_database_message: string; disk: { free_gb: number; total_gb: number } }
 }
@@ -24,7 +24,9 @@ export default function Settings({ s }: { s: Session }) {
     <div className="card"><div className="hd"><div><h2>How agents connect</h2><div className="muted small">{data.ai_model.note}</div></div>
       <Badge kind="ok" dot>no AI model needed</Badge></div>
       <div className="bd stack small">
-        <div className="between"><span className="muted">MCP link</span><code>{data.mcp.url}</code></div>
+        <div className="between"><span className="muted">MCP link (this computer)</span><code>{data.mcp.url}</code></div>
+        <div className="between"><span className="muted">Public MCP link</span>{data.mcp.public_url ? <code>{data.mcp.public_url}</code>
+          : <span className="muted">none: start a Cloudflare Tunnel to publish /mcp (the admin app stays private)</span>}</div>
         <div className="between"><span className="muted">Transport</span><span>{data.mcp.transport}</span></div>
         <div className="between"><span className="muted">Sign-in</span><code>{data.mcp.auth}</code></div>
         <div className="muted">Create a key per agent under <a href="/agents">Agents</a>; each key decides which documents and tools the agent can use.</div>

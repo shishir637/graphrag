@@ -5,7 +5,23 @@ Governed company knowledge for AI agents. Connect documents and data tables once
 evidence - passages with sources, numbers computed from reviewed definitions, knowledge-graph links - and
 the agent writes the answer. **No AI model runs inside Context Layer and no API key is needed**: search,
 re-ranking, entity extraction and metric planning all run locally on CPU.
-Who it is for and what it does: [PRODUCT.md](PRODUCT.md). What changed in 0.2: [CHANGES.md](CHANGES.md).
+**New here? Follow [GETTING-STARTED.md](GETTING-STARTED.md).** Who it is for: [PRODUCT.md](PRODUCT.md). What changed: [CHANGES.md](CHANGES.md).
+
+## Use it from Claude or ChatGPT
+
+People keep using their own Claude or ChatGPT (the AI and its cost stay on their plan) and add Context Layer
+as a connector with just the MCP link. A Context Layer sign-in page opens (email and password, then Allow);
+from then on they see what their access groups allow. Owners and admins can also attach files in the chat
+and ask to add them: Context Layer builds the search index, knowledge graph and draft metrics in the
+background and answers from them once `build_status` says ready.
+
+- **Claude**: Settings → Connectors → Add custom connector → paste `https://<public name>/mcp`.
+- **ChatGPT**: developer mode → create an app with the same link, OAuth sign-in. ChatGPT passes attached
+  files to `add_document` directly; in Claude the model passes the file's text, or offers a one-time upload
+  link (`create_upload_link`) for large or binary files.
+- Both connect from the internet, so they need the public link (Cloudflare Tunnel, see below). The admin
+  web app stays private; only `/mcp`, the sign-in pages and upload links are published.
+- Agent keys (`clk_...`, made under Agents) keep working for bots, Cursor, Claude Code and scripts.
 
 ## Install (self-hosted, Docker)
 
@@ -39,7 +55,8 @@ forwards the API to 8080), then `npm run build`.
 |---|---|
 | Web app (React + TypeScript) | `web/src` (pages in `web/src/pages`) |
 | API, sign-in, roles, agents, audit | `app/main.py`, `app/core.py` (SQLite in `var/`) |
-| MCP server for agents | `app/mcp_server.py` (tools: ask, search_documents, describe_data, query_metrics, list_metrics, find_connections, explore_entity, list_documents, fetch_passage) |
+| MCP server for agents | `app/mcp_server.py` (read: ask, search_documents, describe_data, query_metrics, list_metrics, find_connections, explore_entity, list_documents, fetch_passage, build_status; write: add_document, create_upload_link, approve_metric) |
+| Sign in from Claude / ChatGPT (OAuth 2.1, PKCE, DCR, client metadata documents) | `app/oauth.py` |
 | Routing without a model | `app/router.py` |
 | Documents | `rag/` (parse incl. JSON records, chunk, incremental embed, hybrid + graph retrieval, re-rank, coverage) |
 | Metrics | `semantic/` + `semantic_layer/` (`ingest.py` Excel/JSON/CSV, `auto_model.py` draft definitions, `rule_planner.py`) |

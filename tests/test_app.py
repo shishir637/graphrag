@@ -122,9 +122,12 @@ def test_public_hosts(monkeypatch):
 
 def test_tools_registered_read_only():
     tools = {t.name: t for t in M.mcp._tool_manager.list_tools()}
-    assert set(tools) == {"ask", "search_documents", "describe_data", "query_metrics", "list_metrics", "find_connections",
-                          "explore_entity", "list_documents", "fetch_passage"}
-    assert all(t.annotations.read_only_hint for t in tools.values())
+    read = {"ask", "search_documents", "describe_data", "query_metrics", "list_metrics", "find_connections",
+            "explore_entity", "list_documents", "fetch_passage", "build_status"}
+    writes = {"add_document", "create_upload_link", "approve_metric"}
+    assert set(tools) == read | writes
+    assert all(tools[t].annotations.read_only_hint for t in read)
+    assert not any(tools[t].annotations.read_only_hint or tools[t].annotations.destructive_hint for t in writes)
 
 
 def test_password_hashing():
@@ -155,3 +158,19 @@ def test_metrics_over_mcp_without_ai(client):
     assert r["found"] is False and "Available:" in r["not_answerable"]
     r = call("query_metrics", {"metrics": ["no_such_metric"]})
     assert r["isError"]
+
+
+def test_public_host_serves_only_mcp(client, monkeypatch):
+    """Through a tunnel hostname only /mcp and the health check answer; the admin app stays local."""
+    c, _ = client
+    monkeypatch.setenv("CL_PUBLIC_HOSTS", "*.trycloudflare.com")
+    pub = {"host": "abc-def.trycloudflare.com"}
+    assert c.get("/api/v1/health", headers=pub).status_code == 200
+    assert c.get("/api/v1/setup", headers=pub).status_code == 404
+    assert c.get("/", headers=pub).status_code == 404
+    init = {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "t", "version": "1"}}}
+    r = c.post("/mcp", json=init, headers=pub | {"accept": "application/json, text/event-stream"})
+    assert r.status_code == 401                                          # reaches MCP; needs a key
+    assert c.get("/api/v1/setup", headers={"host": "evil.example.com"}).status_code == 421
+    assert c.get("/api/v1/setup", headers={"host": "localhost:8080"}).status_code == 200

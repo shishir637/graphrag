@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
-import { api, setUnauthorizedHandler, type User } from './api'
+import { api, setMcpUrl, setUnauthorizedHandler, type User } from './api'
 import { Icon, Spinner, ToastProvider } from './ui'
 import Overview from './pages/Overview'
 import Documents from './pages/Documents'
@@ -109,7 +109,10 @@ export default function App() {
     try {
       const st = await api<{ needs_setup: boolean; organisation: string }>('/setup')
       if (st.needs_setup) return setState({ phase: 'setup' })
-      try { const me = await api<Session>('/me'); setState({ phase: 'in', s: me }) } catch { setState({ phase: 'login', org: st.organisation }) }
+      try {
+        const me = await api<Session>('/me'); setState({ phase: 'in', s: me })
+        api<{ mcp: { public_url: string | null } }>('/settings').then((x) => { if (x.mcp.public_url) setMcpUrl(x.mcp.public_url) }).catch(() => {})
+      } catch { setState({ phase: 'login', org: st.organisation }) }
     } catch { setState({ phase: 'login' }) }
   }
   useEffect(() => { setUnauthorizedHandler(() => setState((s) => (s.phase === 'in' ? { phase: 'login', org: s.s?.organisation } : s))); load() }, [])

@@ -4,7 +4,11 @@ Output: outputs/1_parsed.json
 """
 import json
 
-from .config import DOCS_DIR, DOCLING_EXTS, PLAINTEXT_EXTS, RECORD_EXTS
+import hashlib
+
+from .config import DOCS_DIR, DOCLING_EXTS, OUT_DIR, PLAINTEXT_EXTS, RECORD_EXTS
+
+CACHE_DIR = OUT_DIR / "_parse_cache"   # parsed files by content hash: unchanged files are not parsed again
 from .utils import timer, write_json
 
 
@@ -61,9 +65,22 @@ def parse_all() -> list[dict]:
     if not files:
         raise SystemExit(f"No documents found in {DOCS_DIR}")
 
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    used = set()
     for path in files:
         ext = path.suffix.lower()
         entry = {"source": path.name, "access": access.get(path.name, ["public"])}
+        digest = hashlib.sha256(path.read_bytes() + ext.encode()).hexdigest()
+        cached = CACHE_DIR / f"{digest}.json"
+        used.add(cached.name)
+        if cached.exists():
+            try:
+                entry |= json.loads(cached.read_text(encoding="utf-8")) | {"seconds": 0.0}
+                print(f"  unchanged {path.name} (parsed before)")
+                results.append(entry)
+                continue
+            except (OSError, ValueError):
+                pass
         with timer(path.name, timings):
             if ext in DOCLING_EXTS:
                 doc = converter.convert(path).document
@@ -84,6 +101,11 @@ def parse_all() -> list[dict]:
         entry["seconds"] = timings[path.name]
         print(f"  parsed {path.name} ({entry['parser']}, {entry['seconds']}s)")
         results.append(entry)
+        keep = {k: v for k, v in entry.items() if k not in ("source", "access", "seconds")}
+        cached.write_text(json.dumps(keep, ensure_ascii=False), encoding="utf-8")
+    for old in CACHE_DIR.glob("*.json"):                 # forget files that were removed or changed
+        if old.name not in used:
+            old.unlink(missing_ok=True)
 
     write_json("1_parsed.json", results)
     return results

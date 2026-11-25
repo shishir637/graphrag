@@ -9,11 +9,11 @@ export default function Access({ s }: { s: Session }) {
   const groups = useLoad<{ groups: { name: string; documents: string[]; agents: string[] }[] }>('/groups')
   const users = useLoad<{ users: User[] }>('/users')
   const [add, setAdd] = useState(false); const toast = useToast(); const owner = can(s.user, 'owner')
-  const patch = async (u: User, body: Partial<{ role: Role; disabled: boolean }>) => {
+  const patch = async (u: User, body: Partial<{ role: Role; disabled: boolean; groups: string[] }>) => {
     try { await api(`/users/${u.id}`, { method: 'PATCH', json: body }); users.reload(); toast('Saved') } catch (e: any) { toast(e.message, true) }
   }
   return <div className="page">
-    <PageHead title="Access" sub="Access groups decide which documents an agent can see. Team roles decide what people can do in Context Layer." />
+    <PageHead title="Access" sub="Access groups decide which documents an agent, or a person using Claude or ChatGPT, can see. Team roles decide what people can do in Context Layer." />
     <div className="card"><div className="hd"><h2>Access groups</h2><span className="muted small">Create a group by tagging a document with it</span></div>
       {groups.error ? <div className="bd"><ErrorBox error={groups.error} /></div> : !groups.data ? <div className="bd"><Loading /></div> :
         <div className="tablewrap"><table className="t"><thead><tr><th>Group</th><th>Documents</th><th>Agents that can read them</th></tr></thead>
@@ -22,10 +22,14 @@ export default function Access({ s }: { s: Session }) {
             <td className="small">{g.agents.length ? g.agents.join(', ') : <span className="muted">none</span>}</td></tr>)}</tbody></table></div>}</div>
     <div className="card"><div className="hd"><h2>Team</h2>{owner && <button className="btn sm" onClick={() => setAdd(true)}><Icon name="plus" size={14} />Add member</button>}</div>
       {users.error ? <div className="bd"><ErrorBox error={users.error} /></div> : !users.data ? <div className="bd"><Loading /></div> :
-        <div className="tablewrap"><table className="t"><thead><tr><th>Member</th><th>Role</th><th>Last sign-in</th><th /></tr></thead>
+        <div className="tablewrap"><table className="t"><thead><tr><th>Member</th><th>Role</th><th>Sees groups</th><th>Last sign-in</th><th /></tr></thead>
           <tbody>{users.data.users.map((u) => <tr key={u.id} className={u.disabled ? 'dim' : ''}><td><b>{u.name}</b>{u.id === s.user.id && <span className="muted"> (you)</span>}<div className="tiny muted">{u.email}</div></td>
             <td>{owner && u.id !== s.user.id ? <select value={u.role} onChange={(e) => patch(u, { role: e.target.value as Role })} style={{ width: 130 }} aria-label={`Role of ${u.name}`}>
               {(['owner', 'admin', 'viewer'] as Role[]).map((r) => <option key={r} value={r}>{r}</option>)}</select> : <Badge>{u.role}</Badge>}</td>
+            <td className="small">{u.role !== 'viewer' ? <span className="muted">all</span> : owner
+              ? <input type="text" defaultValue={u.groups.join(', ')} style={{ width: 160 }} aria-label={`Groups of ${u.name}`}
+                  onBlur={(e) => { const g = e.target.value.split(',').map((x) => x.trim()).filter(Boolean); if (g.join(',') !== u.groups.join(',')) patch(u, { groups: g }) }} />
+              : u.groups.join(', ')}</td>
             <td className="small muted">{ago(u.last_login)}</td>
             <td style={{ textAlign: 'right' }}>{owner && u.id !== s.user.id && <button className="btn sm" onClick={() => patch(u, { disabled: !u.disabled })}>{u.disabled ? 'Enable' : 'Disable'}</button>}</td></tr>)}</tbody></table></div>}
       <div className="bd tiny muted" style={{ borderTop: '1px solid var(--line)' }}>{(['owner', 'admin', 'viewer'] as Role[]).map((r) => <div key={r}><b>{r}</b>: {ROLE_HELP[r]}</div>)}</div></div>

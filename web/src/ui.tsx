@@ -146,4 +146,4 @@ export function GroupChips({ groups }: { groups: string[] }) {
   return <span className="row" style={{ gap: 4 }}>{groups.map((g) => <Badge key={g} kind={g === 'public' ? '' : 'warn'}>{g}</Badge>)}</span>
 }
 
-export const CAP_LABEL: Record<string, string> = { documents: 'Documents', data: 'Metrics', graph: 'Knowledge graph' }
+export const CAP_LABEL: Record<string, string> = { documents: 'Documents', data: 'Metrics', graph: 'Knowledge graph', upload: 'Add files' }

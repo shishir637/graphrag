@@ -6,7 +6,7 @@
 services:
   app:
     build: .
-    image: context-layer:0.1.0
+    image: context-layer:0.3.0
     restart: unless-stopped
     depends_on:
       graphdb: { condition: service_healthy }
@@ -14,6 +14,7 @@ services:
       - "${CL_BIND:-127.0.0.1}:${CL_PORT:-8080}:8080"
     environment:
       CL_PUBLIC_HOSTS: ${CL_PUBLIC_HOSTS:-}
+      CL_PUBLIC_URL: ${CL_PUBLIC_URL:-}
       GRAPH_PG_DSN: host=graphdb port=5432 dbname=graphrag user=rag password=${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
     volumes:
       - documents:/app/documents
@@ -22,6 +23,7 @@ services:
       - search_index:/app/qdrant_data
       - metric_store:/app/sl_store
       - app_data:/app/var
+      - semantic_layer:/app/semantic_layer     # reviewed definitions; approvals in the app persist here
       - models:/models
 
   graphdb:                      # PostgreSQL 17 + Apache AGE: the knowledge graph. Not published outside Docker.
@@ -39,6 +41,29 @@ services:
       interval: 5s
       retries: 30
 
+  # ---- optional: publish ONLY the MCP endpoint on the internet through Cloudflare (no open ports) ----
+  # Quick test (random https://*.trycloudflare.com address, changes on every start, no account needed):
+  #   .env: CL_PUBLIC_HOSTS=*.trycloudflare.com      then: docker compose --profile quicktunnel up -d
+  #   The address appears in Settings and on the Agents page.
+  quicktunnel:
+    image: cloudflare/cloudflared:latest
+    profiles: ["quicktunnel"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --metrics 0.0.0.0:2000 --url http://app:8080
+    depends_on: [app]
+
+  # Fixed address (Cloudflare account + a domain on Cloudflare): create a tunnel in the Cloudflare dashboard,
+  # public hostname -> http://app:8080, then in .env: CLOUDFLARE_TUNNEL_TOKEN=..., CL_PUBLIC_HOSTS=<hostname>,
+  # CL_PUBLIC_URL=https://<hostname>      then: docker compose --profile tunnel up -d
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on: [app]
+
 volumes:
   documents:
   tables:
@@ -46,5 +71,6 @@ volumes:
   search_index:
   metric_store:
   app_data:
+  semantic_layer:
   models:
   graph_data:

@@ -1,11 +1,17 @@
 """Context Layer for agents: an MCP server at /mcp (Streamable HTTP, stateless, JSON responses).
 
-Every request carries "Authorization: Bearer <agent key>". The key decides:
-  groups        which documents (and graph facts from them) the agent can see
-  capabilities  documents / data (metrics) / graph
+Every request carries "Authorization: Bearer <token>": an agent key (clk_..., made under Agents) or a token from
+signing in to Context Layer inside Claude or ChatGPT (cla_..., see app/oauth.py). The token decides:
+  groups        which documents (and graph facts from them) the caller can see
+  capabilities  documents / data (metrics) / graph / upload
+Signed-in users act as themselves (their groups; owners and admins see everything and may upload).
 Tools refuse clearly when a capability is missing. Every call is logged as an agent event."""
+import base64
 import json
+import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Any
+from urllib.parse import urlparse
 
 from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
@@ -14,6 +20,10 @@ from mcp.types import ToolAnnotations
 from . import core, engine, jobs
 
 READ_ONLY = ToolAnnotations(read_only_hint=True, open_world_hint=False)
+WRITES = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False)
+MAX_INLINE_MB = 15
+MAX_FILE_MB = 200
+UPLOAD_LINK_MIN = 30
 
 INSTRUCTIONS = """Context Layer gives you this organisation's knowledge as evidence with sources: passages from its
 documents, business numbers computed from reviewed metric definitions (never guessed), and a knowledge graph of
@@ -27,16 +37,35 @@ how things connect. It does not write answers: you do, from the evidence it retu
 - `find_connections` and `explore_entity`: how people, places, organisations and things are linked, with the
   sentence behind every link.
 - `fetch_passage`: the full text of a passage id before you quote it.
+- Adding files (needs upload permission): when the user shares a file in the chat, call `add_document`
+  (ChatGPT passes the attached file itself; otherwise pass its text, or base64 for small binary files).
+  For large or binary files you cannot pass, call `create_upload_link` and give the user the link.
+  Context Layer then builds its search index, knowledge graph and metric drafts in the background:
+  call `build_status` until it says ready, then answer from the new files with `ask`.
 You only see what your key allows; if something is refused, say so rather than guessing."""
 
 mcp = MCPServer(name="context-layer", title="Context Layer", instructions=INSTRUCTIONS, version=core.VERSION)
 
 
+def _bearer(headers) -> str | None:
+    h = (headers or {}).get("authorization") or ""
+    return h[7:].strip() if h[:7].lower() == "bearer " else None
+
+
+def resolve(token: str | None, resource: str | None = None) -> dict | None:
+    """The caller behind a token, with their effective groups."""
+    a = core.principal_for_token(token, resource)
+    if a and a.get("all_groups"):
+        a["groups"] = sorted(set(engine.all_groups()) | set(a["groups"]))
+    return a
+
+
 def _agent(ctx: Context) -> dict:
-    hdr = (ctx.headers or {}).get("authorization") or ""
-    a = core.agent_for_token(hdr[7:].strip() if hdr[:7].lower() == "bearer " else None)
+    a = resolve(_bearer(ctx.headers))
     if a is None:
-        raise ToolError("Invalid or revoked key.")
+        raise ToolError("Invalid, expired or revoked sign-in. Reconnect Context Layer.")
+    if a["kind"] == "user":
+        core.touch_token(_bearer(ctx.headers))
     return a
 
 
@@ -51,10 +80,11 @@ def _wait():
     jobs.LOCK.release()
 
 
-def run(agent: dict, tool: str, args: dict, fn) -> dict:
+def run(agent: dict, tool: str, args: dict, fn, wait: bool = True) -> dict:
     t = core.timer()
     try:
-        _wait()
+        if wait:
+            _wait()
         out = fn()
         core.touch_agent(agent["id"])
         summary = out.get("route") or (f"{len(out['passages'])} passages" if "passages" in out else
@@ -148,9 +178,125 @@ def tool_fetch(agent: dict, passage_id: str) -> dict:
                                            "note": "No passage with that id is available to your key."}
 
 
+# ------------------------------------------------------------------ adding files
+
+def _upload_groups(agent: dict, groups: list[str] | None) -> list[str]:
+    """Uploads may only be shared with groups the caller belongs to (owners and admins: any group)."""
+    want = engine.clean_groups(groups or []) if groups else []
+    if not want:
+        want = ["public"] if "public" in agent["groups"] or agent.get("all_groups") else agent["groups"][:1]
+    if not agent.get("all_groups") and not set(want) <= set(agent["groups"]):
+        raise ToolError(f"You can only share uploads with your own groups: {', '.join(agent['groups'])}.")
+    return want
+
+
+def download(url: str, max_mb: int = MAX_FILE_MB) -> bytes:
+    """Fetch a file the chat app gave us (e.g. ChatGPT's download_url): https and public addresses only."""
+    import httpx
+    from .oauth import public_host
+    for _ in range(4):
+        u = urlparse(url)
+        if u.scheme != "https" or not u.hostname or not public_host(u.hostname):
+            raise ToolError("Files can only be fetched from public https addresses.")
+        with httpx.Client(timeout=60.0, follow_redirects=False) as c, c.stream("GET", url) as r:
+            if r.status_code in (301, 302, 303, 307, 308) and r.headers.get("location"):
+                url = str(r.url.join(r.headers["location"]))
+                continue
+            if r.status_code != 200:
+                raise ToolError(f"Could not fetch the file (HTTP {r.status_code}). Attach it again.")
+            buf = bytearray()
+            for chunk in r.iter_bytes():
+                buf += chunk
+                if len(buf) > max_mb * 2 ** 20:
+                    raise ToolError(f"The file is larger than {max_mb} MB.")
+            return bytes(buf)
+    raise ToolError("Too many redirects while fetching the file.")
+
+
+def tool_add_document(agent: dict, filename: str | None = None, text: str | None = None,
+                      content_base64: str | None = None, file: dict | None = None, kind: str = "auto",
+                      groups: list[str] | None = None) -> dict:
+    _need(agent, "upload")
+    g = _upload_groups(agent, groups)
+    given = [x for x in (text, content_base64, file) if x]
+    if len(given) != 1:
+        raise ToolError("Give exactly one of: file (an attached file), text, or content_base64.")
+    if file:
+        if not isinstance(file, dict) or not file.get("download_url"):
+            raise ToolError("This chat app did not pass the file. Use create_upload_link instead.")
+        filename = filename or file.get("file_name") or file.get("name")
+        data = download(str(file["download_url"]))
+    elif text:
+        data = text.encode("utf-8")
+        if len(data) > MAX_INLINE_MB * 2 ** 20:
+            raise ToolError(f"The text is larger than {MAX_INLINE_MB} MB. Use create_upload_link instead.")
+        stem, dot, ext = (filename or "note.md").rpartition(".")
+        if not dot or "." + ext.lower() not in engine.TEXT_EXTS:      # e.g. report.pdf given as its text
+            filename = f"{stem or ext or 'note'}.md"
+    else:
+        try:
+            data = base64.b64decode(content_base64, validate=True)
+        except ValueError as e:
+            raise ToolError("content_base64 is not valid base64.") from e
+        if len(data) > MAX_INLINE_MB * 2 ** 20:
+            raise ToolError(f"The file is larger than {MAX_INLINE_MB} MB. Use create_upload_link instead.")
+    if not filename:
+        raise ToolError("Give the file a name, e.g. report.pdf.")
+    try:
+        saved = engine.ingest_upload(filename, data, g, kind)
+    except ValueError as e:
+        raise ToolError(str(e)) from e
+    job = engine.queue_rebuild([saved], agent["name"])
+    return {"saved": saved, "bytes": len(data), "job_id": job["id"], "status": job["status"],
+            "next": "Context Layer is building the search index, graph and metric drafts for this file. "
+                    "Call build_status with this job_id until it is ready (usually 1-5 minutes)."}
+
+
+def tool_upload_link(agent: dict, groups: list[str] | None = None, base: str = "") -> dict:
+    _need(agent, "upload")
+    g = _upload_groups(agent, groups)
+    tok = core.new_token("clu_")
+    exp = (datetime.now(timezone.utc) + timedelta(minutes=UPLOAD_LINK_MIN)).isoformat(timespec="seconds")
+    core.db().execute("INSERT INTO upload_links VALUES (?, ?, ?, ?, ?, 0)",
+                      (core.token_hash(tok), agent["name"], json.dumps(g), core.now(), exp))
+    return {"upload_url": f"{base}/upload/{tok}", "expires_in_minutes": UPLOAD_LINK_MIN, "groups": g,
+            "next": "Give this link to the user. After they upload, the page shows a job id: "
+                    "call build_status (no arguments shows your latest upload)."}
+
+
+def tool_build_status(agent: dict, job_id: str | None = None) -> dict:
+    from . import jobs as J
+    mine = [j for j in J.list_jobs(50) if j["kind"] == "rebuild" and (j["by"] == agent["name"] or agent.get("all_groups"))]
+    if job_id:
+        j = J.get(job_id.strip())
+        if j is None or j["kind"] != "rebuild":
+            raise ToolError("No upload job with that id. Call build_status without a job_id to see recent ones.")
+    elif mine:
+        j = mine[0]
+    else:
+        return {"status": "none", "note": "No uploads yet."}
+    return engine.rebuild_report(j, J.info(j["id"]))
+
+
+def tool_approve_metric(agent: dict, name: str) -> dict:
+    if agent.get("kind") != "user" or agent.get("role") not in ("owner", "admin"):
+        raise ToolError("Only a signed-in Context Layer owner or admin can approve metrics.")
+    from semantic.auto_model import set_status
+    try:
+        r = set_status(name.strip(), "approved", by=agent["email"])
+    except KeyError as e:
+        raise ToolError(f"No metric named {name}. See build_status or the Metrics page for drafts.") from e
+    except ValueError as e:
+        raise ToolError(str(e)) from e
+    core.log_event("user", agent["email"], "metrics.status", name, {"status": "approved", "via": agent["client"]})
+    return r | {"next": "Approved. Run the data rebuild (Metrics page, or upload again) so query_metrics can use it."}
+
+
 TOOLS = {"ask": tool_ask, "search_documents": tool_search, "describe_data": tool_describe_data,
          "query_metrics": tool_metrics, "list_metrics": tool_list_metrics, "find_connections": tool_connections,
-         "explore_entity": tool_entity, "list_documents": tool_list_documents, "fetch_passage": tool_fetch}
+         "explore_entity": tool_entity, "list_documents": tool_list_documents, "fetch_passage": tool_fetch,
+         "add_document": tool_add_document, "create_upload_link": tool_upload_link, "build_status": tool_build_status,
+         "approve_metric": tool_approve_metric}
 
 
 # ------------------------------------------------------------------ MCP registrations
@@ -240,21 +386,74 @@ def _fetch(passage_id: str, ctx: Context) -> dict[str, Any]:
     return run(a, "fetch_passage", {"passage_id": passage_id}, lambda: tool_fetch(a, passage_id))
 
 
+@mcp.tool(name="add_document", annotations=WRITES, structured_output=True,
+          meta={"openai/fileParams": ["file"],
+                "openai/toolInvocation/invoking": "Adding the file to Context Layer",
+                "openai/toolInvocation/invoked": "Added; building in the background"})
+def _add_document(ctx: Context, filename: str | None = None, file: dict[str, Any] | None = None,
+                  text: str | None = None, content_base64: str | None = None, kind: str = "auto",
+                  groups: list[str] | None = None) -> dict[str, Any]:
+    """Add a file the user shared in the chat to Context Layer. It becomes searchable passages and knowledge-graph
+    facts (documents) or a data table with draft metrics (CSV / Excel / Parquet), built in the background.
+    Pass exactly one of: file (the attached file; ChatGPT fills this in), text (the file's full text, e.g. what
+    you read from an attached PDF or Word file - keep its headings), or content_base64 (small binary files).
+    filename: e.g. "pricing-policy.pdf". kind: auto (default), document or table.
+    groups: who may see it (default public, or your own group). Returns a job_id for build_status."""
+    a = _agent(ctx)
+    args = {"filename": filename, "kind": kind, "groups": groups,
+            "source": "file" if file else "text" if text else "base64"}
+    return run(a, "add_document", args, lambda: tool_add_document(a, filename, text, content_base64, file, kind, groups),
+               wait=False)
+
+
+@mcp.tool(name="create_upload_link", annotations=WRITES, structured_output=True)
+def _upload_link(ctx: Context, groups: list[str] | None = None) -> dict[str, Any]:
+    """A one-time page (valid 30 minutes) where the user can drop large or binary files (PDF, Word, Excel...)
+    straight into Context Layer. Use it when you cannot pass the file with add_document. Give the user the link."""
+    a = _agent(ctx)
+    from .public import base_url
+    scope = getattr(getattr(ctx.request_context, "request", None), "scope", None) or {}
+    return run(a, "create_upload_link", {"groups": groups}, lambda: tool_upload_link(a, groups, base_url(scope)),
+               wait=False)
+
+
+@mcp.tool(name="build_status", annotations=READ_ONLY, structured_output=True)
+def _build_status(ctx: Context, job_id: str | None = None) -> dict[str, Any]:
+    """Progress of the background build after an upload (queued, running, done or failed), and once done what
+    the files became: passages, knowledge-graph size and draft metrics waiting for approval.
+    job_id: from add_document or the upload page; leave out for your latest upload."""
+    a = _agent(ctx)
+    return run(a, "build_status", {"job_id": job_id}, lambda: tool_build_status(a, job_id), wait=False)
+
+
+@mcp.tool(name="approve_metric", annotations=WRITES, structured_output=True)
+def _approve(ctx: Context, name: str) -> dict[str, Any]:
+    """Approve a draft metric (from build_status) so agents may use it. Only for signed-in owners and admins:
+    confirm with the user first, and show them the definition (label, expression) you are approving."""
+    a = _agent(ctx)
+    return run(a, "approve_metric", {"name": name}, lambda: tool_approve_metric(a, name), wait=False)
+
+
 class KeyGate:
-    """Refuse /mcp requests without a valid agent key (401) before they reach MCP."""
+    """Refuse /mcp requests without a valid token (401) before they reach MCP. The 401 tells MCP clients
+    (Claude, ChatGPT) where to sign in, so users can connect with just the URL."""
 
     def __init__(self, app):
         self.app = app
 
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
-            h = {k.decode().lower(): v.decode() for k, v in scope.get("headers", [])}.get("authorization", "")
-            if core.agent_for_token(h[7:].strip() if h[:7].lower() == "bearer " else None) is None:
+            from . import oauth
+            from .public import base_url
+            tok = _bearer({k.decode().lower(): v.decode() for k, v in scope.get("headers", [])})
+            if resolve(tok, base_url(scope) + "/mcp") is None:
                 body = json.dumps({"error": "invalid_token", "error_description":
-                                   "Send 'Authorization: Bearer <key>'. Keys are created under Agents in Context Layer."}).encode()
+                                   "Sign in to Context Layer from your AI app, or send 'Authorization: Bearer <key>' "
+                                   "(keys are made under Agents in Context Layer)."}).encode()
+                www = oauth.www_authenticate(scope, bool(tok)) if oauth.enabled() else b'Bearer error="invalid_token"'
                 await send({"type": "http.response.start", "status": 401,
-                            "headers": [(b"content-type", b"application/json"),
-                                        (b"www-authenticate", b'Bearer error="invalid_token"')]})
+                            "headers": [(b"content-type", b"application/json"), (b"www-authenticate", www),
+                                        (b"access-control-expose-headers", b"WWW-Authenticate")]})
                 await send({"type": "http.response.body", "body": body})
                 return
         await self.app(scope, receive, send)
@@ -266,6 +465,10 @@ def transport_security():
     import os
     from mcp.server.transport_security import TransportSecuritySettings
     hosts = ["127.0.0.1", "localhost", "[::1]"] + [h.strip() for h in os.environ.get("CL_PUBLIC_HOSTS", "").split(",") if h.strip()]
+    if any("*" in h for h in hosts):
+        # wildcard names (e.g. *.trycloudflare.com): the app's own host check (app/public.py) enforces them;
+        # every MCP request also needs a valid agent key
+        return TransportSecuritySettings(enable_dns_rebinding_protection=False)
     return TransportSecuritySettings(
         enable_dns_rebinding_protection=True,
         allowed_hosts=[x for h in hosts for x in (h, f"{h}:*")],

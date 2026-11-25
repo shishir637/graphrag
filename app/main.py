@@ -5,6 +5,7 @@ Run:  python -m app            (or: uvicorn app.main:app)
 import contextlib
 import csv
 import io
+import json
 import time
 from collections import defaultdict, deque
 from pathlib import Path
@@ -14,7 +15,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import core, engine, jobs
+from . import core, engine, jobs, oauth
 from . import mcp_server as M
 
 core.load_secrets()
@@ -47,6 +48,9 @@ async def security_headers(request: Request, call_next):
     resp.headers.setdefault("Referrer-Policy", "same-origin")
     resp.headers.setdefault("X-Frame-Options", "DENY")
     return resp
+
+
+app.include_router(oauth.router)
 
 
 # ------------------------------------------------------------------ auth helpers
@@ -454,6 +458,7 @@ class UserIn(BaseModel):
 class UserPatch(BaseModel):
     role: str | None = None
     disabled: bool | None = None
+    groups: list[str] | None = None
 
 
 @app.get("/api/v1/users")
@@ -474,13 +479,82 @@ def add_user(body: UserIn, u: dict = Depends(OWNER)):
 @app.patch("/api/v1/users/{uid}")
 def update_user(uid: int, body: UserPatch, u: dict = Depends(OWNER)):
     try:
-        nu = core.update_user(uid, body.role, body.disabled)
+        nu = core.update_user(uid, body.role, body.disabled, body.groups)
     except KeyError:
         raise HTTPException(404, "No such user.")
     except ValueError as e:
         raise HTTPException(400, str(e))
-    audit(u, "users.update", nu["email"], {"role": nu["role"], "disabled": nu["disabled"]})
+    audit(u, "users.update", nu["email"], {"role": nu["role"], "disabled": nu["disabled"], "groups": nu["groups"]})
     return {"user": nu}
+
+
+# ------------------------------------------------------------------ apps signed in from Claude / ChatGPT
+
+@app.get("/api/v1/connected-apps")
+def connected_apps(u: dict = Depends(ANY)):
+    return {"apps": oauth.grants(None if u["role"] in ("owner", "admin") else u["id"])}
+
+
+@app.post("/api/v1/connected-apps/{gid}/revoke")
+def disconnect_app(gid: str, u: dict = Depends(ANY)):
+    if not oauth.revoke_grant(gid, None if u["role"] in ("owner", "admin") else u["id"]):
+        raise HTTPException(404, "No such connected app.")
+    audit(u, "oauth.revoke", gid)
+    return {"ok": True}
+
+
+# ------------------------------------------------------------------ one-time upload links (create_upload_link)
+
+def _link(token: str):
+    r = core.db().execute("SELECT * FROM upload_links WHERE token_hash = ? AND expires > ?",
+                          (core.token_hash(token), core.now())).fetchone()
+    return r
+
+
+UPLOAD_FORM = """<h1>Add files</h1><p class="muted">They are added to Context Layer for <b>{who}</b>, visible to: {groups}.
+This page works until {until} UTC.</p>{msg}
+<form method="post" enctype="multipart/form-data"><label for="f">Files (PDF, Word, PowerPoint, Excel, CSV, JSON, text, HTML, images)</label>
+<input id="f" type="file" name="files" multiple required><button type="submit">Upload</button></form>"""
+
+
+@app.get("/upload/{token}", include_in_schema=False)
+def upload_page(token: str):
+    r = _link(token)
+    if r is None:
+        return oauth.page("Link expired", "<h1>This link has expired</h1><p>Ask your AI app for a new upload link.</p>", 404)
+    import html as H
+    return oauth.page("Add files", UPLOAD_FORM.format(who=H.escape(r["principal"]), groups=H.escape(", ".join(json.loads(r["groups"]))),
+                                                      until=r["expires"][:16].replace("T", " "), msg=""))
+
+
+@app.post("/upload/{token}", include_in_schema=False)
+async def upload_files(token: str, request: Request, files: list[UploadFile] = File(...)):
+    import html as H
+    r = _link(token)
+    if r is None:
+        return oauth.page("Link expired", "<h1>This link has expired</h1><p>Ask your AI app for a new upload link.</p>", 404)
+    if r["files"] + len(files) > 50:
+        return oauth.page("Too many files", "<h1>Too many files</h1><p>One link takes up to 50 files.</p>", 400)
+    saved, errors = [], []
+    for f in files:
+        data = await f.read()
+        if len(data) > MAX_UPLOAD_MB * 2 ** 20:
+            errors.append(f"{f.filename}: larger than {MAX_UPLOAD_MB} MB")
+            continue
+        try:
+            saved.append(engine.ingest_upload(f.filename or "file", data, json.loads(r["groups"])))
+        except ValueError as e:
+            errors.append(str(e))
+    core.db().execute("UPDATE upload_links SET files = files + ? WHERE token_hash = ?", (len(saved), core.token_hash(token)))
+    err = "".join(f'<div class="err">{H.escape(e)}</div>' for e in errors)
+    if not saved:
+        return oauth.page("Add files", UPLOAD_FORM.format(who=H.escape(r["principal"]), groups=H.escape(", ".join(json.loads(r["groups"]))),
+                                                          until=r["expires"][:16].replace("T", " "), msg=err), 400)
+    job = engine.queue_rebuild(saved, r["principal"])
+    core.log_event("agent", r["principal"], "upload_link.files", ", ".join(s["file"] for s in saved), {"job": job["id"]})
+    names = "".join(f"<li>{H.escape(s['file'])} ({s['kind']})</li>" for s in saved)
+    return oauth.page("Uploaded", f"""<h1>Got it</h1><div class="ok">Added {len(saved)} file(s). Context Layer is building them now.</div>
+<ul>{names}</ul>{err}<p>Go back to your chat and say <b>"check the upload"</b>. Job id: <code>{job['id']}</code></p>""")
 
 
 # ------------------------------------------------------------------ settings
@@ -497,8 +571,9 @@ def settings(request: Request, u: dict = Depends(ANY)):
         "organisation": core.get_setting("organisation", ""),
         "ai_model": {"inside": False, "note": "Context Layer runs no AI model. It finds the evidence (passages, "
                      "numbers, graph links); the agent that connects over MCP writes the answer."},
-        "mcp": {"url": str(request.base_url).rstrip("/") + "/mcp", "transport": "Streamable HTTP",
-                "auth": "Authorization: Bearer <agent key>"},
+        "mcp": {"url": str(request.base_url).rstrip("/") + "/mcp", "public_url": _public_url(),
+                "transport": "Streamable HTTP",
+                "auth": "Sign in from Claude or ChatGPT (OAuth), or Authorization: Bearer <agent key>"},
         "models": {"embeddings": "BAAI/bge-m3 (local)", "keyword search": "BM25 (local)",
                    "re-ranker": "BAAI/bge-reranker-v2-m3 (local)",
                    "entities": "GLiNER urchade/gliner_medium-v2.1 + spaCy en_core_web_lg (local)"},
@@ -507,6 +582,11 @@ def settings(request: Request, u: dict = Depends(ANY)):
                     "graph_database_ok": pg_ok, "graph_database_message": pg_msg, "disk": engine.disk_usage()},
         "version": core.VERSION,
     }
+
+
+def _public_url():
+    from .public import public_mcp_url
+    return public_mcp_url()
 
 
 @app.put("/api/v1/settings/graph")
@@ -560,6 +640,11 @@ class _Router:
         self.api = api
 
     async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            from .public import allowed
+            ok, status, msg = allowed(scope)
+            if not ok:
+                return await JSONResponse({"detail": msg}, status)(scope, receive, send)
         if scope["type"] == "http" and (scope["path"] == "/mcp" or scope["path"].startswith("/mcp/")):
             if _mcp_asgi is None:
                 return await JSONResponse({"detail": "Starting up"}, 503)(scope, receive, send)

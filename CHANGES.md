@@ -1,5 +1,33 @@
 # Changes
 
+## 0.3.0 (25 Nov 2026): use it from Claude or ChatGPT, add files from the chat
+
+People use Context Layer inside their own Claude or ChatGPT: the AI comes from their plan, Context Layer
+supplies the governed context.
+
+**Sign in from the AI app** (`app/oauth.py`)
+- Add Context Layer as a custom connector with only its MCP link; a Context Layer sign-in page opens, then
+  "Allow <app>?". OAuth 2.1 as the MCP specification asks: protected-resource and server metadata, PKCE (S256),
+  dynamic client registration and client ID metadata documents, `iss` in the redirect, refresh tokens rotated
+  (a reused one signs the app out), tokens bound to the address they were issued for.
+- Signed-in people act as themselves: viewers see their access groups (set on the Access page), owners and
+  admins see every group and may add files. Disabling a person signs out their apps. Agents → Signed-in apps
+  lists connected apps with Disconnect.
+- Agent keys keep working unchanged.
+
+**Add files from the chat**
+- `add_document`: a file attached in ChatGPT (passed straight to the tool), the text of a file (Claude), or
+  a small file as base64. CSV, Excel and Parquet become data tables with draft metrics; everything else
+  becomes searchable documents and knowledge-graph facts. Shared only with the uploader's own groups.
+- `create_upload_link`: a one-time page (30 minutes) for large or binary files.
+- `build_status`: queued / running / done, then what the files became (passages, graph size, draft metrics).
+- `approve_metric`: owners and admins approve a draft metric from the chat.
+- The knowledge graph forgets passages from deleted or edited documents (before, their old entities stayed).
+- Unchanged documents are not parsed again on each rebuild.
+- Uploads queue one background rebuild (documents, then the graph if it is in use; data tables) instead of
+  failing while another job runs.
+
+
 ## 0.2.0 (25 Nov 2026): no AI model inside
 
 Context Layer no longer calls Claude (or any language model). It is the context layer only: it finds the

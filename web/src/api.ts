@@ -1,6 +1,6 @@
 // Small typed client for the Context Layer API.
 export type Role = 'owner' | 'admin' | 'viewer'
-export interface User { id: number; email: string; name: string; role: Role; created: string; last_login: string | null; disabled: boolean }
+export interface User { id: number; email: string; name: string; role: Role; created: string; last_login: string | null; disabled: boolean; groups: string[] }
 export interface Agent {
   id: string; name: string; description: string; groups: string[]; capabilities: string[]; prefix: string
   created: string; created_by: string; last_used: string | null; calls: number; revoked: string | null
@@ -39,7 +39,8 @@ export async function api<T = any>(path: string, opts: { method?: string; json?:
   return data as T
 }
 
-export const MCP_URL = `${location.origin}/mcp`
+export let MCP_URL = `${location.origin}/mcp`
+export const setMcpUrl = (u: string) => { MCP_URL = u }
 
 export function ago(iso: string | null | undefined): string {
   if (!iso) return 'never'

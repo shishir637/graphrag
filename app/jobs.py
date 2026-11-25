@@ -35,7 +35,7 @@ def running() -> dict | None:
 
 def public(job: dict) -> dict:
     return {k: job[k] for k in ("id", "kind", "label", "status", "started", "finished", "by", "error")} | \
-           {"log": job["log"][-60:]}
+           {"log": job["log"][-60:], "queue_position": (_queue.index(job["id"]) + 1) if job["id"] in _queue else None}
 
 
 def list_jobs(limit: int = 20) -> list[dict]:
@@ -47,14 +47,24 @@ def get(job_id: str) -> dict | None:
     return public(j) if j else None
 
 
-def start(kind: str, label: str, fn, by: str) -> dict:
-    if running():
-        raise RuntimeError(f"'{running()['label']}' is still running. Wait for it to finish.")
-    job = {"id": secrets.token_hex(5), "kind": kind, "label": label, "status": "running", "started": core.now(),
-           "finished": None, "by": by, "error": None, "log": []}
+_qlock = threading.Lock()
+_queue: list[str] = []
+
+
+def _new(kind: str, label: str, by: str, status: str) -> dict:
+    job = {"id": secrets.token_hex(5), "kind": kind, "label": label, "status": status, "started": None,
+           "finished": None, "by": by, "error": None, "log": [], "info": {}}
     _jobs[job["id"]] = job
     _order.append(job["id"])
-    del _order[:-50]
+    for old in _order[:-50]:
+        if _jobs[old]["status"] not in ("running", "queued"):
+            _jobs.pop(old, None)
+    _order[:] = [j for j in _order if j in _jobs]
+    return job
+
+
+def _launch(job: dict, fn):
+    job["status"], job["started"] = "running", core.now()
 
     def run():
         t = core.timer()
@@ -70,8 +80,52 @@ def start(kind: str, label: str, fn, by: str) -> dict:
                 print(traceback.format_exc(), file=sys.__stderr__)
             finally:
                 job["finished"] = core.now()
-                core.log_event("user", by, f"job.{kind}", label, {"job": job["id"], "error": job["error"]},
-                               ok=job["status"] == "done", seconds=t())
+                core.log_event("user", job["by"], f"job.{job['kind']}", job["label"],
+                               {"job": job["id"], "error": job["error"]}, ok=job["status"] == "done", seconds=t())
+        _kick()
 
-    threading.Thread(target=run, daemon=True, name=f"job-{kind}").start()
+    threading.Thread(target=run, daemon=True, name=f"job-{job['kind']}").start()
+
+
+def _kick():
+    with _qlock:
+        if running() or not _queue:
+            return
+        job = _jobs[_queue.pop(0)]
+        _launch(job, job.pop("fn"))
+
+
+def start(kind: str, label: str, fn, by: str) -> dict:
+    with _qlock:
+        if running():
+            raise RuntimeError(f"'{running()['label']}' is still running. Wait for it to finish.")
+        job = _new(kind, label, by, "running")
+        _launch(job, fn)
     return public(job)
+
+
+def enqueue(kind: str, label: str, make_fn, by: str, info: dict) -> dict:
+    """Run after whatever is running now. A waiting job of the same kind is reused: its info is merged
+    (lists extended, sets joined), so many uploads in a row become one rebuild. make_fn(info) -> callable."""
+    with _qlock:
+        for jid in _queue:
+            j = _jobs[jid]
+            if j["kind"] == kind:
+                for k, v in info.items():
+                    if isinstance(v, list):
+                        j["info"].setdefault(k, [])
+                        j["info"][k] += [x for x in v if x not in j["info"][k]]
+                    else:
+                        j["info"][k] = v
+                return public(j)
+        job = _new(kind, label, by, "queued")
+        job["info"] = {k: (list(v) if isinstance(v, list) else v) for k, v in info.items()}
+        job["fn"] = lambda: make_fn(job["info"])
+        _queue.append(job["id"])
+    _kick()
+    return public(job)
+
+
+def info(job_id: str) -> dict:
+    j = _jobs.get(job_id)
+    return dict(j["info"]) if j else {}
