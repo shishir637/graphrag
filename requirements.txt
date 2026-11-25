@@ -1,20 +1,17 @@
+# Context Layer product: no AI model / API key needed. Everything below runs locally.
 # 1. Parsing + 2. Chunking
 docling
 langchain-text-splitters
+transformers
 # 3. Embedding (BGE-M3 dense) + 8. keyword (BM25 sparse) + 10. re-ranking
-sentence-transformers  # pulled by ragas; pipeline uses transformers directly
 fastembed
 # 4/5/9. Vector store, filtered retrieval, RRF fusion
 qdrant-client
-# 6. Generation (Claude)
-anthropic
 pydantic
-# 7. Evaluation
-ragas==0.4.4
-langchain-anthropic
-langchain-huggingface
-# only used to build the sample PDF
-reportlab
+# Knowledge graph without an LLM: spaCy (MIT) + GLiNER (Apache-2.0); the spaCy model is MIT
+spacy==3.8.7
+en_core_web_lg @ https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl
+gliner==0.2.30
 # Pinned: newer wheels of these are blocked by Windows Application Control on this PC
 pyarrow==22.0.0
 xxhash==3.6.0
@@ -27,6 +24,7 @@ torch==2.12.0
 torchvision==0.27.0
 # Semantic layer (see requirements-semantic.txt for the minimal set CI installs)
 -r requirements-semantic.txt
+openpyxl                       # Excel uploads (every sheet becomes a table)
 
 # Context Layer app
 -r requirements-app.txt

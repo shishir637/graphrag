@@ -1,0 +1,23 @@
+# Second blind set (sales + Lumora tables), written after planner v5 and before running it. Not used for tuning.
+as_of: 2026-11-24
+questions:
+  - {id: B01, kind: filter, question: "What's the total amount invoiced to Harbor Steelworks?", gold: {metrics: [total_lumora_invoice_amount], filters: [{dimension: lumora_customers.name, values: [Harbor Steelworks]}]}}
+  - {id: B02, kind: filter, question: "Open invoices count by product", gold: {metrics: [lumora_invoices_count], dimensions: [lumora_invoices.product], filters: [{dimension: lumora_invoices.status, values: [open]}]}}
+  - {id: B03, kind: breakdown, question: "Phone tickets per month this year", gold: {metrics: [lumora_tickets_count], dimensions: [lumora_tickets.opened_at__month], filters: [{dimension: lumora_tickets.channel, values: [phone]}], start_date: 2026-01-01, end_date: 2026-12-31}}
+  - {id: B04, kind: synonym, question: "average resolution time for urgent tickets", gold: {metrics: [average_lumora_ticket_resolution_hours], filters: [{dimension: lumora_tickets.priority, values: [urgent]}]}}
+  - {id: B05, kind: filter, question: "How many Growth tier customers are there?", gold: {metrics: [lumora_customers_count], filters: [{dimension: lumora_customers.tier, values: [Growth]}]}}
+  - {id: B06, kind: filter, question: "Net revenue for the Enterprise segment in FY2024-25", gold: {metrics: [net_revenue], filters: [{dimension: customers.segment, values: [Enterprise]}], start_date: 2024-04-01, end_date: 2025-03-31}}
+  - {id: B07, kind: breakdown, question: "Units sold by category last quarter", gold: {metrics: [units_sold], dimensions: [products.category], start_date: 2026-07-01, end_date: 2026-09-30}}
+  - {id: B08, kind: top_n, question: "Which channel brings the most orders?", gold: {metrics: [order_count], dimensions: [orders.channel], order_by: [-order_count], limit: 1}}
+  - {id: B09, kind: breakdown, question: "Show average CSAT for each customer tier", gold: {metrics: [average_lumora_ticket_csat], dimensions: [lumora_tickets.customer_tier]}}
+  - {id: B10, kind: simple, question: "Number of invoices issued in October 2026", gold: {metrics: [lumora_invoices_count], start_date: 2026-10-01, end_date: 2026-10-31}}
+  - {id: B11, kind: simple, question: "gross revenue in Q1 2026", gold: {metrics: [gross_revenue], start_date: 2026-01-01, end_date: 2026-03-31}}
+  - {id: B12, kind: synonym, question: "What share of orders were returned?", gold: {metrics: [return_rate]}}
+  - {id: B13, kind: breakdown, question: "Employees by city", gold: {metrics: [lumora_employees__employees_count], dimensions: [lumora_employees__employees.city]}}
+  - {id: B14, kind: breakdown, question: "Total refunds by region in 2026", gold: {metrics: [refunds], dimensions: [regions.region_name], start_date: 2026-01-01, end_date: 2026-12-31}}
+  - {id: B15, kind: synonym, question: "What is our average invoice value?", gold: {metrics: [average_lumora_invoice_amount]}}
+  - {id: B16, kind: filter, question: "How many tickets did Customer Success resolve?", gold: {metrics: [lumora_tickets_count], filters: [{dimension: lumora_employees__departments.department_name, values: [Customer Success]}]}}
+  - {id: B17, kind: unanswerable, question: "What is the profit margin on PulseMeter?"}
+  - {id: B18, kind: filter, question: "orders in Hyderabad by segment for FY2025-26", gold: {metrics: [order_count], dimensions: [customers.segment], filters: [{dimension: customers.city, values: [Hyderabad]}], start_date: 2025-04-01, end_date: 2026-03-31}}
+  - {id: B19, kind: breakdown, question: "number of new customers per quarter in 2025", gold: {metrics: [new_customers], dimensions: [customers.signup_date__quarter], start_date: 2025-01-01, end_date: 2025-12-31}}
+  - {id: B20, kind: top_n, question: "Lowest-rated product by CSAT", gold: {metrics: [average_lumora_ticket_csat], dimensions: [lumora_tickets.product], order_by: [average_lumora_ticket_csat], limit: 1}}

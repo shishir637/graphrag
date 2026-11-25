@@ -9,10 +9,10 @@ from pathlib import Path
 
 import yaml
 
-from rag.config import DOCLING_EXTS, DOCS_DIR, OUT_DIR, PLAINTEXT_EXTS
+from rag.config import DOCLING_EXTS, DOCS_DIR, OUT_DIR, PLAINTEXT_EXTS, RECORD_EXTS
 from semantic import config as SC
 
-DOC_EXTS = DOCLING_EXTS | PLAINTEXT_EXTS
+DOC_EXTS = DOCLING_EXTS | PLAINTEXT_EXTS | RECORD_EXTS
 ACCESS_FILE = DOCS_DIR / "_access.json"
 _GROUP_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
 _SAFE_NAME = re.compile(r"[^\w.\- ()]+")
@@ -142,7 +142,8 @@ def all_groups() -> list[str]:
 
 def tables() -> list[dict]:
     prof = _json(SC.OUT_DIR / "sl_1_profile.json", {}) or {}
-    ptables = {t.get("name") or t.get("table"): t for t in prof.get("tables", [])} if isinstance(prof, dict) else {}
+    pt = prof.get("tables", {}) if isinstance(prof, dict) else {}
+    ptables = pt if isinstance(pt, dict) else {t.get("name") or t.get("table"): t for t in pt}
     out = []
     if SC.DATA_DIR.exists():
         for p in sorted(SC.DATA_DIR.iterdir()):
@@ -153,13 +154,14 @@ def tables() -> list[dict]:
     return out
 
 
-def save_table(filename: str, data: bytes) -> str:
+def save_table(filename: str, data: bytes) -> list[str]:
+    """CSV, Excel (every sheet), JSON / JSON Lines (nested fields flattened) or Parquet -> tables."""
+    from semantic.ingest import ACCEPTED, save_upload
     name = safe_filename(filename)
-    if Path(name).suffix.lower() not in SC.TABLE_EXTS:
-        raise ValueError(f"{name}: use CSV, Excel (.xlsx) or Parquet.")
+    if Path(name).suffix.lower() not in ACCEPTED:
+        raise ValueError(f"{name}: use CSV, Excel (.xlsx), JSON, JSON Lines or Parquet.")
     SC.DATA_DIR.mkdir(parents=True, exist_ok=True)
-    (SC.DATA_DIR / name).write_bytes(data)
-    return name
+    return save_upload(name, data)
 
 
 def metrics() -> dict:
@@ -232,23 +234,17 @@ def postgres_ok() -> tuple[bool, str]:
 
 # ------------------------------------------------------------------ readiness
 
-def llm_ready() -> bool:
-    import os
-    return bool(os.environ.get("ANTHROPIC_API_KEY"))
-
-
 def status() -> dict:
     docs = documents()
     pg_ok, pg_msg = postgres_ok()
     graph = graph_overview()
     return {
-        "llm": {"ready": llm_ready()},
         "documents": {"count": len(docs), "ready": sum(d["status"] == "ready" for d in docs),
                       "pending": sum(d["status"] != "ready" for d in docs),
                       "passages": sum(d["passages"] for d in docs), "indexed": iso(_chunk_stats()[1])},
         "data": {"tables": len(tables()), "metrics": len(metrics()["metrics"]), "ready": SC.STORE_DB.exists(),
                  "prepared": iso(_mtime(SC.STORE_DB))},
-        "graph": {"ready": bool(graph) and pg_ok, "built": graph.get("built") if graph else None,
+        "graph": {"ready": graph_ready(), "built": graph.get("built") if graph else None,
                   "entities": graph.get("entities") if graph else 0, "relations": graph.get("relations") if graph else 0},
         "postgres": {"ok": pg_ok, "message": pg_msg},
     }
@@ -261,152 +257,298 @@ def prepare_documents():
     print("[2/4] Splitting into passages"); from rag.chunk import chunk_all; chunk_all()
     print("[3/4] Embedding"); from rag.embed import embed_all; embed_all()
     print("[4/4] Building the search index"); from rag.store import build_index; build_index()
-    from graph.query import chunk_access
+    from graph.access import chunk_access
     chunk_access()
 
 
 def prepare_data():
-    print("[1/3] Profiling tables"); from semantic.profile import profile_all; profile_all()
-    print("[2/3] Checking metric definitions"); from semantic.metrics import check_metrics; check_metrics()
-    print("[3/3] Building the metric catalog"); from semantic.enrich import build_enrichment; build_enrichment()
+    print("[1/4] Profiling tables"); from semantic.profile import profile_all; profile_all()
+    print("[2/4] Drafting definitions for new tables (review them on the Metrics page)")
+    from semantic.auto_model import draft
+    d = draft()
+    print(f"  new: {len(d['entities'])} tables, {len(d['metrics'])} draft metrics, {len(d['joins'])} joins")
+    print("[3/4] Checking metric definitions"); from semantic.metrics import check_metrics; check_metrics()
+    print("[4/4] Building the metric catalog"); from semantic.enrich import build_enrichment; build_enrichment(embed=False)
+
+
+def graph_mode() -> str:
+    import os
+    from app import core
+    return os.environ.get("CL_GRAPH_MODE") or core.get_setting("graph_mode", "accurate") or "accurate"
 
 
 def build_graph():
-    import sys
-    if not llm_ready():
-        raise RuntimeError("Building the knowledge graph needs an AI model: add an Anthropic API key in Settings.")
-    ok, msg = postgres_ok()
-    if not ok:
-        raise RuntimeError(f"The graph database is not reachable ({msg}). Start it with docker compose.")
-    out = OUT_DIR / "gr_extract_all.jsonl"
-    print("[1/2] Extracting entities and relationships (Claude Haiku)")
-    from graph.config import EXTRACT_MODEL
-    from graph.extract_llm import main as extract_main
-    argv = sys.argv
-    sys.argv = ["extract_llm", "--model", EXTRACT_MODEL, "--workers", "4", "--out", str(out)]
-    try:
-        extract_main()
-    finally:
-        sys.argv = argv
+    """No language model: GLiNER/spaCy entities, co-occurrence and section links, Leiden communities."""
+    if not (OUT_DIR / "2_chunks.json").exists():
+        raise RuntimeError("Prepare the documents first: the graph is built from their passages.")
+    mode = graph_mode()
+    out = OUT_DIR / f"gr_extract_{mode}.jsonl"
+    print(f"[1/2] Finding entities and links ({'GLiNER + spaCy' if mode == 'accurate' else 'spaCy'}, no AI model)")
+    from graph.nlp_extract import extract_all
+    extract_all(out, mode=mode, resume=True)
     print("[2/2] Merging duplicates, finding communities, storing the graph")
     from graph.build import build
     build([str(out)])
 
 
 def eval_documents():
-    from rag.evaluate import run_eval
-    run_eval()
+    from rag.retrieval_eval import run
+    run(tag="app")
 
 
 def eval_data():
-    from semantic.evaluate import run
+    from semantic.rule_eval import run
     run("app")
 
 
 def eval_graph():
-    from graph import evaluate as ge
-    if not ge.QFILE.exists():
-        ge.make_questions()
-    ge.run()
-    ge.score()
+    from graph.eval_extraction import main
+    from graph.nlp_extract import extract_all
+    import json as _j
+    gold = _j.loads((Path(__file__).resolve().parent.parent / "graph_layer" / "gold_extraction.json").read_text(encoding="utf-8"))
+    ids = [k for k in gold if not k.startswith("_")]
+    out = OUT_DIR / "gr_extract_gold.jsonl"
+    extract_all(out, mode=graph_mode(), ids=ids, resume=False)
+    main([str(out)])
 
 
 JOBS = {
     "documents": ("Preparing documents", prepare_documents, "admin"),
     "data": ("Preparing data tables", prepare_data, "admin"),
     "graph": ("Building the knowledge graph", build_graph, "admin"),
-    "eval_documents": ("Testing document answers", eval_documents, "admin"),
-    "eval_data": ("Testing metric answers", eval_data, "admin"),
-    "eval_graph": ("Testing graph answers", eval_graph, "admin"),
+    "eval_documents": ("Testing document search", eval_documents, "admin"),
+    "eval_data": ("Testing metric questions", eval_data, "admin"),
+    "eval_graph": ("Testing entity and link extraction", eval_graph, "admin"),
 }
 
 
 # ------------------------------------------------------------------ quality
 
 def quality() -> list[dict]:
-    rag_res = _json(OUT_DIR / "8_eval_results.json")
-    sl = sorted(SC.OUT_DIR.glob("sl_6_eval_*.json"), key=lambda p: p.stat().st_mtime)
-    sl_res = _json(sl[-1]) if sl else None
-    gr_res = _json(OUT_DIR / "gr_5_eval_compare.json")
+    rag_res = _json(OUT_DIR / "9_retrieval_eval_app.json")
+    sl_res = _json(SC.OUT_DIR / "sl_7_rule_eval_app.json")
+    gr_res = _json(OUT_DIR / "gr_extract_eval.json")
 
-    def nums(summary, keys=None):
-        if not isinstance(summary, dict):
-            return {}
-        flat = {}
-        for k, v in summary.items():
-            if isinstance(v, (int, float)) and not isinstance(v, bool):
-                flat[k] = v
-            elif isinstance(v, dict) and keys is None:
-                for k2, v2 in v.items():
-                    if isinstance(v2, (int, float)) and not isinstance(v2, bool):
-                        flat[f"{k}.{k2}"] = v2
-        return flat
+    def pick(d, keys):
+        return {k: d[k] for k in keys if isinstance(d, dict) and isinstance(d.get(k), (int, float))}
+    docs = {}
+    if rag_res:
+        best = rag_res["summary"].get("+graph+coverage") or next(iter(rag_res["summary"].values()))
+        docs = pick(best, ("recall@1", "recall@5", "all@5", "mrr", "ndcg@10"))
+    data = pick((sl_res or {}).get("summary", {}), ("execution_accuracy", "refusal_accuracy", "questions"))
+    graph = {}
+    if gr_res:
+        r = next(iter(gr_res.values()))
+        graph = {"entity_f1": r["entities"]["f1"], "typed_entity_f1": r["entities_typed"]["f1"],
+                 "link_recall": r["relations_loose"]["recall"]}
     return [
-        {"id": "eval_documents", "name": "Document answers", "what": "RAGAS: context recall and precision, faithfulness, relevancy",
-         "last_run": iso(_mtime(OUT_DIR / "8_eval_results.json")), "scores": nums((rag_res or {}).get("summary"))},
-        {"id": "eval_data", "name": "Metric answers", "what": "60 gold questions: execution accuracy, refusals, routing, number faithfulness",
-         "last_run": iso(_mtime(sl[-1])) if sl else None, "scores": nums((sl_res or {}).get("summary"))},
-        {"id": "eval_graph", "name": "Graph answers", "what": "Graph vs plain search on connection and overview questions",
-         "last_run": iso(_mtime(OUT_DIR / "gr_5_eval_compare.json")), "scores": nums((gr_res or {}).get("summary"))},
+        {"id": "eval_documents", "name": "Document search", "what": "Gold questions: is the passage with the answer found, and how high?",
+         "last_run": iso(_mtime(OUT_DIR / "9_retrieval_eval_app.json")), "scores": docs},
+        {"id": "eval_data", "name": "Metric questions", "what": "Gold questions turned into metric requests without an AI model: same numbers as the reviewed answer?",
+         "last_run": iso(_mtime(SC.OUT_DIR / "sl_7_rule_eval_app.json")), "scores": data},
+        {"id": "eval_graph", "name": "Entities and links", "what": "Hand-labelled passages: entities and links found by the graph builder",
+         "last_run": iso(_mtime(OUT_DIR / "gr_extract_eval.json")), "scores": graph},
     ]
 
 
-# ------------------------------------------------------------------ answering
+# ------------------------------------------------------------------ answering (evidence, no language model)
 
 def graph_ready() -> bool:
-    return (OUT_DIR / "gr_3_graph.json").exists() and postgres_ok()[0]
+    from graph import search as GS
+    return GS.ready()
+
+
+GUIDANCE = ("Context Layer returns evidence, not a written answer: answer from these passages, facts and numbers, "
+            "cite passage ids, and say so if they do not contain the answer.")
+
+
+def _passage_out(p: dict, question: str) -> dict:
+    from rag.retrieve import highlights
+    return {"id": p["chunk_id"], "source": p["source"], "pages": p.get("pages") or [],
+            "section": " > ".join(p.get("headings") or []), "text": p["text"][:2000],
+            "score": p.get("rerank_score"), "highlights": highlights(question, p["text"]),
+            **({"included_for": p["coverage_for"]} if p.get("coverage_for") else {})}
+
+
+def search(query: str, groups: list[str], top_k: int = 5, files: list[str] | None = None,
+           use_graph: bool = True) -> dict:
+    from rag.retrieve import retrieve
+    ret = retrieve(query, groups, files or None, save=False, top_k=max(1, min(top_k, 10)), use_graph=use_graph)
+    g = ret.get("graph") or {}
+    return {"passages": [_passage_out(p, query) for p in ret["passages"]],
+            "entities": [e["name"] for e in g.get("entities", [])], "timings_s": ret["timings_s"]}
+
+
+def metric_query(request: dict | None = None, question: str | None = None) -> dict:
+    """A structured request (metric and dimension names; the agent fills it in) or a plain question
+    (the rule planner fills it in). The compiler writes the SQL; DuckDB runs it."""
+    from semantic.answer import fix_values, template_answer, today
+    from semantic.compiler import CompileError, compile_query
+    from semantic.dates import resolve
+    from semantic.db import connect
+    from semantic.enrich import load_store
+    from semantic.schema import SemanticQuery
+    from semantic.yamlio import load_metrics, load_model
+    t0 = time.perf_counter()
+    from semantic.rule_planner import planner
+    planner()                                    # builds the catalog on first use
+    model, mets = load_model(), load_metrics()
+    store = load_store()
+    assumptions, how = [], "request"
+    if request:
+        req = dict(request)
+        period = req.pop("period", None)
+        if period and not (req.get("start_date") or req.get("end_date")):
+            hints = resolve(str(period), today())
+            if not hints:
+                raise ValueError(f"Could not read the period '{period}'. Use e.g. 'last quarter', 'FY2025-26', "
+                                 "'2025', 'October 2026', or give start_date and end_date.")
+            req["start_date"], req["end_date"] = hints[0]["start_date"], hints[0]["end_date"]
+            assumptions.append(f"period '{period}' = {req['start_date']} to {req['end_date']}")
+        try:
+            q = SemanticQuery.model_validate(req)
+        except Exception as e:                                       # noqa: BLE001 - shown to the caller
+            raise ValueError(f"Invalid request: {e}") from e
+    else:
+        from semantic.rule_planner import planner
+        p = planner().plan(question or "", today())
+        if not p.answerable:
+            return {"found": False, "answer": None, "not_answerable": p.reason_if_not_answerable,
+                    "metrics": [m.name for m in mets.metrics if m.status == "approved"],
+                    "timings_s": {"total": round(time.perf_counter() - t0, 3)}}
+        q, assumptions, how = p.query, list(p.assumptions), "rule planner"
+    corrections = fix_values(q, {"values": store["values"]}, store["synonyms"])
+    try:
+        compiled = compile_query(q, model, mets)
+    except CompileError as e:
+        raise ValueError(str(e)) from e
+    df = connect().execute(compiled.sql).df()
+    rows = json.loads(df.head(200).to_json(orient="records", date_format="iso"))
+    summary = template_answer(q, rows)
+    return {"found": not df.empty, "answer": summary, "planned_by": how,
+            "request": q.model_dump(mode="json", exclude_defaults=True), "assumptions": assumptions,
+            "value_corrections": corrections, "sql": compiled.sql, "rows": rows, "row_count": len(df),
+            "timings_s": {"total": round(time.perf_counter() - t0, 3)}}
 
 
 def ask(question: str, groups: list[str] | None, capabilities: list[str], mode: str = "auto") -> dict:
-    """Answer as a caller with these groups and capabilities. Returns the route taken, the answer,
-    sources and timings. groups=None means unrestricted (owner tools only)."""
-    from graph import query as GQ
+    """Gather the evidence for a question as a caller with these groups and capabilities.
+    mode: auto | documents | metrics | graph. groups=None means unrestricted (owner tools only)."""
+    from app.router import route as pick_route
+    from graph import search as GS
+    from graph.access import sees_everything, visible
     question = question.strip()
     if not question:
         raise ValueError("Ask a question.")
-    if not llm_ready():
-        raise RuntimeError("Answering needs an AI model: add an Anthropic API key in Settings.")
     caps = set(capabilities)
     t0 = time.perf_counter()
     notes = []
-    chosen = GQ.route(question) if mode == "auto" else mode
+    if mode == "auto":
+        chosen, reason = pick_route(question)
+    else:
+        chosen, reason = {"documents": "documents", "metrics": "data", "graph": "connections",
+                          "overview": "overview"}.get(mode, mode), f"requested: {mode}"
     if chosen == "data" and "data" not in caps:
-        chosen = "vector"
-        notes.append("Looks like a metrics question, but this caller has no access to data; answered from documents.")
-    if chosen in ("local", "global") and ("graph" not in caps or not graph_ready()):
-        notes.append("Knowledge graph not available to this caller; answered from documents.")
-        chosen = "vector"
-    if chosen in ("vector", "local", "global") and "documents" not in caps and "graph" not in caps:
+        chosen, reason = "documents", reason
+        notes.append("Looks like a metrics question, but this caller has no access to data; searched the documents.")
+    if chosen in ("connections", "overview") and ("graph" not in caps or not graph_ready()):
+        notes.append("Knowledge graph not available to this caller; searched the documents.")
+        chosen = "documents"
+    if chosen == "overview" and not sees_everything(groups):
+        notes.append("Overview search covers every document group; this caller does not see all of them, so it "
+                     "searched the passages it can see.")
+        chosen = "documents"
+    if chosen != "data" and "documents" not in caps and "graph" not in caps:
         raise PermissionError("This caller may not read documents.")
-    r = GQ.answer(question, chosen, groups=groups, allow_data="data" in caps)
-    if r.get("note"):
-        notes.append(r["note"])
-    route = {"vector": "documents", "local": "graph", "global": "graph overview", "data": "metrics"}.get(r.get("mode"), r.get("mode"))
-    sources = [{"id": c.get("chunk_id"), "source": c.get("source"), "pages": c.get("pages") or [],
-                "section": " > ".join(c.get("headings") or []), "text": (c.get("text") or "")[:1500],
-                "score": c.get("rerank_score")} for c in r.get("contexts", []) or []]
-    out = {"question": question, "route": route, "answer": r.get("answer"), "found": r.get("found"),
-           "citations": r.get("citations", []), "sources": sources, "notes": notes,
-           "timings_s": {"total": round(time.perf_counter() - t0, 3)} | (r.get("timings_s") or {})}
-    if r.get("mode") == "data":
-        out["data"] = {k: r.get(k) for k in ("request", "sql", "rows", "row_count", "assumptions", "value_corrections",
-                                             "data_warnings") if r.get(k) is not None}
-    if r.get("graph"):
-        out["graph"] = {"entities": [{"name": s.get("name"), "type": s.get("type")} for s in r["graph"].get("seeds", [])],
-                        "relations": r["graph"].get("relations", [])[:25]}
+
+    out = {"question": question, "route": chosen, "route_reason": reason, "answer": None, "passages": [],
+           "notes": notes, "guidance": GUIDANCE}
+    g = groups if groups is not None else sorted(_all_chunk_groups())
+    if chosen == "data":
+        r = metric_query(question=question)
+        out["answer"] = r.get("answer")
+        out["data"] = {k: r.get(k) for k in ("found", "request", "assumptions", "value_corrections", "sql", "rows",
+                                            "row_count", "not_answerable", "metrics", "planned_by") if r.get(k) is not None}
+        if not r.get("found") and r.get("not_answerable") and "documents" in caps:
+            notes.append("No metric matches; the documents were searched as well.")
+            out["passages"] = search(question, g)["passages"]
+    else:
+        use_graph = "graph" in caps and graph_ready()
+        if "documents" in caps:
+            s = search(question, g, 5, use_graph=use_graph)
+            out["passages"] = s["passages"]
+        if chosen == "connections" and use_graph:
+            loc = GS.local(question, groups, visible)
+            out["graph"] = {"entities": loc["entities"], "bridges": loc["bridges"], "relations": loc["relations"][:25]}
+            if "documents" not in caps:            # graph-only key: passages behind the graph facts
+                from rag.retrieve import fetch_chunks, rerank
+                hits = rerank(question, fetch_chunks(loc["passage_ids"][:12], g))
+                out["passages"] = [_passage_out(p, question) for p in hits[:5]]
+        if chosen == "overview" and use_graph:
+            ov = GS.overview(question, groups, visible)
+            out["overview"] = ov["communities"]
+    out["timings_s"] = {"total": round(time.perf_counter() - t0, 3)}
+    out["found"] = bool(out["passages"] or (out.get("data") or {}).get("found"))
     return out
 
 
-def search(query: str, groups: list[str], top_k: int = 5, files: list[str] | None = None) -> list[dict]:
-    from rag.retrieve import retrieve
-    ret = retrieve(query, groups, files or None, save=False)
-    return [{"id": p["chunk_id"], "source": p["source"], "pages": p.get("pages") or [],
-             "section": " > ".join(p.get("headings") or []), "text": p["text"][:2000], "score": p.get("rerank_score")}
-            for p in ret["passages"][:max(1, min(top_k, 10))]]
+def _all_chunk_groups() -> set:
+    from graph.access import all_groups
+    return all_groups() or {"public"}
+
+
+def explore_entity(name: str, groups: list[str] | None) -> dict | None:
+    from graph import search as GS
+    from graph.access import visible
+    if not graph_ready():
+        raise RuntimeError("The knowledge graph has not been built yet.")
+    return GS.entity(name, groups, visible)
+
+
+def describe_data() -> dict:
+    """Everything an agent needs to fill in a metric request itself."""
+    from semantic.enrich import load_store
+    from semantic.rule_planner import planner
+    from semantic.yamlio import load_metrics, load_model, load_verified
+    planner()                                    # builds the catalog on first use
+    model, mets = load_model(), load_metrics()
+    store = load_store()
+    dims = []
+    for e in model.entities:
+        for d in e.dimensions:
+            if d.type == "key":
+                continue
+            ref = f"{e.name}.{d.name}"
+            item = {"name": ref, "label": d.label or d.name, "type": d.type, "description": d.description}
+            if d.type == "time":
+                item["grains"] = ["day", "week", "month", "quarter", "year", "fiscal_quarter", "fiscal_year"]
+                item["use_as"] = f"{ref}__month (etc.)"
+            if ref in store["values"]:
+                item["values"] = store["values"][ref][:60]
+            dims.append(item)
+    try:
+        examples = [{"question": v.question, "request": v.query.model_dump(mode="json", exclude_defaults=True)}
+                    for v in load_verified().queries][:10]
+    except Exception:                                          # noqa: BLE001
+        examples = []
+    return {
+        "metrics": [{"name": m.name, "label": m.label, "description": m.description, "format": m.format,
+                     "entity": m.entity, "time_column": m.time_column} for m in mets.metrics if m.status == "approved"],
+        "dimensions": dims,
+        "synonyms": [{"term": t, "means": v} for t, v in store["synonyms"]][:200],
+        "business_rules": store["instructions"],
+        "examples": examples,
+        "request_format": {"metrics": ["metric name"], "dimensions": ["entity.dimension or entity.time_dim__grain"],
+                           "filters": [{"dimension": "entity.dimension", "op": "= | != | in | not in | > | >= | < | <=",
+                                        "values": ["..."]}],
+                           "period": "optional words: 'last quarter', 'FY2025-26', '2025', 'October 2026'",
+                           "start_date": "YYYY-MM-DD (inclusive)", "end_date": "YYYY-MM-DD (inclusive)",
+                           "order_by": ["metric or dimension, '-' prefix for descending"], "limit": "number"},
+    }
 
 
 def passage(chunk_id: str, groups: list[str]) -> dict | None:
-    from graph.query import visible
+    from graph.access import visible
     if not visible(chunk_id, groups):
         return None
     for c in _json(OUT_DIR / "2_chunks.json", []) or []:

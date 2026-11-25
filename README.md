@@ -1,33 +1,36 @@
 # Context Layer
 
 Governed company knowledge for AI agents. Connect documents and data tables once; give each AI agent
-(Claude, ChatGPT, Cursor, Copilot, your own bots) its own key and one MCP link; every answer comes with
-sources, every number comes from a reviewed definition, and every call is logged.
-Who it is for and what it does: [PRODUCT.md](PRODUCT.md).
+(Claude, ChatGPT, Cursor, Copilot, your own bots) its own key and one MCP link. Context Layer finds the
+evidence - passages with sources, numbers computed from reviewed definitions, knowledge-graph links - and
+the agent writes the answer. **No AI model runs inside Context Layer and no API key is needed**: search,
+re-ranking, entity extraction and metric planning all run locally on CPU.
+Who it is for and what it does: [PRODUCT.md](PRODUCT.md). What changed in 0.2: [CHANGES.md](CHANGES.md).
 
 ## Install (self-hosted, Docker)
 
 ```bash
-cp .env.example .env          # set CL_DB_PASSWORD (long random); ANTHROPIC_API_KEY now or later in Settings
-docker compose up -d          # app + graph database; first start downloads ~3 GB of models on first use
+cp .env.example .env          # set CL_DB_PASSWORD (long random)
+docker compose up -d          # app + graph database; the first run downloads ~5 GB of local models
 ```
 
 Open http://localhost:8080, create the owner account, then follow the checklist on the Overview page:
-connect the AI model, upload and prepare documents, optionally add data tables and build the knowledge
-graph, connect your first agent. Agents connect to `http://<server>:8080/mcp` with their key.
+upload and prepare documents, optionally add data tables (CSV, Excel, JSON, JSON Lines, Parquet) and build
+the knowledge graph, then connect your first agent. Agents connect to `http://<server>:8080/mcp` with their key.
 
 - To serve other machines: put HTTPS in front (Caddy, nginx, your load balancer), set `CL_BIND=0.0.0.0`
   and `CL_PUBLIC_HOSTS=contextlayer.yourcompany.com` in `.env`.
-- Everything stays in the Docker volumes; outbound traffic goes only to the AI provider.
+- Everything stays in the Docker volumes; there is no outbound traffic except model downloads on first use.
 - Backups: the volumes `app_data` (users, agents, audit), `documents`, `tables` and `graph_data`.
 
 ## Run without Docker (development, Windows/macOS/Linux)
 
 ```bash
 python -m venv .venv && .venv/bin/pip install -r requirements.txt     # Windows: .venv\Scripts\...
-docker compose -f docker-compose.graph.yml up -d                      # optional: graph database
 python -m app                                                         # http://127.0.0.1:8080
 ```
+The graph database (Apache AGE) is optional: answering reads the graph build file; AGE keeps a copy for
+Cypher queries (`docker compose -f docker-compose.graph.yml up -d`).
 
 The web app is prebuilt in `web/dist`. To change it: `cd web && npm install && npm run dev` (port 5173,
 forwards the API to 8080), then `npm run build`.
@@ -36,9 +39,16 @@ forwards the API to 8080), then `npm run build`.
 |---|---|
 | Web app (React + TypeScript) | `web/src` (pages in `web/src/pages`) |
 | API, sign-in, roles, agents, audit | `app/main.py`, `app/core.py` (SQLite in `var/`) |
-| MCP server for agents | `app/mcp_server.py` (tools: ask, search_documents, query_metrics, list_metrics, list_documents, fetch_passage) |
-| Engines | `rag/` documents, `semantic/` + `semantic_layer/` metrics, `graph/` knowledge graph |
+| MCP server for agents | `app/mcp_server.py` (tools: ask, search_documents, describe_data, query_metrics, list_metrics, find_connections, explore_entity, list_documents, fetch_passage) |
+| Routing without a model | `app/router.py` |
+| Documents | `rag/` (parse incl. JSON records, chunk, incremental embed, hybrid + graph retrieval, re-rank, coverage) |
+| Metrics | `semantic/` + `semantic_layer/` (`ingest.py` Excel/JSON/CSV, `auto_model.py` draft definitions, `rule_planner.py`) |
+| Knowledge graph | `graph/nlp_extract.py` (GLiNER/spaCy), `graph/build.py`, `graph/search.py`, `graph/access.py` |
+| Benchmarks | `python -m rag.retrieval_eval`, `python -m semantic.rule_eval`, `python -m graph.eval_extraction` |
 | Tests | `python -m pytest tests -q` |
+
+Research tools that call Claude (RAGAS, the LLM planner, LLM graph extraction) are kept for comparison
+only; install `requirements-research.txt` to use them. They are not part of the product or its image.
 
 ---
 

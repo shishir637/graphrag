@@ -8,12 +8,13 @@ export interface Agent {
 export interface Doc { name: string; size: number; modified: string; groups: string[]; passages: number; status: 'ready' | 'new' | 'changed' }
 export interface Job { id: string; kind: string; label: string; status: 'running' | 'done' | 'failed'; started: string; finished: string | null; by: string; error: string | null; log: string[] }
 export interface Event { id: number; time: string; actor_type: 'agent' | 'user'; actor: string; action: string; target: string; detail: Record<string, unknown>; ok: boolean; seconds: number | null }
-export interface Source { id: string; source: string; pages: number[]; section: string; text: string; score?: number | null }
+export interface Source { id: string; source: string; pages: number[]; section: string; text: string; score?: number | null; highlights?: string[]; included_for?: string }
 export interface Answer {
-  question: string; route: string; answer: string | null; found: boolean | null; citations: string[]; sources: Source[]
-  notes: string[]; timings_s: Record<string, number>; asked?: string
-  data?: { request?: unknown; sql?: string; rows?: Record<string, unknown>[]; row_count?: number; assumptions?: string[]; data_warnings?: string[] }
-  graph?: { entities: { name: string; type: string }[]; relations: { source: string; type: string; target: string; hop: number }[] }
+  question: string; route: string; route_reason?: string; answer: string | null; found: boolean | null; passages: Source[]
+  notes: string[]; timings_s: Record<string, number>; asked?: string; guidance?: string
+  data?: { request?: unknown; sql?: string; rows?: Record<string, unknown>[]; row_count?: number; assumptions?: string[]; value_corrections?: string[]; not_answerable?: string; metrics?: string[]; planned_by?: string }
+  graph?: { entities: { name: string; type: string; how?: string }[]; bridges?: { name: string; type: string }[]; relations: { source: string; type: string; target: string; evidence?: string; passages?: string[] }[] }
+  overview?: { community: number; title: string; size: number; main_entities: { name: string; type: string; links: number }[]; key_links: { source: string; type: string; target: string; evidence: string }[]; passage_ids: string[] }[]
 }
 
 export class ApiError extends Error {

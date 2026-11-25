@@ -1,4 +1,4 @@
-"""Answering with the knowledge graph.
+"""Answering with the knowledge graph using Claude (research CLI only: `rag.py gr-ask`; the product uses graph/search.py).
 
   route   : the small model classifies the question -> vector RAG (single fact), local graph search
             (connections / multi-hop), global search (big-picture), or the semantic layer (sales numbers)
@@ -69,34 +69,8 @@ def link_entities(question: str, qv) -> list[dict]:
 
 
 # ---------- local search ----------
-# ---------- access groups ----------
-_ACCESS = {"mtime": None, "map": {}, "groups": set()}
-
-
-def chunk_access() -> dict:
-    """chunk_id -> access groups, from the document pipeline's chunks file (reloaded when it changes)."""
-    from rag.config import OUT_DIR as RAG_OUT
-    p = RAG_OUT / "2_chunks.json"
-    if not p.exists():
-        return {}
-    m = p.stat().st_mtime
-    if _ACCESS["mtime"] != m:
-        chunks = json.loads(p.read_text(encoding="utf-8"))
-        _ACCESS.update(mtime=m, map={c["chunk_id"]: c.get("access", ["public"]) for c in chunks},
-                       groups={g for c in chunks for g in c.get("access", ["public"])})
-    return _ACCESS["map"]
-
-
-def visible(chunk_id: str, groups: list[str] | None) -> bool:
-    """None = no restriction (CLI / owner). Unknown chunks are hidden from restricted callers."""
-    if groups is None:
-        return True
-    return bool(set(chunk_access().get(chunk_id, [])) & set(groups))
-
-
-def sees_everything(groups: list[str] | None) -> bool:
-    chunk_access()
-    return groups is None or _ACCESS["groups"] <= set(groups)
+# ---------- access groups (moved to graph/access.py) ----------
+from .access import _ACCESS, chunk_access, sees_everything, visible  # noqa: E402,F401
 
 
 def _chunks(ids: list[str]) -> dict:

@@ -7,8 +7,9 @@ OUT_DIR = ROOT / "outputs"             # every step writes one file here
 QDRANT_PATH = ROOT / "qdrant_data"     # local, embedded Qdrant (no server needed)
 
 # Files handled by Docling (layout-aware) vs. the plain-text splitter
-DOCLING_EXTS = {".pdf", ".docx", ".pptx", ".xlsx", ".html", ".htm", ".md", ".png", ".jpg", ".jpeg", ".tiff"}
+DOCLING_EXTS = {".pdf", ".docx", ".pptx", ".xlsx", ".csv", ".html", ".htm", ".md", ".png", ".jpg", ".jpeg", ".tiff"}
 PLAINTEXT_EXTS = {".txt"}
+RECORD_EXTS = {".json", ".jsonl", ".ndjson"}          # records rendered as "field: value" text, one block per record
 
 # Embedding (dense) — BGE-M3, MIT licence, 1024-dim, 8K input
 EMBED_MODEL = "BAAI/bge-m3"
@@ -18,8 +19,10 @@ CHUNK_MAX_TOKENS = 512                 # sized with BGE-M3's own tokenizer
 # Keyword search (sparse BM25, IDF computed by Qdrant)
 SPARSE_MODEL = "Qdrant/bm25"
 
-# Re-ranker
-RERANK_MODEL = "BAAI/bge-reranker-v2-m3"
+# Re-ranker (cross-encoder). CL_RERANKER overrides; "none" turns re-ranking off.
+import os  # noqa: E402
+RERANK_MODEL = os.environ.get("CL_RERANKER", "BAAI/bge-reranker-v2-m3-int8")
+RERANK_MAX_CHARS = 1500                # longer passages are cut for the re-ranker only (speed; the agent gets the full text)
 
 # Retrieval sizes
 COLLECTION = "docs"

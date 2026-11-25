@@ -1,0 +1,20 @@
+{"customer_id": "CU001", "name": "Northbay Utilities", "tier": "Enterprise", "region": "West", "industry": "Manufacturing", "customer_since": "2021-03-02"}
+{"customer_id": "CU002", "name": "Cedar Valley Co-op", "tier": "Starter", "region": "East", "industry": "Real Estate", "customer_since": "2021-05-01"}
+{"customer_id": "CU003", "name": "Harbor Steelworks", "tier": "Enterprise", "region": "West", "industry": "Municipal", "customer_since": "2021-06-30"}
+{"customer_id": "CU004", "name": "Pinecrest Estates", "tier": "Growth", "region": "North", "industry": "Utility", "customer_since": "2021-08-29"}
+{"customer_id": "CU005", "name": "Riverbend Municipal", "tier": "Starter", "region": "South", "industry": "Manufacturing", "customer_since": "2021-10-28"}
+{"customer_id": "CU006", "name": "Summit Foods", "tier": "Enterprise", "region": "East", "industry": "Real Estate", "customer_since": "2021-12-27"}
+{"customer_id": "CU007", "name": "Oakfield Textiles", "tier": "Growth", "region": "West", "industry": "Municipal", "customer_since": "2022-02-25"}
+{"customer_id": "CU008", "name": "Bluewater Port Authority", "tier": "Starter", "region": "North", "industry": "Utility", "customer_since": "2022-04-26"}
+{"customer_id": "CU009", "name": "Granite Ridge Mining", "tier": "Enterprise", "region": "South", "industry": "Manufacturing", "customer_since": "2022-06-25"}
+{"customer_id": "CU010", "name": "Meadowlark Homes", "tier": "Growth", "region": "East", "industry": "Real Estate", "customer_since": "2022-08-24"}
+{"customer_id": "CU011", "name": "Ironwood Plastics", "tier": "Starter", "region": "West", "industry": "Municipal", "customer_since": "2022-10-23"}
+{"customer_id": "CU012", "name": "Silverlake Water Board", "tier": "Enterprise", "region": "North", "industry": "Utility", "customer_since": "2022-12-22"}
+{"customer_id": "CU013", "name": "Copperline Rail", "tier": "Growth", "region": "South", "industry": "Manufacturing", "customer_since": "2023-02-20"}
+{"customer_id": "CU014", "name": "Brightwell Hospitals", "tier": "Starter", "region": "East", "industry": "Real Estate", "customer_since": "2023-04-21"}
+{"customer_id": "CU015", "name": "Stonegate Malls", "tier": "Enterprise", "region": "West", "industry": "Municipal", "customer_since": "2023-06-20"}
+{"customer_id": "CU016", "name": "Westwind Logistics", "tier": "Growth", "region": "North", "industry": "Utility", "customer_since": "2023-08-19"}
+{"customer_id": "CU017", "name": "Lakeshore Cold Storage", "tier": "Starter", "region": "South", "industry": "Manufacturing", "customer_since": "2023-10-18"}
+{"customer_id": "CU018", "name": "Redcliff Cement", "tier": "Enterprise", "region": "East", "industry": "Real Estate", "customer_since": "2023-12-17"}
+{"customer_id": "CU019", "name": "Elmstead Schools", "tier": "Growth", "region": "West", "industry": "Municipal", "customer_since": "2024-02-15"}
+{"customer_id": "CU020", "name": "Foxglove Pharma", "tier": "Starter", "region": "North", "industry": "Utility", "customer_since": "2024-04-15"}

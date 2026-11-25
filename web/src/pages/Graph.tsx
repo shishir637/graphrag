@@ -66,7 +66,7 @@ export default function Graph({ s }: { s: Session }) {
     </PageHead>
     <JobPanel job={job.job} />
     {!ov ? <div className="card"><Empty icon="graph" title="The knowledge graph is not built yet" action={admin && <button className="btn primary" disabled={job.running} onClick={() => job.start('graph')}>Build the graph</button>}>
-      Claude reads every passage and lists the entities and relationships in it; duplicates are merged and related entities grouped. Needs prepared documents, an AI model and the graph database.</Empty></div> : <>
+      Local models (GLiNER and spaCy) find the people, places, organisations and things in every passage and link those named together, with the sentence as evidence. Duplicates are merged and related entities grouped into communities. Needs prepared documents; no AI model or API key.</Empty></div> : <>
       <div className="stats">
         <div className="card stat"><div className="k">Entities</div><div className="v">{ov.entities.toLocaleString()}</div><div className="s">{Object.keys(ov.entities_by_type || {}).length} types</div></div>
         <div className="card stat"><div className="k">Relationships</div><div className="v">{ov.relations.toLocaleString()}</div><div className="s">{Object.keys(ov.relations_by_type || {}).length} kinds</div></div>

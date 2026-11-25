@@ -1,0 +1,259 @@
+# Approved metric definitions (source of truth). Every business number is defined once, here.
+# Formulas are SQL over entity.column; `filters` are always applied to that metric's aggregates.
+# Changes go through a pull request; CI checks that every formula parses and that
+# net_revenue and order_count still match the finance report (reference/finance_monthly_report.csv).
+version: 1
+metrics:
+  - name: gross_revenue
+    label: Gross revenue
+    description: Value of all orders that were not cancelled, before refunds, in INR.
+    type: simple
+    entity: orders
+    expression: sum(orders.amount)
+    filters: [orders.status != 'cancelled']
+    time_column: orders.order_date
+    format: currency
+    owner: finance
+    status: approved
+
+  - name: refunds
+    label: Refunds
+    description: Money given back to customers for returned orders, in INR.
+    type: simple
+    entity: orders
+    expression: sum(orders.refund_amount)
+    filters: [orders.status != 'cancelled']
+    time_column: orders.order_date
+    format: currency
+    owner: finance
+    status: approved
+
+  - name: net_revenue
+    label: Net revenue
+    description: Gross revenue minus refunds, excluding cancelled orders, in INR. The company's headline 
+      revenue number.
+    type: simple
+    entity: orders
+    expression: sum(orders.amount) - sum(orders.refund_amount)
+    filters: [orders.status != 'cancelled']
+    time_column: orders.order_date
+    format: currency
+    owner: finance
+    status: approved
+
+  - name: cumulative_net_revenue
+    label: Cumulative net revenue
+    description: Running total of net revenue over time; needs a time dimension on the order date.
+    type: cumulative
+    entity: orders
+    expression: sum(orders.amount) - sum(orders.refund_amount)
+    filters: [orders.status != 'cancelled']
+    time_column: orders.order_date
+    format: currency
+    owner: finance
+    status: approved
+
+  - name: order_count
+    label: Orders
+    description: Number of orders placed, excluding cancelled orders (returned orders still count).
+    type: simple
+    entity: orders
+    expression: count(DISTINCT orders.order_id)
+    filters: [orders.status != 'cancelled']
+    time_column: orders.order_date
+    format: number
+    owner: finance
+    status: approved
+
+  - name: returned_orders
+    label: Returned orders
+    description: Number of orders that were returned.
+    type: simple
+    entity: orders
+    expression: count(DISTINCT orders.order_id)
+    filters: [orders.status = 'returned']
+    time_column: orders.order_date
+    format: number
+    owner: operations
+    status: approved
+
+  - name: return_rate
+    label: Return rate
+    description: Share of non-cancelled orders that were returned.
+    type: ratio
+    entity: orders
+    numerator: returned_orders
+    denominator: order_count
+    format: percent
+    owner: operations
+    status: approved
+
+  - name: average_order_value
+    label: Average order value
+    description: Net revenue per non-cancelled order, in INR (AOV).
+    type: ratio
+    entity: orders
+    numerator: net_revenue
+    denominator: order_count
+    format: currency
+    owner: finance
+    status: approved
+
+  - name: active_customers
+    label: Active customers
+    description: Number of distinct customers with at least one non-cancelled order in the period.
+    type: simple
+    entity: orders
+    expression: count(DISTINCT orders.customer_id)
+    filters: [orders.status != 'cancelled']
+    time_column: orders.order_date
+    format: number
+    owner: growth
+    status: approved
+
+  - name: revenue_per_customer
+    label: Revenue per active customer
+    description: Net revenue divided by active customers in the period, in INR.
+    type: derived
+    entity: orders
+    expression: '{net_revenue} / NULLIF({active_customers}, 0)'
+    time_column: orders.order_date
+    format: currency
+    owner: growth
+    status: approved
+
+  - name: units_sold
+    label: Units sold
+    description: Number of product units on non-cancelled orders.
+    type: simple
+    entity: order_items
+    expression: sum(order_items.quantity)
+    filters: [orders.status != 'cancelled']
+    time_column: orders.order_date
+    format: number
+    owner: operations
+    status: approved
+
+  - name: product_revenue
+    label: Product revenue
+    description: >-
+      Line value (quantity x unit price x (1 - discount)) on non-cancelled orders, in INR, before refunds.
+      Use this, not gross_revenue, to split revenue by product or category.
+    type: simple
+    entity: order_items
+    expression: sum(order_items.quantity * order_items.unit_price * (1 - order_items.discount))
+    filters: [orders.status != 'cancelled']
+    time_column: orders.order_date
+    format: currency
+    owner: finance
+    status: approved
+
+  - name: new_customers
+    label: New customers
+    description: Number of customers who signed up in the period.
+    type: simple
+    entity: customers
+    expression: count(DISTINCT customers.customer_id)
+    time_column: customers.signup_date
+    format: number
+    owner: growth
+    status: approved
+  - name: lumora_customers_count
+    label: Number of customers
+    description: Count of distinct customer_id in lumora_customers.
+    type: simple
+    entity: lumora_customers
+    expression: count(DISTINCT lumora_customers.customer_id)
+    format: number
+    owner: test-reviewer
+    status: approved
+    time_column: lumora_customers.customer_since
+  - name: lumora_employees__departments_count
+    label: Number of departments
+    description: Count of distinct department_id in lumora_employees__departments.
+    type: simple
+    entity: lumora_employees__departments
+    expression: count(DISTINCT lumora_employees__departments.department_id)
+    format: number
+    owner: test-reviewer
+    status: approved
+  - name: lumora_employees__employees_count
+    label: Number of employees
+    description: Count of distinct employee_id in lumora_employees__employees.
+    type: simple
+    entity: lumora_employees__employees
+    expression: count(DISTINCT lumora_employees__employees.employee_id)
+    format: number
+    owner: test-reviewer
+    status: approved
+    time_column: lumora_employees__employees.hire_date
+  - name: lumora_invoices_count
+    label: Number of invoices
+    description: Count of distinct invoice_id in lumora_invoices.
+    type: simple
+    entity: lumora_invoices
+    expression: count(DISTINCT lumora_invoices.invoice_id)
+    format: number
+    owner: test-reviewer
+    status: approved
+    time_column: lumora_invoices.issued_date
+  - name: total_lumora_invoice_amount
+    label: Total invoice amount
+    description: Sum of lumora_invoices.amount.
+    type: simple
+    entity: lumora_invoices
+    expression: sum(lumora_invoices.amount)
+    format: currency
+    owner: test-reviewer
+    status: approved
+    time_column: lumora_invoices.issued_date
+  - name: average_lumora_invoice_amount
+    label: Average invoice amount
+    description: Average of lumora_invoices.amount per row.
+    type: simple
+    entity: lumora_invoices
+    expression: avg(lumora_invoices.amount)
+    format: currency
+    owner: test-reviewer
+    status: approved
+    time_column: lumora_invoices.issued_date
+  - name: lumora_tickets_count
+    label: Number of tickets
+    description: Count of distinct ticket_id in lumora_tickets.
+    type: simple
+    entity: lumora_tickets
+    expression: count(DISTINCT lumora_tickets.ticket_id)
+    format: number
+    owner: test-reviewer
+    status: approved
+    time_column: lumora_tickets.opened_at
+  - name: total_lumora_ticket_resolution_hours
+    label: Total ticket resolution hours
+    description: Sum of lumora_tickets.resolution_hours.
+    type: simple
+    entity: lumora_tickets
+    expression: sum(lumora_tickets.resolution_hours)
+    format: number
+    owner: test-reviewer
+    status: approved
+    time_column: lumora_tickets.opened_at
+  - name: average_lumora_ticket_resolution_hours
+    label: Average ticket resolution hours
+    description: Average of lumora_tickets.resolution_hours per row.
+    type: simple
+    entity: lumora_tickets
+    expression: avg(lumora_tickets.resolution_hours)
+    format: number
+    owner: test-reviewer
+    status: approved
+    time_column: lumora_tickets.opened_at
+  - name: average_lumora_ticket_csat
+    label: Average ticket csat
+    description: Average of lumora_tickets.csat per row.
+    type: simple
+    entity: lumora_tickets
+    expression: avg(lumora_tickets.csat)
+    format: number
+    owner: test-reviewer
+    status: approved
+    time_column: lumora_tickets.opened_at

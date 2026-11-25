@@ -92,7 +92,7 @@ def resolve(question: str, today: date) -> list[dict]:
     if re.search(r"\b(last|previous)\s+year\b", q):
         add("last year", date(today.year - 1, 1, 1), date(today.year - 1, 12, 31))
     if not hits:                                             # a bare calendar year: "in 2025", "for 2026"
-        years = re.findall(r"\b(?:in|for|during|of)\s+(20\d{2})\b", q)
+        years = re.findall(r"\b(?:in|for|during|of|calendar\s+year|year)\s+(20\d{2})\b", q)
         if len(years) == 1:
             y = int(years[0])
             add(f"in {y}", date(y, 1, 1), date(y, 12, 31))

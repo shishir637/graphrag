@@ -5,35 +5,33 @@ import { Badge, ErrorBox, Loading, PageHead, useLoad, useToast } from '../ui'
 
 interface S {
   organisation: string; version: string
-  llm: { provider: string; api_key: string | null; workspace_id: string | null; models: Record<string, string> }
+  ai_model: { inside: boolean; note: string }; mcp: { url: string; transport: string; auth: string }
+  models: Record<string, string>; graph_mode: string
   storage: { data_folder: string; graph_database: string; graph_database_ok: boolean; graph_database_message: string; disk: { free_gb: number; total_gb: number } }
 }
 
 export default function Settings({ s }: { s: Session }) {
   const { data, error, reload } = useLoad<S>('/settings')
-  const [key, setKey] = useState(''); const [ws, setWs] = useState(''); const [org, setOrg] = useState<string | null>(null)
+  const [org, setOrg] = useState<string | null>(null)
   const [pw, setPw] = useState({ current: '', new: '' }); const toast = useToast(); const owner = can(s.user, 'owner')
   if (error) return <div className="page"><ErrorBox error={error} retry={reload} /></div>
   if (!data) return <div className="page"><Loading /></div>
-  const saveLlm = async (remove = false) => {
-    try { await api('/settings/llm', { method: 'PUT', json: remove ? { anthropic_api_key: '' } : { anthropic_api_key: key || undefined, anthropic_workspace_id: ws || undefined } })
-      setKey(''); setWs(''); reload(); toast(remove ? 'Key removed' : 'Saved') } catch (e: any) { toast(e.message, true) }
+  const setMode = async (mode: string) => {
+    try { await api('/settings/graph', { method: 'PUT', json: { mode } }); reload(); toast('Saved: rebuild the graph to apply') } catch (e: any) { toast(e.message, true) }
   }
   return <div className="page">
     <PageHead title="Settings" sub={`Context Layer ${data.version}`} />
-    <div className="card"><div className="hd"><div><h2>AI model</h2><div className="muted small">{data.llm.provider}. Used for routing questions, writing answers and building the knowledge graph.</div></div>
-      {data.llm.api_key ? <Badge kind="ok" dot>connected</Badge> : <Badge kind="warn" dot>not set</Badge>}</div>
-      <div className="bd stack">
-        {data.llm.api_key ? <div className="between"><span>API key <code>{data.llm.api_key}</code>{data.llm.workspace_id && <> · workspace <code>{data.llm.workspace_id}</code></>}</span>
-          {owner && <button className="btn sm danger" onClick={() => saveLlm(true)}>Remove</button>}</div>
-          : <div className="callout warn">Without an AI model, agents can't get answers. Add an Anthropic API key (from console.anthropic.com).</div>}
-        {owner && <div className="row" style={{ alignItems: 'flex-end' }}>
-          <label className="f" style={{ flex: '1 1 320px' }}>{data.llm.api_key ? 'Replace key' : 'Anthropic API key'}<input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="sk-ant-…" autoComplete="off" /></label>
-          <label className="f" style={{ flex: '0 1 240px' }}>Workspace id (only for user keys)<input type="text" value={ws} onChange={(e) => setWs(e.target.value)} placeholder="optional" /></label>
-          <button className="btn primary" disabled={!key && !ws} onClick={() => saveLlm()}>Save</button></div>}
-        <div className="small muted">The key is stored on this server only ({data.storage.data_folder}/secrets.json, readable by the server account). An <code>ANTHROPIC_API_KEY</code> environment variable takes precedence.</div>
-        <div className="sep" /><b className="small">Models</b>
-        {Object.entries(data.llm.models).map(([k, v]) => <div key={k} className="between small"><span className="muted">{k}</span><code>{v}</code></div>)}
+    <div className="card"><div className="hd"><div><h2>How agents connect</h2><div className="muted small">{data.ai_model.note}</div></div>
+      <Badge kind="ok" dot>no AI model needed</Badge></div>
+      <div className="bd stack small">
+        <div className="between"><span className="muted">MCP link</span><code>{data.mcp.url}</code></div>
+        <div className="between"><span className="muted">Transport</span><span>{data.mcp.transport}</span></div>
+        <div className="between"><span className="muted">Sign-in</span><code>{data.mcp.auth}</code></div>
+        <div className="muted">Create a key per agent under <a href="/agents">Agents</a>; each key decides which documents and tools the agent can use.</div>
+        <div className="sep" /><b>Models (all run on this server)</b>
+        {Object.entries(data.models).map(([k, v]) => <div key={k} className="between"><span className="muted">{k}</span><code>{v}</code></div>)}
+        <div className="sep" /><div className="between" style={{ alignItems: 'center' }}><span><b>Knowledge graph quality</b><div className="muted">Accurate: GLiNER + spaCy (about 1-2 s per passage on a laptop CPU). Fast: spaCy only (about 0.05 s per passage).</div></span>
+          <div className="seg" role="group" aria-label="Graph mode">{['accurate', 'fast'].map((m) => <button key={m} type="button" disabled={!owner} className={data.graph_mode === m ? 'on' : ''} onClick={() => setMode(m)}>{m}</button>)}</div></div>
       </div></div>
     <div className="grid g2" style={{ marginTop: 16 }}>
       <div className="card"><div className="hd"><h2>Organisation</h2></div><div className="bd stack">

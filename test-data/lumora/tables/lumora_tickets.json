@@ -1,0 +1,6005 @@
+{
+ "exported": "2026-11-20",
+ "tickets": [
+  {
+   "ticket_id": "T0001",
+   "opened_at": "2025-11-29",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU016",
+    "name": "Westwind Logistics",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1054",
+   "resolution_hours": 4,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0002",
+   "opened_at": "2026-09-03",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU009",
+    "name": "Granite Ridge Mining",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1096",
+   "resolution_hours": 48,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0003",
+   "opened_at": "2025-09-05",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0004",
+   "opened_at": "2026-10-24",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU016",
+    "name": "Westwind Logistics",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1015",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0005",
+   "opened_at": "2026-02-19",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU008",
+    "name": "Bluewater Port Authority",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0006",
+   "opened_at": "2026-07-21",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU016",
+    "name": "Westwind Logistics",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1102",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0007",
+   "opened_at": "2026-04-10",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1021",
+   "resolution_hours": 8,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0008",
+   "opened_at": "2025-11-20",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU007",
+    "name": "Oakfield Textiles",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1094",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0009",
+   "opened_at": "2026-06-22",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU019",
+    "name": "Elmstead Schools",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1063",
+   "resolution_hours": 24,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0010",
+   "opened_at": "2025-07-03",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 8,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0011",
+   "opened_at": "2025-02-25",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU002",
+    "name": "Cedar Valley Co-op",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0012",
+   "opened_at": "2025-01-13",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0013",
+   "opened_at": "2025-02-22",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 8,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0014",
+   "opened_at": "2026-08-14",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0015",
+   "opened_at": "2025-09-12",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1107",
+   "resolution_hours": 2,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0016",
+   "opened_at": "2026-01-25",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU017",
+    "name": "Lakeshore Cold Storage",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1075",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0017",
+   "opened_at": "2026-09-28",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU019",
+    "name": "Elmstead Schools",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1048",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0018",
+   "opened_at": "2025-06-10",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1028",
+   "resolution_hours": 4,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0019",
+   "opened_at": "2026-04-07",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0020",
+   "opened_at": "2026-04-10",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU010",
+    "name": "Meadowlark Homes",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 2,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0021",
+   "opened_at": "2026-03-12",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU007",
+    "name": "Oakfield Textiles",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1054",
+   "resolution_hours": 2,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0022",
+   "opened_at": "2025-03-03",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 4,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0023",
+   "opened_at": "2025-05-08",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1054",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0024",
+   "opened_at": "2026-05-21",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1075",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0025",
+   "opened_at": "2026-09-11",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1116",
+   "resolution_hours": 8,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0026",
+   "opened_at": "2025-01-22",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU019",
+    "name": "Elmstead Schools",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1028",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0027",
+   "opened_at": "2026-10-30",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU017",
+    "name": "Lakeshore Cold Storage",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1075",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0028",
+   "opened_at": "2025-04-04",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU016",
+    "name": "Westwind Logistics",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1066",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0029",
+   "opened_at": "2025-06-14",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1063",
+   "resolution_hours": 8,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0030",
+   "opened_at": "2026-07-18",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU013",
+    "name": "Copperline Rail",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1054",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0031",
+   "opened_at": "2026-02-18",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0032",
+   "opened_at": "2025-07-12",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU002",
+    "name": "Cedar Valley Co-op",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0033",
+   "opened_at": "2025-07-28",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU002",
+    "name": "Cedar Valley Co-op",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1117",
+   "resolution_hours": 8,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0034",
+   "opened_at": "2025-01-30",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1063",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0035",
+   "opened_at": "2026-07-20",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU001",
+    "name": "Northbay Utilities",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 12,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0036",
+   "opened_at": "2026-05-26",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1054",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0037",
+   "opened_at": "2026-04-29",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU016",
+    "name": "Westwind Logistics",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 4,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0038",
+   "opened_at": "2026-06-05",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU020",
+    "name": "Foxglove Pharma",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1075",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0039",
+   "opened_at": "2025-10-01",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU017",
+    "name": "Lakeshore Cold Storage",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1063",
+   "resolution_hours": 72,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0040",
+   "opened_at": "2026-11-07",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU019",
+    "name": "Elmstead Schools",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1094",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0041",
+   "opened_at": "2026-07-20",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1048",
+   "resolution_hours": 72,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0042",
+   "opened_at": "2026-08-09",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU008",
+    "name": "Bluewater Port Authority",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1066",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0043",
+   "opened_at": "2026-01-26",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU016",
+    "name": "Westwind Logistics",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0044",
+   "opened_at": "2025-12-06",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU019",
+    "name": "Elmstead Schools",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1096",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0045",
+   "opened_at": "2025-05-28",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU001",
+    "name": "Northbay Utilities",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1054",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0046",
+   "opened_at": "2026-02-12",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU020",
+    "name": "Foxglove Pharma",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1102",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0047",
+   "opened_at": "2026-10-04",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1107",
+   "resolution_hours": 48,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0048",
+   "opened_at": "2026-10-09",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU008",
+    "name": "Bluewater Port Authority",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1015",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0049",
+   "opened_at": "2026-10-11",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1117",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0050",
+   "opened_at": "2025-02-17",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU001",
+    "name": "Northbay Utilities",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 8,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0051",
+   "opened_at": "2025-09-08",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1028",
+   "resolution_hours": 24,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0052",
+   "opened_at": "2025-03-22",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0053",
+   "opened_at": "2025-05-27",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU019",
+    "name": "Elmstead Schools",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 4,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0054",
+   "opened_at": "2026-04-22",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU001",
+    "name": "Northbay Utilities",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 8,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0055",
+   "opened_at": "2026-10-17",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU010",
+    "name": "Meadowlark Homes",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1048",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0056",
+   "opened_at": "2025-04-20",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU016",
+    "name": "Westwind Logistics",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 4,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0057",
+   "opened_at": "2025-01-23",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU010",
+    "name": "Meadowlark Homes",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 72,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0058",
+   "opened_at": "2026-09-13",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU002",
+    "name": "Cedar Valley Co-op",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1107",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0059",
+   "opened_at": "2026-10-14",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU008",
+    "name": "Bluewater Port Authority",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1116",
+   "resolution_hours": 4,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0060",
+   "opened_at": "2026-10-06",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1014",
+   "resolution_hours": 2,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0061",
+   "opened_at": "2025-05-15",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1075",
+   "resolution_hours": 2,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0062",
+   "opened_at": "2025-05-16",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU007",
+    "name": "Oakfield Textiles",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1054",
+   "resolution_hours": 72,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0063",
+   "opened_at": "2026-05-09",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU009",
+    "name": "Granite Ridge Mining",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1021",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0064",
+   "opened_at": "2025-05-25",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1116",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0065",
+   "opened_at": "2026-01-10",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1102",
+   "resolution_hours": 2,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0066",
+   "opened_at": "2026-01-13",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0067",
+   "opened_at": "2025-08-28",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1066",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0068",
+   "opened_at": "2026-10-26",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU008",
+    "name": "Bluewater Port Authority",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0069",
+   "opened_at": "2025-05-24",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1021",
+   "resolution_hours": 2,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0070",
+   "opened_at": "2026-07-05",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU008",
+    "name": "Bluewater Port Authority",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1116",
+   "resolution_hours": 4,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0071",
+   "opened_at": "2026-03-06",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1021",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0072",
+   "opened_at": "2026-02-22",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU020",
+    "name": "Foxglove Pharma",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1048",
+   "resolution_hours": 8,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0073",
+   "opened_at": "2025-08-30",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 72,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0074",
+   "opened_at": "2025-03-04",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 12,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0075",
+   "opened_at": "2026-10-20",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU007",
+    "name": "Oakfield Textiles",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 48,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0076",
+   "opened_at": "2025-07-30",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU019",
+    "name": "Elmstead Schools",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0077",
+   "opened_at": "2026-09-03",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1102",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0078",
+   "opened_at": "2025-04-23",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 48,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0079",
+   "opened_at": "2025-11-28",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU019",
+    "name": "Elmstead Schools",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 2,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0080",
+   "opened_at": "2026-06-23",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 2,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0081",
+   "opened_at": "2025-04-22",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU019",
+    "name": "Elmstead Schools",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1116",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0082",
+   "opened_at": "2026-04-15",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU010",
+    "name": "Meadowlark Homes",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0083",
+   "opened_at": "2026-05-18",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1066",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0084",
+   "opened_at": "2025-03-09",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 4,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0085",
+   "opened_at": "2026-01-26",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1107",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0086",
+   "opened_at": "2025-04-28",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0087",
+   "opened_at": "2026-04-10",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1066",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0088",
+   "opened_at": "2026-11-13",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1094",
+   "resolution_hours": 8,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0089",
+   "opened_at": "2025-03-29",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 2,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0090",
+   "opened_at": "2025-03-03",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1075",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0091",
+   "opened_at": "2025-02-22",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 8,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0092",
+   "opened_at": "2025-06-08",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU007",
+    "name": "Oakfield Textiles",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0093",
+   "opened_at": "2025-04-28",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1075",
+   "resolution_hours": 72,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0094",
+   "opened_at": "2026-09-21",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU020",
+    "name": "Foxglove Pharma",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1117",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0095",
+   "opened_at": "2025-07-04",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU001",
+    "name": "Northbay Utilities",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1003",
+   "resolution_hours": 8,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0096",
+   "opened_at": "2026-08-03",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 48,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0097",
+   "opened_at": "2026-06-28",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1066",
+   "resolution_hours": 4,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0098",
+   "opened_at": "2025-11-16",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1015",
+   "resolution_hours": 48,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0099",
+   "opened_at": "2025-06-11",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1054",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0100",
+   "opened_at": "2026-05-13",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1048",
+   "resolution_hours": 24,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0101",
+   "opened_at": "2025-12-20",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1116",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0102",
+   "opened_at": "2026-06-24",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU016",
+    "name": "Westwind Logistics",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0103",
+   "opened_at": "2025-01-08",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU002",
+    "name": "Cedar Valley Co-op",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1054",
+   "resolution_hours": 4,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0104",
+   "opened_at": "2025-05-03",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1028",
+   "resolution_hours": 2,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0105",
+   "opened_at": "2026-06-30",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU013",
+    "name": "Copperline Rail",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1116",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0106",
+   "opened_at": "2026-02-11",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 72,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0107",
+   "opened_at": "2026-08-13",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1075",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0108",
+   "opened_at": "2026-02-19",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 2,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0109",
+   "opened_at": "2025-04-01",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0110",
+   "opened_at": "2025-03-22",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU017",
+    "name": "Lakeshore Cold Storage",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0111",
+   "opened_at": "2025-03-20",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1048",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0112",
+   "opened_at": "2026-10-23",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0113",
+   "opened_at": "2025-06-27",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU007",
+    "name": "Oakfield Textiles",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1028",
+   "resolution_hours": 24,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0114",
+   "opened_at": "2026-04-21",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU016",
+    "name": "Westwind Logistics",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 72,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0115",
+   "opened_at": "2025-11-27",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU020",
+    "name": "Foxglove Pharma",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1015",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0116",
+   "opened_at": "2026-10-09",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 8,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0117",
+   "opened_at": "2025-11-14",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0118",
+   "opened_at": "2026-10-23",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1096",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0119",
+   "opened_at": "2026-08-18",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 24,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0120",
+   "opened_at": "2026-09-12",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1021",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0121",
+   "opened_at": "2026-06-01",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1117",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0122",
+   "opened_at": "2026-06-21",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1063",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0123",
+   "opened_at": "2025-12-13",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1066",
+   "resolution_hours": 48,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0124",
+   "opened_at": "2025-04-07",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1116",
+   "resolution_hours": 24,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0125",
+   "opened_at": "2025-12-08",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 2,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0126",
+   "opened_at": "2025-05-13",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU013",
+    "name": "Copperline Rail",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 24,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0127",
+   "opened_at": "2025-05-11",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1075",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0128",
+   "opened_at": "2025-01-19",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1066",
+   "resolution_hours": 8,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0129",
+   "opened_at": "2025-08-20",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU007",
+    "name": "Oakfield Textiles",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1021",
+   "resolution_hours": 4,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0130",
+   "opened_at": "2026-06-24",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1107",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0131",
+   "opened_at": "2025-06-16",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1014",
+   "resolution_hours": 4,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0132",
+   "opened_at": "2025-09-01",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0133",
+   "opened_at": "2025-11-13",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU008",
+    "name": "Bluewater Port Authority",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1116",
+   "resolution_hours": 72,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0134",
+   "opened_at": "2026-04-18",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1096",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0135",
+   "opened_at": "2025-07-24",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0136",
+   "opened_at": "2026-07-22",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1028",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0137",
+   "opened_at": "2026-06-10",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 4,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0138",
+   "opened_at": "2026-03-01",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU001",
+    "name": "Northbay Utilities",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0139",
+   "opened_at": "2026-01-19",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1117",
+   "resolution_hours": 4,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0140",
+   "opened_at": "2025-05-30",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1117",
+   "resolution_hours": 4,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0141",
+   "opened_at": "2026-04-05",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU016",
+    "name": "Westwind Logistics",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1054",
+   "resolution_hours": 24,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0142",
+   "opened_at": "2026-07-16",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0143",
+   "opened_at": "2025-02-18",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 4,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0144",
+   "opened_at": "2026-05-27",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 24,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0145",
+   "opened_at": "2025-10-26",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0146",
+   "opened_at": "2025-07-11",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1015",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0147",
+   "opened_at": "2026-06-04",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1014",
+   "resolution_hours": 72,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0148",
+   "opened_at": "2026-01-18",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU013",
+    "name": "Copperline Rail",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 8,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0149",
+   "opened_at": "2026-08-19",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0150",
+   "opened_at": "2026-10-21",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 4,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0151",
+   "opened_at": "2025-03-06",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1048",
+   "resolution_hours": 48,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0152",
+   "opened_at": "2025-02-12",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU007",
+    "name": "Oakfield Textiles",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1102",
+   "resolution_hours": 8,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0153",
+   "opened_at": "2025-02-07",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU009",
+    "name": "Granite Ridge Mining",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1014",
+   "resolution_hours": 72,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0154",
+   "opened_at": "2025-10-07",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0155",
+   "opened_at": "2025-07-11",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1054",
+   "resolution_hours": 12,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0156",
+   "opened_at": "2025-03-22",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1066",
+   "resolution_hours": 12,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0157",
+   "opened_at": "2025-12-02",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1107",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0158",
+   "opened_at": "2025-06-20",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1014",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0159",
+   "opened_at": "2026-09-22",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1015",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0160",
+   "opened_at": "2026-01-08",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU013",
+    "name": "Copperline Rail",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1107",
+   "resolution_hours": 24,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0161",
+   "opened_at": "2025-02-05",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 4,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0162",
+   "opened_at": "2026-08-04",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU013",
+    "name": "Copperline Rail",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0163",
+   "opened_at": "2025-03-20",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0164",
+   "opened_at": "2025-09-13",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU009",
+    "name": "Granite Ridge Mining",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1094",
+   "resolution_hours": 2,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0165",
+   "opened_at": "2026-07-30",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU013",
+    "name": "Copperline Rail",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 2,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0166",
+   "opened_at": "2025-10-20",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU020",
+    "name": "Foxglove Pharma",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 48,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0167",
+   "opened_at": "2025-06-26",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1066",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0168",
+   "opened_at": "2025-03-08",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1117",
+   "resolution_hours": 24,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0169",
+   "opened_at": "2026-01-06",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 24,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0170",
+   "opened_at": "2025-01-27",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU016",
+    "name": "Westwind Logistics",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 8,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0171",
+   "opened_at": "2025-03-09",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1094",
+   "resolution_hours": 8,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0172",
+   "opened_at": "2026-02-24",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 72,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0173",
+   "opened_at": "2026-04-23",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0174",
+   "opened_at": "2025-05-13",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0175",
+   "opened_at": "2025-06-15",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1063",
+   "resolution_hours": 8,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0176",
+   "opened_at": "2025-07-21",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU009",
+    "name": "Granite Ridge Mining",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1063",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0177",
+   "opened_at": "2025-04-06",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 24,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0178",
+   "opened_at": "2026-09-12",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU020",
+    "name": "Foxglove Pharma",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1014",
+   "resolution_hours": 8,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0179",
+   "opened_at": "2025-09-29",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU019",
+    "name": "Elmstead Schools",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1107",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0180",
+   "opened_at": "2026-05-25",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU001",
+    "name": "Northbay Utilities",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1094",
+   "resolution_hours": 48,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0181",
+   "opened_at": "2025-11-01",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU013",
+    "name": "Copperline Rail",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1028",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0182",
+   "opened_at": "2026-05-11",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0183",
+   "opened_at": "2025-12-20",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1102",
+   "resolution_hours": 12,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0184",
+   "opened_at": "2025-09-05",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 12,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0185",
+   "opened_at": "2025-02-21",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 8,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0186",
+   "opened_at": "2026-08-15",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1094",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0187",
+   "opened_at": "2026-05-26",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 8,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0188",
+   "opened_at": "2025-09-04",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1063",
+   "resolution_hours": 4,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0189",
+   "opened_at": "2026-11-01",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU020",
+    "name": "Foxglove Pharma",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1003",
+   "resolution_hours": 48,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0190",
+   "opened_at": "2025-05-18",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1014",
+   "resolution_hours": 8,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0191",
+   "opened_at": "2026-08-07",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU002",
+    "name": "Cedar Valley Co-op",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1063",
+   "resolution_hours": 24,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0192",
+   "opened_at": "2026-06-01",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU013",
+    "name": "Copperline Rail",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1107",
+   "resolution_hours": 12,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0193",
+   "opened_at": "2025-04-10",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 12,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0194",
+   "opened_at": "2026-09-09",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU007",
+    "name": "Oakfield Textiles",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1014",
+   "resolution_hours": 24,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0195",
+   "opened_at": "2025-12-08",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 72,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0196",
+   "opened_at": "2025-05-24",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU017",
+    "name": "Lakeshore Cold Storage",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1107",
+   "resolution_hours": 8,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0197",
+   "opened_at": "2026-08-31",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU010",
+    "name": "Meadowlark Homes",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1063",
+   "resolution_hours": 8,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0198",
+   "opened_at": "2026-01-13",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU001",
+    "name": "Northbay Utilities",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1063",
+   "resolution_hours": 8,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0199",
+   "opened_at": "2026-09-04",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU001",
+    "name": "Northbay Utilities",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 12,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0200",
+   "opened_at": "2026-08-21",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU002",
+    "name": "Cedar Valley Co-op",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1107",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0201",
+   "opened_at": "2025-09-06",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0202",
+   "opened_at": "2025-06-05",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1107",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0203",
+   "opened_at": "2025-05-22",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU002",
+    "name": "Cedar Valley Co-op",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1116",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0204",
+   "opened_at": "2026-01-21",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU017",
+    "name": "Lakeshore Cold Storage",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1066",
+   "resolution_hours": 8,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0205",
+   "opened_at": "2026-10-21",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1048",
+   "resolution_hours": 72,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0206",
+   "opened_at": "2026-07-26",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU009",
+    "name": "Granite Ridge Mining",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1117",
+   "resolution_hours": 8,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0207",
+   "opened_at": "2025-11-21",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU016",
+    "name": "Westwind Logistics",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1054",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0208",
+   "opened_at": "2026-08-11",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0209",
+   "opened_at": "2025-10-22",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU002",
+    "name": "Cedar Valley Co-op",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0210",
+   "opened_at": "2025-08-08",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU016",
+    "name": "Westwind Logistics",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1054",
+   "resolution_hours": 4,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0211",
+   "opened_at": "2026-09-23",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1116",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0212",
+   "opened_at": "2026-10-16",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU008",
+    "name": "Bluewater Port Authority",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1066",
+   "resolution_hours": 4,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0213",
+   "opened_at": "2025-04-13",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU016",
+    "name": "Westwind Logistics",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1028",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0214",
+   "opened_at": "2026-05-04",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU016",
+    "name": "Westwind Logistics",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1063",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0215",
+   "opened_at": "2025-04-02",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU002",
+    "name": "Cedar Valley Co-op",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1014",
+   "resolution_hours": 48,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0216",
+   "opened_at": "2025-06-30",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1063",
+   "resolution_hours": 2,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0217",
+   "opened_at": "2025-11-02",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU001",
+    "name": "Northbay Utilities",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 24,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0218",
+   "opened_at": "2026-06-21",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1054",
+   "resolution_hours": 12,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0219",
+   "opened_at": "2025-12-05",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1117",
+   "resolution_hours": 4,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0220",
+   "opened_at": "2025-12-12",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU001",
+    "name": "Northbay Utilities",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1048",
+   "resolution_hours": 72,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0221",
+   "opened_at": "2026-10-17",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU020",
+    "name": "Foxglove Pharma",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1015",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0222",
+   "opened_at": "2025-07-09",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1003",
+   "resolution_hours": 4,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0223",
+   "opened_at": "2025-08-30",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU013",
+    "name": "Copperline Rail",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0224",
+   "opened_at": "2025-01-12",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU019",
+    "name": "Elmstead Schools",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1014",
+   "resolution_hours": 8,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0225",
+   "opened_at": "2026-04-22",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1096",
+   "resolution_hours": 8,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0226",
+   "opened_at": "2025-05-01",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU010",
+    "name": "Meadowlark Homes",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 48,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0227",
+   "opened_at": "2026-05-05",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 4,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0228",
+   "opened_at": "2026-04-28",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1107",
+   "resolution_hours": 72,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0229",
+   "opened_at": "2026-04-03",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU017",
+    "name": "Lakeshore Cold Storage",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1021",
+   "resolution_hours": 24,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0230",
+   "opened_at": "2026-06-02",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1096",
+   "resolution_hours": 4,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0231",
+   "opened_at": "2025-07-30",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 48,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0232",
+   "opened_at": "2025-05-16",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1014",
+   "resolution_hours": 24,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0233",
+   "opened_at": "2026-11-20",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0234",
+   "opened_at": "2025-08-12",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU001",
+    "name": "Northbay Utilities",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 24,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0235",
+   "opened_at": "2026-07-09",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1063",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0236",
+   "opened_at": "2025-05-19",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0237",
+   "opened_at": "2025-03-24",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU013",
+    "name": "Copperline Rail",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1021",
+   "resolution_hours": 48,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0238",
+   "opened_at": "2026-02-07",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1003",
+   "resolution_hours": 24,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0239",
+   "opened_at": "2026-04-20",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU010",
+    "name": "Meadowlark Homes",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 48,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0240",
+   "opened_at": "2025-12-21",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1021",
+   "resolution_hours": 4,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0241",
+   "opened_at": "2026-09-22",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1015",
+   "resolution_hours": 72,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0242",
+   "opened_at": "2025-02-04",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU020",
+    "name": "Foxglove Pharma",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1014",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0243",
+   "opened_at": "2025-08-28",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1096",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0244",
+   "opened_at": "2026-08-13",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU008",
+    "name": "Bluewater Port Authority",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 8,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0245",
+   "opened_at": "2025-08-15",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU017",
+    "name": "Lakeshore Cold Storage",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1102",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0246",
+   "opened_at": "2026-10-04",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1014",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0247",
+   "opened_at": "2026-06-22",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU013",
+    "name": "Copperline Rail",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1063",
+   "resolution_hours": 8,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0248",
+   "opened_at": "2026-07-05",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1117",
+   "resolution_hours": 12,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0249",
+   "opened_at": "2025-03-01",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1096",
+   "resolution_hours": 24,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0250",
+   "opened_at": "2025-09-06",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU013",
+    "name": "Copperline Rail",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1015",
+   "resolution_hours": 8,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0251",
+   "opened_at": "2025-04-05",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 24,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0252",
+   "opened_at": "2026-09-10",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU020",
+    "name": "Foxglove Pharma",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1116",
+   "resolution_hours": 2,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0253",
+   "opened_at": "2026-05-06",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU007",
+    "name": "Oakfield Textiles",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1048",
+   "resolution_hours": 4,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0254",
+   "opened_at": "2026-05-06",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1102",
+   "resolution_hours": 4,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0255",
+   "opened_at": "2026-01-25",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU010",
+    "name": "Meadowlark Homes",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0256",
+   "opened_at": "2026-04-23",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU016",
+    "name": "Westwind Logistics",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0257",
+   "opened_at": "2025-02-16",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1003",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0258",
+   "opened_at": "2026-08-22",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1048",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0259",
+   "opened_at": "2026-01-24",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU008",
+    "name": "Bluewater Port Authority",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 24,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0260",
+   "opened_at": "2025-09-21",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1094",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0261",
+   "opened_at": "2025-12-27",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1094",
+   "resolution_hours": 4,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0262",
+   "opened_at": "2026-10-20",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1014",
+   "resolution_hours": 2,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0263",
+   "opened_at": "2025-05-21",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 72,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0264",
+   "opened_at": "2026-06-02",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU007",
+    "name": "Oakfield Textiles",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0265",
+   "opened_at": "2026-05-10",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU020",
+    "name": "Foxglove Pharma",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1102",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0266",
+   "opened_at": "2025-01-13",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1003",
+   "resolution_hours": 2,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0267",
+   "opened_at": "2025-07-03",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 2,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0268",
+   "opened_at": "2026-06-24",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU020",
+    "name": "Foxglove Pharma",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1015",
+   "resolution_hours": 8,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0269",
+   "opened_at": "2026-04-16",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU013",
+    "name": "Copperline Rail",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1063",
+   "resolution_hours": 24,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0270",
+   "opened_at": "2026-11-01",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0271",
+   "opened_at": "2026-05-03",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1015",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0272",
+   "opened_at": "2026-10-23",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1096",
+   "resolution_hours": 72,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0273",
+   "opened_at": "2025-08-05",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU008",
+    "name": "Bluewater Port Authority",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1015",
+   "resolution_hours": 72,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0274",
+   "opened_at": "2026-07-11",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU009",
+    "name": "Granite Ridge Mining",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1003",
+   "resolution_hours": 24,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0275",
+   "opened_at": "2025-05-28",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU019",
+    "name": "Elmstead Schools",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1028",
+   "resolution_hours": 72,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0276",
+   "opened_at": "2026-08-04",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU008",
+    "name": "Bluewater Port Authority",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1066",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0277",
+   "opened_at": "2025-03-22",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1075",
+   "resolution_hours": 24,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0278",
+   "opened_at": "2025-12-15",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0279",
+   "opened_at": "2026-05-18",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1075",
+   "resolution_hours": 4,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0280",
+   "opened_at": "2026-11-08",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU019",
+    "name": "Elmstead Schools",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0281",
+   "opened_at": "2025-03-26",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 8,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0282",
+   "opened_at": "2025-11-21",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU013",
+    "name": "Copperline Rail",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1063",
+   "resolution_hours": 8,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0283",
+   "opened_at": "2025-10-04",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1075",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0284",
+   "opened_at": "2026-07-23",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1015",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0285",
+   "opened_at": "2025-04-06",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1063",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0286",
+   "opened_at": "2025-03-28",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU013",
+    "name": "Copperline Rail",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1028",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0287",
+   "opened_at": "2025-06-23",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU013",
+    "name": "Copperline Rail",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1094",
+   "resolution_hours": 4,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0288",
+   "opened_at": "2025-06-21",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1094",
+   "resolution_hours": 12,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0289",
+   "opened_at": "2025-09-15",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1048",
+   "resolution_hours": 4,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0290",
+   "opened_at": "2025-05-19",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1107",
+   "resolution_hours": 8,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0291",
+   "opened_at": "2026-03-27",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 8,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0292",
+   "opened_at": "2026-09-10",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1028",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0293",
+   "opened_at": "2025-10-26",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1066",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0294",
+   "opened_at": "2026-02-07",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU009",
+    "name": "Granite Ridge Mining",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 8,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0295",
+   "opened_at": "2026-07-18",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0296",
+   "opened_at": "2026-02-23",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1063",
+   "resolution_hours": 48,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0297",
+   "opened_at": "2026-11-06",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU009",
+    "name": "Granite Ridge Mining",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 4,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0298",
+   "opened_at": "2026-08-20",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU016",
+    "name": "Westwind Logistics",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0299",
+   "opened_at": "2026-09-01",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1116",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0300",
+   "opened_at": "2025-06-20",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1116",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0301",
+   "opened_at": "2025-12-06",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU013",
+    "name": "Copperline Rail",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1021",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0302",
+   "opened_at": "2026-06-07",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU008",
+    "name": "Bluewater Port Authority",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0303",
+   "opened_at": "2026-05-28",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU019",
+    "name": "Elmstead Schools",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1021",
+   "resolution_hours": 4,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0304",
+   "opened_at": "2025-03-29",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1066",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0305",
+   "opened_at": "2026-06-18",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU007",
+    "name": "Oakfield Textiles",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0306",
+   "opened_at": "2025-11-23",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1021",
+   "resolution_hours": 2,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0307",
+   "opened_at": "2026-10-26",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1096",
+   "resolution_hours": 2,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0308",
+   "opened_at": "2025-06-13",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 8,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0309",
+   "opened_at": "2025-07-10",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1107",
+   "resolution_hours": 48,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0310",
+   "opened_at": "2026-08-30",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1048",
+   "resolution_hours": 12,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0311",
+   "opened_at": "2025-03-06",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU009",
+    "name": "Granite Ridge Mining",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0312",
+   "opened_at": "2026-04-14",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU007",
+    "name": "Oakfield Textiles",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1096",
+   "resolution_hours": 2,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0313",
+   "opened_at": "2026-09-04",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0314",
+   "opened_at": "2026-09-25",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1015",
+   "resolution_hours": 4,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0315",
+   "opened_at": "2025-11-17",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1028",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0316",
+   "opened_at": "2026-06-08",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0317",
+   "opened_at": "2025-07-10",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1094",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0318",
+   "opened_at": "2025-07-11",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 8,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0319",
+   "opened_at": "2025-05-20",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU016",
+    "name": "Westwind Logistics",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 4,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0320",
+   "opened_at": "2026-05-19",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1015",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0321",
+   "opened_at": "2025-08-14",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU001",
+    "name": "Northbay Utilities",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1102",
+   "resolution_hours": 8,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0322",
+   "opened_at": "2026-04-14",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1021",
+   "resolution_hours": 24,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0323",
+   "opened_at": "2025-10-02",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 72,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0324",
+   "opened_at": "2026-03-12",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU007",
+    "name": "Oakfield Textiles",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0325",
+   "opened_at": "2025-03-31",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0326",
+   "opened_at": "2026-09-17",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 48,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0327",
+   "opened_at": "2025-03-02",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU007",
+    "name": "Oakfield Textiles",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1107",
+   "resolution_hours": 24,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0328",
+   "opened_at": "2025-11-28",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1054",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0329",
+   "opened_at": "2025-05-19",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 72,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0330",
+   "opened_at": "2025-09-13",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 4,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0331",
+   "opened_at": "2026-08-15",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0332",
+   "opened_at": "2026-10-11",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1054",
+   "resolution_hours": 72,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0333",
+   "opened_at": "2026-04-11",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1015",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0334",
+   "opened_at": "2026-10-13",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 48,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0335",
+   "opened_at": "2025-08-05",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1066",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0336",
+   "opened_at": "2025-05-14",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU019",
+    "name": "Elmstead Schools",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1014",
+   "resolution_hours": 24,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0337",
+   "opened_at": "2026-10-04",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1028",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0338",
+   "opened_at": "2025-01-01",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0339",
+   "opened_at": "2025-10-08",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 2,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0340",
+   "opened_at": "2025-02-23",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 12,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0341",
+   "opened_at": "2025-04-08",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 2,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0342",
+   "opened_at": "2026-06-16",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU008",
+    "name": "Bluewater Port Authority",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1117",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0343",
+   "opened_at": "2026-03-09",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0344",
+   "opened_at": "2025-04-15",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0345",
+   "opened_at": "2026-10-19",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 48,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0346",
+   "opened_at": "2026-10-28",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU020",
+    "name": "Foxglove Pharma",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1048",
+   "resolution_hours": 4,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0347",
+   "opened_at": "2026-02-26",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1021",
+   "resolution_hours": 24,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0348",
+   "opened_at": "2026-08-27",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1066",
+   "resolution_hours": 48,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0349",
+   "opened_at": "2025-10-11",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU008",
+    "name": "Bluewater Port Authority",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1107",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0350",
+   "opened_at": "2025-10-19",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU020",
+    "name": "Foxglove Pharma",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1048",
+   "resolution_hours": 72,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0351",
+   "opened_at": "2026-06-06",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU020",
+    "name": "Foxglove Pharma",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1014",
+   "resolution_hours": 4,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0352",
+   "opened_at": "2026-01-31",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU016",
+    "name": "Westwind Logistics",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1107",
+   "resolution_hours": 2,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0353",
+   "opened_at": "2025-01-13",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU017",
+    "name": "Lakeshore Cold Storage",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 8,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0354",
+   "opened_at": "2026-07-14",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1003",
+   "resolution_hours": 48,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0355",
+   "opened_at": "2025-01-15",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 8,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0356",
+   "opened_at": "2026-10-06",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU010",
+    "name": "Meadowlark Homes",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 48,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0357",
+   "opened_at": "2026-07-05",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1063",
+   "resolution_hours": 24,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0358",
+   "opened_at": "2025-07-28",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU017",
+    "name": "Lakeshore Cold Storage",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 72,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0359",
+   "opened_at": "2025-11-14",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1014",
+   "resolution_hours": 48,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0360",
+   "opened_at": "2026-03-21",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1014",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0361",
+   "opened_at": "2025-05-03",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1028",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0362",
+   "opened_at": "2026-06-20",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 24,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0363",
+   "opened_at": "2025-05-01",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU009",
+    "name": "Granite Ridge Mining",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1054",
+   "resolution_hours": 72,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0364",
+   "opened_at": "2025-09-27",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1096",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0365",
+   "opened_at": "2026-05-27",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU002",
+    "name": "Cedar Valley Co-op",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1054",
+   "resolution_hours": 72,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0366",
+   "opened_at": "2026-11-22",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU019",
+    "name": "Elmstead Schools",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1096",
+   "resolution_hours": 48,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0367",
+   "opened_at": "2025-01-13",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU002",
+    "name": "Cedar Valley Co-op",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 4,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0368",
+   "opened_at": "2025-02-06",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0369",
+   "opened_at": "2025-10-05",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU011",
+    "name": "Ironwood Plastics",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1021",
+   "resolution_hours": 72,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0370",
+   "opened_at": "2025-07-03",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU002",
+    "name": "Cedar Valley Co-op",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 4,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0371",
+   "opened_at": "2025-12-02",
+   "priority": "urgent",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU010",
+    "name": "Meadowlark Homes",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1048",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0372",
+   "opened_at": "2025-11-08",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU019",
+    "name": "Elmstead Schools",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0373",
+   "opened_at": "2026-07-14",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU007",
+    "name": "Oakfield Textiles",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1075",
+   "resolution_hours": 72,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0374",
+   "opened_at": "2026-07-09",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU008",
+    "name": "Bluewater Port Authority",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1116",
+   "resolution_hours": 8,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0375",
+   "opened_at": "2025-04-17",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU010",
+    "name": "Meadowlark Homes",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1014",
+   "resolution_hours": 4,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0376",
+   "opened_at": "2025-04-06",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU009",
+    "name": "Granite Ridge Mining",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1117",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0377",
+   "opened_at": "2025-03-28",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1115",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0378",
+   "opened_at": "2026-08-30",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 24,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0379",
+   "opened_at": "2025-09-25",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU010",
+    "name": "Meadowlark Homes",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1066",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0380",
+   "opened_at": "2025-10-06",
+   "priority": "low",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 4,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0381",
+   "opened_at": "2025-04-19",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1075",
+   "resolution_hours": 4,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0382",
+   "opened_at": "2026-01-02",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0383",
+   "opened_at": "2025-04-03",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1107",
+   "resolution_hours": 4,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0384",
+   "opened_at": "2025-12-02",
+   "priority": "low",
+   "product": "FieldPro",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU007",
+    "name": "Oakfield Textiles",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1070",
+   "resolution_hours": 4,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0385",
+   "opened_at": "2025-02-20",
+   "priority": "high",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU017",
+    "name": "Lakeshore Cold Storage",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1003",
+   "resolution_hours": 48,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0386",
+   "opened_at": "2026-07-24",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1021",
+   "resolution_hours": 48,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0387",
+   "opened_at": "2025-01-13",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU004",
+    "name": "Pinecrest Estates",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0388",
+   "opened_at": "2026-08-20",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU003",
+    "name": "Harbor Steelworks",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1015",
+   "resolution_hours": 24,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0389",
+   "opened_at": "2025-05-12",
+   "priority": "high",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU015",
+    "name": "Stonegate Malls",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1081",
+   "resolution_hours": 2,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0390",
+   "opened_at": "2026-08-11",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1074",
+   "resolution_hours": 12,
+   "csat": 5
+  },
+  {
+   "ticket_id": "T0391",
+   "opened_at": "2025-06-26",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU014",
+    "name": "Brightwell Hospitals",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1054",
+   "resolution_hours": 8,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0392",
+   "opened_at": "2025-02-05",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU005",
+    "name": "Riverbend Municipal",
+    "tier": "Starter"
+   },
+   "assignee_id": "E1094",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0393",
+   "opened_at": "2026-05-06",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU018",
+    "name": "Redcliff Cement",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 2,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0394",
+   "opened_at": "2026-10-21",
+   "priority": "medium",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU007",
+    "name": "Oakfield Textiles",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1003",
+   "resolution_hours": 72,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0395",
+   "opened_at": "2026-05-07",
+   "priority": "urgent",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1096",
+   "resolution_hours": 24,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0396",
+   "opened_at": "2025-10-04",
+   "priority": "low",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU013",
+    "name": "Copperline Rail",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1049",
+   "resolution_hours": 4,
+   "csat": 2
+  },
+  {
+   "ticket_id": "T0397",
+   "opened_at": "2025-03-01",
+   "priority": "urgent",
+   "product": "FieldPro",
+   "channel": "phone",
+   "customer": {
+    "customer_id": "CU009",
+    "name": "Granite Ridge Mining",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 72,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0398",
+   "opened_at": "2025-04-13",
+   "priority": "medium",
+   "product": "GridSense",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU006",
+    "name": "Summit Foods",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1014",
+   "resolution_hours": 4,
+   "csat": 3
+  },
+  {
+   "ticket_id": "T0399",
+   "opened_at": "2026-02-02",
+   "priority": "medium",
+   "product": "PulseMeter",
+   "channel": "email",
+   "customer": {
+    "customer_id": "CU019",
+    "name": "Elmstead Schools",
+    "tier": "Growth"
+   },
+   "assignee_id": "E1106",
+   "resolution_hours": 8,
+   "csat": 4
+  },
+  {
+   "ticket_id": "T0400",
+   "opened_at": "2026-08-29",
+   "priority": "high",
+   "product": "FieldPro",
+   "channel": "portal",
+   "customer": {
+    "customer_id": "CU012",
+    "name": "Silverlake Water Board",
+    "tier": "Enterprise"
+   },
+   "assignee_id": "E1026",
+   "resolution_hours": 2,
+   "csat": 5
+  }
+ ]
+}

@@ -1,0 +1,153 @@
+[
+ {
+  "question": "Who is the head of Customer Success at Lumora?",
+  "type": "single",
+  "snippets": [
+   "Aisha Bello heads the department"
+  ]
+ },
+ {
+  "question": "How often does PulseMeter report readings?",
+  "type": "single",
+  "snippets": [
+   "PulseMeter reports readings every 15 minutes"
+  ]
+ },
+ {
+  "question": "What is the response target for a Sev2 incident?",
+  "type": "single",
+  "snippets": [
+   "the response target is 2 hours during business hours"
+  ]
+ },
+ {
+  "question": "How many days of paid leave do Lumora employees get?",
+  "type": "single",
+  "snippets": [
+   "24 days of paid leave per year"
+  ]
+ },
+ {
+  "question": "What caused incident INC-2041?",
+  "type": "single",
+  "snippets": [
+   "time-zone conversion bug in the firmware scheduler"
+  ]
+ },
+ {
+  "question": "What is the lead time for forecast onboarding?",
+  "type": "single",
+  "snippets": [
+   "Forecast onboarding"
+  ]
+ },
+ {
+  "question": "Where is customer meter data stored?",
+  "type": "single",
+  "snippets": [
+   "stored in the Mumbai cloud region"
+  ]
+ },
+ {
+  "question": "What daily site allowance can field engineers claim?",
+  "type": "single",
+  "snippets": [
+   "daily site allowance of INR 1,200"
+  ]
+ },
+ {
+  "question": "Which incident did Harbor Steelworks report about missing photos?",
+  "type": "single",
+  "snippets": [
+   "Photos attached in FieldPro were missing"
+  ]
+ },
+ {
+  "question": "How long is the PulseMeter hardware warranty?",
+  "type": "single",
+  "snippets": [
+   "The hardware warranty is 5 years"
+  ]
+ },
+ {
+  "question": "Who heads the department that owns GridSense?",
+  "type": "multi_hop",
+  "snippets": [
+   "It is owned by the Grid Analytics department",
+   "It is headed by Meera Kulkarni"
+  ]
+ },
+ {
+  "question": "Which department maintains the product affected by incident INC-2041, and who leads it?",
+  "type": "multi_hop",
+  "snippets": [
+   "Firmware 4.1 caused PulseMeter units",
+   "designed and maintained by the Platform Engineering department",
+   "It is led by Jonas Weber"
+  ]
+ },
+ {
+  "question": "Who must approve a 12-day leave for a field engineer, and who is that person in Field Operations?",
+  "type": "multi_hop",
+  "snippets": [
+   "must be approved by the head of the employee's department and by HR",
+   "The department is headed by Tomas Rivera"
+  ]
+ },
+ {
+  "question": "Which team owns the app whose photos went missing after offline sync?",
+  "type": "multi_hop",
+  "snippets": [
+   "Photos attached in FieldPro were missing",
+   "It is owned by the Field Operations department"
+  ]
+ },
+ {
+  "question": "Who approves international travel, and what is that person's name?",
+  "type": "multi_hop",
+  "snippets": [
+   "International travel needs approval from the head of Finance",
+   "Priya Nair is the head of Finance"
+  ]
+ },
+ {
+  "question": "Within how many minutes must a Sev1 incident with PulseMeter reach the head of the team that maintains it?",
+  "type": "multi_hop",
+  "snippets": [
+   "Sev1 incidents are escalated to the head of Platform Engineering within 15 minutes",
+   "designed and maintained by the Platform Engineering department"
+  ]
+ },
+ {
+  "question": "How do the warranties of PulseMeter and FieldPro devices differ?",
+  "type": "comparison",
+  "snippets": [
+   "The hardware warranty is 5 years",
+   "carry a 2-year warranty"
+  ]
+ },
+ {
+  "question": "Compare how often PulseMeter reports readings with how often GridSense refreshes forecasts.",
+  "type": "comparison",
+  "snippets": [
+   "PulseMeter reports readings every 15 minutes",
+   "Forecasts are refreshed every hour"
+  ]
+ },
+ {
+  "question": "What did incidents INC-2057 and INC-2063 have as root causes?",
+  "type": "comparison",
+  "snippets": [
+   "a stuck message queue",
+   "an image-compression timeout"
+  ]
+ },
+ {
+  "question": "Which departments are led by Meera Kulkarni and Jonas Weber?",
+  "type": "comparison",
+  "snippets": [
+   "It is headed by Meera Kulkarni",
+   "It is led by Jonas Weber"
+  ]
+ }
+]

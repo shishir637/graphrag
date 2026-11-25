@@ -4,7 +4,7 @@ Output: outputs/1_parsed.json
 """
 import json
 
-from .config import DOCS_DIR, DOCLING_EXTS, PLAINTEXT_EXTS
+from .config import DOCS_DIR, DOCLING_EXTS, PLAINTEXT_EXTS, RECORD_EXTS
 from .utils import timer, write_json
 
 
@@ -12,6 +12,42 @@ def load_access_map() -> dict:
     """Optional documents/_access.json: {"file.pdf": ["hr", "admin"]}. Default group is "public"."""
     path = DOCS_DIR / "_access.json"
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+
+
+def _flatten(obj, prefix=""):
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            yield from _flatten(v, f"{prefix}{k}." if not isinstance(v, (dict, list)) or isinstance(v, dict) else f"{prefix}{k}")
+    elif isinstance(obj, list):
+        if all(not isinstance(x, (dict, list)) for x in obj):
+            yield prefix.rstrip("."), ", ".join(map(str, obj))
+        else:
+            for i, x in enumerate(obj, 1):
+                yield from _flatten(x, f"{prefix}[{i}].")
+    else:
+        yield prefix.rstrip("."), obj
+
+
+def records_to_text(path) -> str:
+    """JSON / JSON Lines -> readable text: one block per record, one "field: value" line per field, so a
+    search for a value finds the record it belongs to."""
+    raw = path.read_text(encoding="utf-8-sig")
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        data = [json.loads(line) for line in raw.splitlines() if line.strip()]
+    if isinstance(data, dict):
+        lists = {k: v for k, v in data.items() if isinstance(v, list) and v and all(isinstance(x, dict) for x in v)}
+        groups = lists or {"": [data]}
+    else:
+        groups = {"": data}
+    blocks = []
+    for name, recs in groups.items():
+        for i, r in enumerate(recs, 1):
+            title = f"{path.stem}{' / ' + name if name else ''} record {i}"
+            lines = [f"{k}: {v}" for k, v in _flatten(r) if v not in (None, "")]
+            blocks.append(title + "\n" + "\n".join(lines))
+    return "\n\n".join(blocks)
 
 
 def parse_all() -> list[dict]:
@@ -38,6 +74,8 @@ def parse_all() -> list[dict]:
                     "markdown": doc.export_to_markdown(),
                     "docling_document": doc.export_to_dict(),  # kept so HybridChunker can use the structure
                 }
+            elif ext in RECORD_EXTS:
+                entry |= {"parser": "plaintext", "markdown": records_to_text(path)}
             elif ext in PLAINTEXT_EXTS:
                 entry |= {"parser": "plaintext", "markdown": path.read_text(encoding="utf-8", errors="replace")}
             else:

@@ -1,0 +1,6 @@
+service,product,team,lead_time_days,price_inr
+Meter installation,PulseMeter,Field Operations,10,4500
+Firmware upgrade,PulseMeter,Platform Engineering,2,0
+Forecast onboarding,GridSense,Grid Analytics,21,150000
+Custom dashboard,GridSense,Grid Analytics,14,60000
+Tablet replacement,FieldPro,Field Operations,5,38000

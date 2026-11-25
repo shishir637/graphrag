@@ -24,7 +24,7 @@ export default function DataTables({ s }: { s: Session }) {
   return <div className="page">
     <PageHead title="Data tables" sub={<>Tables behind your business numbers. Agents never write SQL against them: they ask for a <Link to="/knowledge/metrics">metric</Link>, and Context Layer computes it from the reviewed definition.</>}>
       {admin && <><button className="btn" disabled={busy} onClick={() => input.current?.click()}><Icon name="upload" size={16} />Upload tables</button>
-        <input ref={input} type="file" multiple hidden accept=".csv,.xlsx,.parquet" onChange={(e) => upload(e.target.files)} />
+        <input ref={input} type="file" multiple hidden accept=".csv,.xlsx,.xls,.json,.jsonl,.ndjson,.parquet" onChange={(e) => upload(e.target.files)} />
         <button className="btn primary" disabled={job.running || !data.tables.length} onClick={() => job.start('data')}><Icon name="refresh" size={16} />Prepare data</button></>}
     </PageHead>
     <JobPanel job={job.job} />

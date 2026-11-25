@@ -46,7 +46,7 @@ function Shell({ s, onLogout }: { s: Session; onLogout: () => void }) {
         <Route path="/" element={<Overview s={s} />} />
         <Route path="/sources/documents" element={<Documents s={s} />} />
         <Route path="/sources/data" element={<DataTables s={s} />} />
-        <Route path="/knowledge/metrics" element={<Metrics />} />
+        <Route path="/knowledge/metrics" element={<Metrics s={s} />} />
         <Route path="/knowledge/graph" element={<Graph s={s} />} />
         <Route path="/agents" element={<Agents s={s} />} />
         <Route path="/playground" element={<Playground />} />

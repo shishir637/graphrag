@@ -56,7 +56,8 @@ def test_roles(client):
     assert c.get("/api/v1/agents").status_code == 200
     assert c.post("/api/v1/agents", headers=H, json={"name": "x"}).status_code == 403
     assert c.post("/api/v1/jobs/documents", headers=H).status_code == 403
-    assert c.put("/api/v1/settings/llm", headers=H, json={"anthropic_api_key": "sk-ant-x"}).status_code == 403
+    assert c.put("/api/v1/settings/graph", headers=H, json={"mode": "fast"}).status_code == 403
+    assert "ai_model" in c.get("/api/v1/settings").json() and c.get("/api/v1/settings").json()["ai_model"]["inside"] is False
 
 
 def test_documents_and_groups(client):
@@ -98,7 +99,9 @@ def test_agents_and_mcp(client):
         res = call("list_documents", {})
         assert not res.get("isError") and res["structuredContent"]["your_groups"] == ["public"]
         res = call("ask", {"question": "anything"})
-        assert res["isError"] and "AI model" in res["content"][0]["text"]
+        assert "AI model" not in json.dumps(res) and "API key" not in json.dumps(res)
+        res = call("describe_data", {})
+        assert res["isError"] and "may not use data" in res["content"][0]["text"]
         c.post(f"/api/v1/agents/{aid}/revoke", headers=H)
         assert m.post("/mcp", json=init, headers=hdr | {"authorization": f"Bearer {token}"}).status_code == 401
     ev = c.get("/api/v1/events?type=agent").json()["events"]
@@ -119,7 +122,8 @@ def test_public_hosts(monkeypatch):
 
 def test_tools_registered_read_only():
     tools = {t.name: t for t in M.mcp._tool_manager.list_tools()}
-    assert set(tools) == {"ask", "search_documents", "query_metrics", "list_metrics", "list_documents", "fetch_passage"}
+    assert set(tools) == {"ask", "search_documents", "describe_data", "query_metrics", "list_metrics", "find_connections",
+                          "explore_entity", "list_documents", "fetch_passage"}
     assert all(t.annotations.read_only_hint for t in tools.values())
 
 
@@ -127,3 +131,27 @@ def test_password_hashing():
     h = core.hash_password("pass-word-123")
     assert core.check_password("pass-word-123", h) and not core.check_password("other", h)
     assert core.check_password("x", "garbage") is False
+
+
+def test_metrics_over_mcp_without_ai(client):
+    """A data-only key: describe_data, a structured request filled in by the agent, and a plain question."""
+    c, _ = client
+    setup_owner(c)
+    token = c.post("/api/v1/agents", headers=H, json={"name": "Finance bot", "groups": ["public"],
+                                                     "capabilities": ["data"]}).json()["token"]
+    hdr = {"accept": "application/json, text/event-stream", "authorization": f"Bearer {token}"}
+
+    def call(name, args):
+        body = {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": name, "arguments": args}}
+        return c.post("/mcp", json=body, headers=hdr).json()["result"]
+    d = call("describe_data", {})["structuredContent"]
+    assert "net_revenue" in {m["name"] for m in d["metrics"]} and d["business_rules"]
+    r = call("query_metrics", {"metrics": ["net_revenue"], "dimensions": ["regions.region_name"], "period": "FY2025-26"})
+    sc = r["structuredContent"]
+    assert not r.get("isError") and sc["row_count"] >= 4 and "SELECT" in sc["sql"].upper()
+    r = call("query_metrics", {"question": "net revenu in Bangalor last quarter"})["structuredContent"]
+    assert r["found"] and r["planned_by"] == "rule planner" and any("Bengaluru" in str(f) for f in r["request"]["filters"])
+    r = call("query_metrics", {"question": "What is our profit margin?"})["structuredContent"]
+    assert r["found"] is False and "Available:" in r["not_answerable"]
+    r = call("query_metrics", {"metrics": ["no_such_metric"]})
+    assert r["isError"]

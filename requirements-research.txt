@@ -1,0 +1,9 @@
+# Research tools that call Claude (NOT part of the product or its Docker image):
+#   rag.py ask / eval (RAGAS), sl-model / sl-ask / sl-eval with the Claude planner, gr-extract / gr-ask.
+# Install on top of requirements.txt only if you want to compare against an LLM.
+anthropic
+ragas==0.4.4
+langchain-anthropic
+langchain-huggingface
+sentence-transformers
+reportlab                      # only used to build the sample PDF

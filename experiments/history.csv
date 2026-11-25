@@ -1,0 +1,55 @@
+iteration,component,config,dataset,metric,value,note
+1,ner,spacy en_core_web_lg,india-gold-30,entity_f1_untyped,0.783,baseline traditional
+1,ner,spacy en_core_web_lg,india-gold-30,entity_f1_typed,0.164,OntoNotes labels do not fit schema
+1,ner,gliner medium v2.1 t=0.4,india-gold-30,entity_f1_untyped,0.759,
+1,ner,gliner medium v2.1 t=0.4,india-gold-30,entity_f1_typed,0.627,
+1,ner,gliner2 base t=0.4,india-gold-30,entity_f1_untyped,0.726,
+1,ner,gliner2 base t=0.4,india-gold-30,entity_f1_typed,0.574,
+2,ner,gliner t=0.4 + head-word typing,india-gold-30,entity_f1_typed,0.677,best typed
+2,ner,gliner + spacy spans + head-word typing,india-gold-30,entity_recall_untyped,0.913,best recall
+1,relations,spacy dependency rules,india-gold-30,relation_recall_strict,0.07,
+1,relations,gliner2 relation extraction t=0.3,india-gold-30,relation_recall_strict,0.172,
+1,relations,gliner2 relation extraction t=0.3,india-gold-30,relation_recall_loose,0.307,
+2,relations,gliner2 + sentence co-occurrence (gliner ents),india-gold-30,relation_recall_loose,0.479,
+2,relations,gliner2 + co-occurrence (gliner+spacy ents) + section-topic links,india-gold-30,relation_recall_loose,0.809,above reported Claude Haiku 0.75
+1,metrics,rule planner v1,sl-dev-52,execution_accuracy,0.923,
+2,metrics,rule planner v2 (split words; plurals; metric spans),sl-dev-52,execution_accuracy,1.0,tuned on this set
+2,metrics,rule planner v2,sl-holdout-25,execution_accuracy,0.92,blind held-out result
+3,metrics,rule planner v3 (calendar year; undefined quantities; modifier nouns),sl-holdout-25,execution_accuracy,1.0,after fixes - no longer blind
+3,metrics,rule planner v3,sl-dev-52,execution_accuracy,1.0,
+4,metrics,rule planner v3,lumora-blind-20,execution_accuracy,0.50,blind: new domain from Excel/JSON/CSV with auto-drafted definitions
+5,metrics,rule planner v5 (coverage matching; join-aware columns; head nouns),lumora-blind-20,execution_accuracy,1.0,after fixes - no longer blind
+5,metrics,rule planner v5,sl-dev-52,execution_accuracy,1.0,
+5,metrics,rule planner v5,blind2-20,execution_accuracy,0.75,blind: new phrasings both domains
+6,metrics,rule planner v6 (business thesaurus; how-many counts; hyphens),blind2-20,execution_accuracy,1.0,after fixes - no longer blind
+6,metrics,rule planner v6,all 117 questions,execution_accuracy,1.0,dev 52 + holdout 25 + lumora 20 + blind2 20
+1,ner-public,spacy en_core_web_lg,conll2003-test-500 (PER/ORG/LOC),entity_f1,0.658,5 ms/sentence
+1,ner-public,gliner medium v2.1 t=0.5,conll2003-test-500 (PER/ORG/LOC),entity_f1,0.704,zero-shot; ~1.6 s/sentence under CPU contention
+3,ner,nlp_extract accurate (gliner+spacy+topics),india-gold-30,entity_f1_untyped,0.78,product module
+3,ner,nlp_extract accurate,india-gold-30,entity_f1_typed,0.60,
+3,relations,nlp_extract accurate (cooc + section topics),india-gold-30,relation_recall_loose,0.72,product module
+3,relations,nlp_extract fast (spacy only),india-gold-30,relation_recall_loose,0.65,0.2 s/passage
+7,reranker,ms-marco-MiniLM-L-12 (Apache),india-54,recall@1 / mrr / s_per_q,0.750 / 0.869 / 3.5,
+7,reranker,jina-reranker-v1-turbo-en (Apache),india-54,recall@1 / mrr / s_per_q,0.769 / 0.886 / 2.5,
+7,reranker,bge-reranker-v2-m3-int8,india-54,recall@1 / mrr / s_per_q,0.778 / 0.904 / 9.7,new default
+7,reranker,ms-marco-MiniLM-L-12,lumora-20,recall@1 / mrr / s_per_q,0.767 / 1.000 / 4.3,
+7,reranker,jina-reranker-v1-turbo-en,lumora-20,recall@1 / mrr / s_per_q,0.717 / 0.975 / 2.8,
+7,reranker,bge-reranker-v2-m3-int8,lumora-20,recall@1 / mrr / s_per_q,0.717 / 0.956 / 10.7,
+7,reranker,bge-reranker-v2-m3 fp32 (v0.1),lumora-20,recall@1 / mrr / s_per_q,0.717 / 0.956 / 32.4,identical to int8 at 3x the time
+8,retrieval,dense,india-54,recall@5 / all@5 / mrr,0.935 / 0.889 / 0.847,
+8,retrieval,bm25,india-54,recall@5 / all@5 / mrr,0.898 / 0.852 / 0.789,
+8,retrieval,hybrid (RRF),india-54,recall@5 / all@5 / mrr,0.954 / 0.907 / 0.916,
+8,retrieval,hybrid+rerank int8 (v0.1 pipeline),india-54,recall@5 / all@5 / mrr,0.954 / 0.907 / 0.900,
+8,retrieval,+graph (fast graph),india-54,recall@5 / all@5 / mrr,0.954 / 0.907 / 0.900,no change
+8,retrieval,+graph+coverage,india-54,recall@5 / all@5 / mrr,0.954 / 0.907 / 0.900,no change
+8,retrieval,dense,lumora-20,recall@5 / all@5 / mrr,0.867 / 0.800 / 0.846,
+8,retrieval,bm25,lumora-20,recall@5 / all@5 / mrr,0.817 / 0.700 / 0.931,
+8,retrieval,hybrid (RRF),lumora-20,recall@5 / all@5 / mrr,0.942 / 0.900 / 0.900,
+8,retrieval,hybrid+rerank int8,lumora-20,recall@5 / all@5 / mrr,0.925 / 0.900 / 0.956,
+8,retrieval,+graph+coverage,lumora-20,recall@5 / all@5 / mrr,0.975 / 0.950 / 0.960,
+9,retrieval,+graph+coverage + rank fusion (new default),lumora-20,recall@5 / all@5 / mrr,0.975 / 0.950 / 1.000,
+9,retrieval,hybrid+rerank + rank fusion,india-54,recall@5 / all@5 / mrr,0.954 / 0.907 / 0.903,
+10,router,rule router v1,84 document + 113 metric questions,docs_kept_out / metrics_routed,0.964 / 0.920,first measurement
+11,router,rule router v2 (filters/dates count; how-many noun check; who-questions),84 + 113,docs_kept_out / metrics_routed,1.0 / 1.0,after fixes
+11,app,end-to-end HTTP + MCP test,25 checks,passed,24/25,routing bug found: 'who heads the department' sent to metrics
+12,metrics,rule planner final,blind3-15,execution_accuracy,0.80,final blind: run once with no fixes afterwards

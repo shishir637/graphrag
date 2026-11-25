@@ -175,7 +175,6 @@ def overview(u: dict = Depends(ANY)):
     agents = core.list_agents()
     active = [a for a in agents if not a["revoked"]]
     checklist = [
-        {"id": "llm", "label": "Connect an AI model", "done": st["llm"]["ready"], "to": "/settings"},
         {"id": "documents", "label": "Add and prepare documents", "done": st["documents"]["ready"] > 0, "to": "/sources/documents"},
         {"id": "data", "label": "Add data tables for metrics", "done": st["data"]["ready"], "to": "/sources/data", "optional": True},
         {"id": "graph", "label": "Build the knowledge graph", "done": st["graph"]["ready"], "to": "/knowledge/graph", "optional": True},
@@ -255,7 +254,7 @@ async def upload_tables(files: list[UploadFile] = File(...), u: dict = Depends(A
     saved, errors = [], []
     for f in files:
         try:
-            saved.append(engine.save_table(f.filename or "table", await f.read()))
+            saved += engine.save_table(f.filename or "table", await f.read())
         except ValueError as e:
             errors.append(str(e))
     if saved:
@@ -268,6 +267,23 @@ async def upload_tables(files: list[UploadFile] = File(...), u: dict = Depends(A
 @app.get("/api/v1/metrics")
 def metrics(u: dict = Depends(ANY)):
     return engine.metrics()
+
+
+class MetricStatusIn(BaseModel):
+    status: str
+
+
+@app.put("/api/v1/metrics/{name}/status")
+def set_metric_status(name: str, body: MetricStatusIn, u: dict = Depends(ADMIN)):
+    from semantic.auto_model import set_status
+    try:
+        r = set_status(name, body.status, by=u["email"])
+    except KeyError:
+        raise HTTPException(404, "No such metric.")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    audit(u, "metrics.status", name, {"status": body.status})
+    return r
 
 
 @app.get("/api/v1/graph")
@@ -376,7 +392,7 @@ def playground(body: PlaygroundIn, u: dict = Depends(ANY)):
         groups = engine.clean_groups(body.groups or ["public"])
         caps = [c for c in (body.capabilities or list(core.CAPABILITIES)) if c in core.CAPABILITIES]
         who = f"as groups {', '.join(groups)}"
-    mode = {"auto": "auto", "documents": "vector", "metrics": "data", "graph": "local", "overview": "global"}.get(body.mode)
+    mode = body.mode if body.mode in ("auto", "documents", "metrics", "graph", "overview") else None
     if mode is None:
         raise HTTPException(400, "Unknown mode.")
     t = core.timer()
@@ -469,37 +485,36 @@ def update_user(uid: int, body: UserPatch, u: dict = Depends(OWNER)):
 
 # ------------------------------------------------------------------ settings
 
-class LlmIn(BaseModel):
-    anthropic_api_key: str | None = None
-    anthropic_workspace_id: str | None = None
+class GraphModeIn(BaseModel):
+    mode: str
 
 
 @app.get("/api/v1/settings")
-def settings(u: dict = Depends(ANY)):
-    import os
-    from graph.config import ANSWER_MODEL, EXTRACT_MODEL, PG_DSN, SMALL_MODEL
+def settings(request: Request, u: dict = Depends(ANY)):
+    from graph.config import PG_DSN
     pg_ok, pg_msg = engine.postgres_ok()
     return {
         "organisation": core.get_setting("organisation", ""),
-        "llm": {"provider": "Anthropic (Claude)", "api_key": core.mask(os.environ.get("ANTHROPIC_API_KEY")),
-                "workspace_id": os.environ.get("ANTHROPIC_WORKSPACE_ID") or None,
-                "models": {"answers": ANSWER_MODEL, "graph extraction and routing": EXTRACT_MODEL, "small tasks": SMALL_MODEL}},
+        "ai_model": {"inside": False, "note": "Context Layer runs no AI model. It finds the evidence (passages, "
+                     "numbers, graph links); the agent that connects over MCP writes the answer."},
+        "mcp": {"url": str(request.base_url).rstrip("/") + "/mcp", "transport": "Streamable HTTP",
+                "auth": "Authorization: Bearer <agent key>"},
+        "models": {"embeddings": "BAAI/bge-m3 (local)", "keyword search": "BM25 (local)",
+                   "re-ranker": "BAAI/bge-reranker-v2-m3 (local)",
+                   "entities": "GLiNER urchade/gliner_medium-v2.1 + spaCy en_core_web_lg (local)"},
+        "graph_mode": engine.graph_mode(),
         "storage": {"data_folder": str(core.DATA_DIR), "graph_database": PG_DSN.split("password=")[0].strip(),
                     "graph_database_ok": pg_ok, "graph_database_message": pg_msg, "disk": engine.disk_usage()},
         "version": core.VERSION,
     }
 
 
-@app.put("/api/v1/settings/llm")
-def set_llm(body: LlmIn, u: dict = Depends(OWNER)):
-    if body.anthropic_api_key is not None:
-        key = body.anthropic_api_key.strip()
-        if key and not key.startswith("sk-ant-"):
-            raise HTTPException(400, "That does not look like an Anthropic API key (it starts with sk-ant-).")
-        core.save_secret("ANTHROPIC_API_KEY", key or None)
-    if body.anthropic_workspace_id is not None:
-        core.save_secret("ANTHROPIC_WORKSPACE_ID", body.anthropic_workspace_id.strip() or None)
-    audit(u, "settings.llm", "api key " + ("set" if body.anthropic_api_key else "unchanged or removed"))
+@app.put("/api/v1/settings/graph")
+def set_graph_mode(body: GraphModeIn, u: dict = Depends(OWNER)):
+    if body.mode not in ("fast", "accurate"):
+        raise HTTPException(400, "mode is fast or accurate")
+    core.set_setting("graph_mode", body.mode)
+    audit(u, "settings.graph_mode", body.mode)
     return {"ok": True}
 
 

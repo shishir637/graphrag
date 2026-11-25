@@ -1,5 +1,5 @@
 # Context Layer, self-hosted.
-#   1. cp .env.example .env   and set CL_DB_PASSWORD (and ANTHROPIC_API_KEY, or add it later in Settings)
+#   1. cp .env.example .env   and set CL_DB_PASSWORD (no AI model or API key is needed)
 #   2. docker compose up -d
 #   3. open http://localhost:8080 and create the owner account
 # Data lives in the named volumes below; `docker compose down` keeps it (add -v to delete everything).
@@ -13,8 +13,6 @@ services:
     ports:
       - "${CL_BIND:-127.0.0.1}:${CL_PORT:-8080}:8080"
     environment:
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      ANTHROPIC_WORKSPACE_ID: ${ANTHROPIC_WORKSPACE_ID:-}
       CL_PUBLIC_HOSTS: ${CL_PUBLIC_HOSTS:-}
       GRAPH_PG_DSN: host=graphdb port=5432 dbname=graphrag user=rag password=${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
     volumes:

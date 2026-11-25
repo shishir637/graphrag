@@ -24,6 +24,6 @@ export default function Quality({ s }: { s: Session }) {
         <div className="bd small"><p className="muted" style={{ marginTop: 0 }}>{su.what}</p>
           {entries.length ? entries.map(([k, v]) => <div key={k} className="between" style={{ padding: '5px 0', borderBottom: '1px solid var(--line-2)' }}><span>{pretty(k)}</span><b>{fmt(v)}</b></div>)
             : <Empty icon="check" title="No results yet">Run the suite to get scores.</Empty>}</div></div> })}</div>
-    <div className="callout" style={{ marginTop: 16 }}>Runs use the AI model as the judge, so each run makes paid calls. Test questions live with the engine (<code>eval_questions.json</code>, <code>semantic_layer/eval_questions.yaml</code>); add your own to cover what your agents are really asked.</div>
+    <div className="callout" style={{ marginTop: 16 }}>Runs are free: no AI model judges them; they compare against hand-checked gold answers. Test questions live with the engine (<code>eval_questions.json</code>, <code>semantic_layer/eval_questions.yaml</code>); add your own to cover what your agents are really asked.</div>
   </div>
 }

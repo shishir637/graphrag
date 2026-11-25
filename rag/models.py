@@ -7,7 +7,9 @@ Rerank: bge-reranker-v2-m3 via fastembed (ONNX).
 """
 from functools import lru_cache
 
-from .config import EMBED_MODEL, RERANK_MODEL, SPARSE_MODEL
+import os
+
+from .config import EMBED_MODEL, RERANK_MAX_CHARS, RERANK_MODEL, SPARSE_MODEL
 
 
 @lru_cache
@@ -27,9 +29,9 @@ def sparse_model():
 
 
 @lru_cache
-def reranker():
+def reranker(name: str = RERANK_MODEL):
     from fastembed.rerank.cross_encoder import TextCrossEncoder
-    return TextCrossEncoder(RERANK_MODEL)
+    return TextCrossEncoder(name, threads=os.cpu_count())
 
 
 def embed_dense(texts: list[str], batch_size: int = 8) -> list[list[float]]:
@@ -62,5 +64,6 @@ def embed_sparse(texts: list[str], query: bool = False) -> list[dict]:
     return [{"indices": e.indices.tolist(), "values": e.values.tolist()} for e in gen]
 
 
-def rerank_scores(question: str, texts: list[str]) -> list[float]:
-    return [float(s) for s in reranker().rerank(question, texts)]
+def rerank_scores(question: str, texts: list[str], model: str | None = None) -> list[float]:
+    name = model or os.environ.get("CL_RERANKER") or RERANK_MODEL
+    return [float(s) for s in reranker(name).rerank(question, [t[:RERANK_MAX_CHARS] for t in texts], batch_size=4)]

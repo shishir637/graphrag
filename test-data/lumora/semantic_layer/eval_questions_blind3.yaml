@@ -1,0 +1,18 @@
+# Final blind set: written after all tuning, run once, not used for any fix.
+as_of: 2026-11-24
+questions:
+  - {id: C01, kind: simple, question: "Total refunds in FY2025-26", gold: {metrics: [refunds], start_date: 2025-04-01, end_date: 2026-03-31}}
+  - {id: C02, kind: filter, question: "How many invoices are overdue?", gold: {metrics: [lumora_invoices_count], filters: [{dimension: lumora_invoices.status, values: [overdue]}]}}
+  - {id: C03, kind: breakdown, question: "Average order value by customer segment last year", gold: {metrics: [average_order_value], dimensions: [customers.segment], start_date: 2025-01-01, end_date: 2025-12-31}}
+  - {id: C04, kind: filter, question: "Tickets per channel for Enterprise customers", gold: {metrics: [lumora_tickets_count], dimensions: [lumora_tickets.channel], filters: [{dimension: lumora_tickets.customer_tier, values: [Enterprise]}]}}
+  - {id: C05, kind: top_n, question: "Which city had the highest units sold in 2025?", gold: {metrics: [units_sold], dimensions: [customers.city], order_by: [-units_sold], limit: 1, start_date: 2025-01-01, end_date: 2025-12-31}}
+  - {id: C06, kind: breakdown, question: "Number of employees per title", gold: {metrics: [lumora_employees__employees_count], dimensions: [lumora_employees__employees.title]}}
+  - {id: C07, kind: synonym, question: "What is the average resolution time per priority?", gold: {metrics: [average_lumora_ticket_resolution_hours], dimensions: [lumora_tickets.priority]}}
+  - {id: C08, kind: breakdown, question: "Gross revenue by month for the first half of 2026", gold: {metrics: [gross_revenue], dimensions: [orders.order_date__month], start_date: 2026-01-01, end_date: 2026-06-30}}
+  - {id: C09, kind: unanswerable, question: "What is our revenue growth rate?"}
+  - {id: C10, kind: filter, question: "Invoice totals for the West region", gold: {metrics: [total_lumora_invoice_amount], filters: [{dimension: lumora_customers.region, values: [West]}]}}
+  - {id: C11, kind: synonym, question: "How many new signups in Q3 2026?", gold: {metrics: [new_customers], start_date: 2026-07-01, end_date: 2026-09-30}}
+  - {id: C12, kind: unanswerable, question: "Return rate by product category"}
+  - {id: C13, kind: breakdown, question: "Average invoice amount by product in 2025", gold: {metrics: [average_lumora_invoice_amount], dimensions: [lumora_invoices.product], start_date: 2025-01-01, end_date: 2025-12-31}}
+  - {id: C14, kind: breakdown, question: "Active customers by region this fiscal year", gold: {metrics: [active_customers], dimensions: [regions.region_name], start_date: 2026-04-01, end_date: 2027-03-31}}
+  - {id: C15, kind: top_n, question: "Lowest CSAT channel", gold: {metrics: [average_lumora_ticket_csat], dimensions: [lumora_tickets.channel], order_by: [average_lumora_ticket_csat], limit: 1}}

@@ -4,7 +4,7 @@ import type { Session } from '../App'
 import { Badge, ErrorBox, Icon, Loading, PageHead, useLoad } from '../ui'
 
 interface Ov {
-  status: { llm: { ready: boolean }; documents: { count: number; ready: number; pending: number; passages: number; indexed: string | null }
+  status: { documents: { count: number; ready: number; pending: number; passages: number; indexed: string | null }
     data: { tables: number; metrics: number; ready: boolean }; graph: { ready: boolean; entities: number; relations: number; built: string | null }
     postgres: { ok: boolean; message: string } }
   checklist: { id: string; label: string; done: boolean; to: string; optional?: boolean }[]
@@ -35,7 +35,7 @@ export default function Overview({ s }: { s: Session }) {
       <Link to="/knowledge/metrics" className="card stat" style={{ color: 'inherit', textDecoration: 'none' }}><div className="k"><Icon name="metric" size={15} />Metrics</div><div className="v">{st.data.metrics}</div>
         <div className="s">{st.data.ready ? `from ${st.data.tables} tables` : 'data not prepared'}</div></Link>
       <Link to="/knowledge/graph" className="card stat" style={{ color: 'inherit', textDecoration: 'none' }}><div className="k"><Icon name="graph" size={15} />Knowledge graph</div><div className="v">{st.graph.entities.toLocaleString()}</div>
-        <div className="s">{st.graph.ready ? `entities · ${st.graph.relations.toLocaleString()} links` : st.graph.built ? 'graph database offline' : 'not built'}</div></Link>
+        <div className="s">{st.graph.ready ? `entities · ${st.graph.relations.toLocaleString()} links` : 'not built'}</div></Link>
       <Link to="/agents" className="card stat" style={{ color: 'inherit', textDecoration: 'none' }}><div className="k"><Icon name="agent" size={15} />Agents</div><div className="v">{data.agents.active}</div>
         <div className="s">{week.toLocaleString()} calls this week</div></Link>
     </div>
@@ -45,10 +45,11 @@ export default function Overview({ s }: { s: Session }) {
           <div key={d.day} className={`b${d.calls ? '' : ' zero'}`} style={{ height: `${(d.calls / max) * 100}%` }} title={`${d.day}: ${d.calls} calls, ${d.errors} errors`} />)}</div>
           <div className="barlabels">{data.usage.map((d, i) => <span key={d.day}>{i % 2 === 0 ? new Date(d.day).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : ''}</span>)}</div></div></div>
       <div className="card"><div className="hd"><h2>System</h2></div><div className="bd stack small">
-        <div className="between"><span>AI model</span>{st.llm.ready ? <Badge kind="ok" dot>connected</Badge> : <Link to="/settings"><Badge kind="warn" dot>not set</Badge></Link>}</div>
+        <div className="between"><span>AI model inside</span><span className="muted">none · agents bring their own</span></div>
+        <div className="between"><span>Agent link (MCP)</span><code className="tiny">{window.location.origin}/mcp</code></div>
         <div className="between"><span>Search index</span>{st.documents.indexed ? <span className="muted">updated {ago(st.documents.indexed)}</span> : <Badge kind="warn">not built</Badge>}</div>
         <div className="between"><span>Metrics catalog</span>{st.data.ready ? <Badge kind="ok" dot>ready</Badge> : <Badge>not prepared</Badge>}</div>
-        <div className="between"><span>Graph database</span>{st.postgres.ok ? <Badge kind="ok" dot>online</Badge> : <Badge kind="warn" dot>offline</Badge>}</div>
+        <div className="between"><span>Graph database (Cypher copy)</span>{st.postgres.ok ? <Badge kind="ok" dot>online</Badge> : <Badge dot>offline</Badge>}</div>
       </div></div>
     </div>
     <div className="grid g2" style={{ marginTop: 16 }}>

@@ -1,0 +1,24 @@
+# Blind gold set on the Lumora tables (Excel, JSON, JSON Lines, CSV), whose definitions were drafted
+# automatically from the data profile and then approved. Written before the planner was run on it.
+as_of: 2026-11-24
+questions:
+  - {id: L01, kind: simple, question: "How many tickets were opened in 2025?", gold: {metrics: [lumora_tickets_count], start_date: 2025-01-01, end_date: 2025-12-31}}
+  - {id: L02, kind: filter, question: "Number of urgent tickets by product", gold: {metrics: [lumora_tickets_count], dimensions: [lumora_tickets.product], filters: [{dimension: lumora_tickets.priority, values: [urgent]}]}}
+  - {id: L03, kind: breakdown, question: "Average CSAT by channel", gold: {metrics: [average_lumora_ticket_csat], dimensions: [lumora_tickets.channel]}}
+  - {id: L04, kind: breakdown, question: "Total invoice amount by status", gold: {metrics: [total_lumora_invoice_amount], dimensions: [lumora_invoices.status]}}
+  - {id: L05, kind: filter, question: "Total invoice amount for overdue invoices in 2026", gold: {metrics: [total_lumora_invoice_amount], filters: [{dimension: lumora_invoices.status, values: [overdue]}], start_date: 2026-01-01, end_date: 2026-12-31}}
+  - {id: L06, kind: breakdown, question: "How many employees are in each department?", gold: {metrics: [lumora_employees__employees_count], dimensions: [lumora_employees__departments.department_name]}}
+  - {id: L07, kind: filter, question: "Average ticket resolution hours for Enterprise customers", gold: {metrics: [average_lumora_ticket_resolution_hours], filters: [{dimension: lumora_tickets.customer_tier, values: [Enterprise]}]}}
+  - {id: L08, kind: breakdown, question: "Invoice amount by customer region", gold: {metrics: [total_lumora_invoice_amount], dimensions: [lumora_customers.region]}}
+  - {id: L09, kind: top_n, question: "Top 3 customers by total invoice amount", gold: {metrics: [total_lumora_invoice_amount], dimensions: [lumora_customers.name], order_by: [-total_lumora_invoice_amount], limit: 3}}
+  - {id: L10, kind: simple, question: "How many invoices were issued last quarter?", gold: {metrics: [lumora_invoices_count], start_date: 2026-07-01, end_date: 2026-09-30}}
+  - {id: L11, kind: breakdown, question: "Monthly ticket count in 2026", gold: {metrics: [lumora_tickets_count], dimensions: [lumora_tickets.opened_at__month], start_date: 2026-01-01, end_date: 2026-12-31}}
+  - {id: L12, kind: top_n, question: "Which product has the lowest average CSAT?", gold: {metrics: [average_lumora_ticket_csat], dimensions: [lumora_tickets.product], order_by: [average_lumora_ticket_csat], limit: 1}}
+  - {id: L13, kind: simple, question: "Number of employees hired in 2024", gold: {metrics: [lumora_employees__employees_count], start_date: 2024-01-01, end_date: 2024-12-31}}
+  - {id: L14, kind: filter, question: "How many employees work in Pune?", gold: {metrics: [lumora_employees__employees_count], filters: [{dimension: lumora_employees__employees.city, values: [Pune]}]}}
+  - {id: L15, kind: unanswerable, question: "What is our employee attrition rate?"}
+  - {id: L16, kind: filter, question: "Average invoice amount for GridSense", gold: {metrics: [average_lumora_invoice_amount], filters: [{dimension: lumora_invoices.product, values: [GridSense]}]}}
+  - {id: L17, kind: filter, question: "Tickets by priority for Northbay Utilities", gold: {metrics: [lumora_tickets_count], dimensions: [lumora_tickets.priority], filters: [{dimension: lumora_tickets.customer_name, values: [Northbay Utilities]}]}}
+  - {id: L18, kind: filter, question: "Total resolution hours of high priority tickets last month", gold: {metrics: [total_lumora_ticket_resolution_hours], filters: [{dimension: lumora_tickets.priority, values: [high]}], start_date: 2026-10-01, end_date: 2026-10-31}}
+  - {id: L19, kind: simple, question: "Count of departments", gold: {metrics: [lumora_employees__departments_count]}}
+  - {id: L20, kind: breakdown, question: "Average invoice amount per month in 2025", gold: {metrics: [average_lumora_invoice_amount], dimensions: [lumora_invoices.issued_date__month], start_date: 2025-01-01, end_date: 2025-12-31}}

@@ -2,11 +2,11 @@
 
   1. collect   entity mentions + relations from the extraction .jsonl files
   2. tables    map structured data (data/*.csv) to entities and relations - no LLM
-  3. resolve   merge duplicates: exact normalised name -> RapidFuzz + BGE-M3 similarity ->
-               the small LLM decides only the unclear pairs
+  3. resolve   merge duplicates: exact normalised name, then RapidFuzz near-spellings within the same type
+               family (no language model; unclear pairs stay separate, which is the safe default)
   4. relations aggregate repeated relations into weighted edges
-  5. communities  Leiden (NetworkX, modularity), two levels, no LLM; summaries are written lazily at query time
-  6. store     Apache AGE (graph) + SQL tables, Qdrant (entity + community vectors)
+  5. communities  Leiden (NetworkX, modularity), two levels; summaries are extractive, built at query time
+  6. store     outputs/_graph_build.json (answering reads this) + Apache AGE when the database is reachable
 
   python -m graph.build outputs/gr_extract_south.jsonl [--tables]
 
@@ -22,13 +22,11 @@ import unicodedata
 from collections import Counter, defaultdict
 
 import numpy as np
-from pydantic import BaseModel
 from rapidfuzz import fuzz, process
 
 from rag.utils import write_json
 
-from .config import (AUTO_MERGE_SCORE, CANDIDATE_COSINE, CANDIDATE_SCORE, COMMUNITY_COLLECTION,
-                     ENTITY_COLLECTION, OUT_DIR, ROOT, SMALL_MODEL)
+from .config import AUTO_MERGE_SCORE, OUT_DIR, ROOT
 
 PLACE_TYPES = {"State", "City", "District", "Place", "Country", "GeoFeature"}
 
@@ -120,46 +118,16 @@ def map_tables(groups: dict, rels: list):
 
 
 # ---------- 3. resolve ----------
-class _Verdict(BaseModel):
-    pair: int
-    same: bool
-
-
-class _Verdicts(BaseModel):
-    verdicts: list[_Verdict]
-
-
-def _adjudicate(pairs: list[tuple[dict, dict]]) -> list[bool]:
-    from rag.llm import claude
-    out = []
-    for i in range(0, len(pairs), 40):
-        part = pairs[i:i + 40]
-        listing = "\n".join(f"{j}. A: {a['name']} ({a['type']}): {a['descriptions'][0][:160] if a['descriptions'] else ''}\n"
-                            f"   B: {b['name']} ({b['type']}): {b['descriptions'][0][:160] if b['descriptions'] else ''}"
-                            for j, (a, b) in enumerate(part))
-        resp = claude().messages.parse(
-            model=SMALL_MODEL, max_tokens=4000,
-            messages=[{"role": "user", "content":
-                       "For each pair, decide whether A and B are the SAME real-world entity (spelling variant, "
-                       "short form, alias, old name). Different places/people/things with similar names are NOT the "
-                       f"same (North Goa vs South Goa, NH 1 vs NH 2).\n\n{listing}"}],
-            output_format=_Verdicts)
-        got = {v.pair: v.same for v in resp.parsed_output.verdicts}
-        out += [got.get(j, False) for j in range(len(part))]
-    return out
-
-
 def resolve(groups: dict):
-    from rag.models import embed_dense
+    """Merge mention groups that name the same thing. Exact normalised names were already grouped by collect();
+    here near-spellings ("Pondicherry"/"Puducherry" stays apart, "Arunachal Pradesh"/"Arunachal Pradesh state"
+    merges) are joined when RapidFuzz token_sort_ratio >= AUTO_MERGE_SCORE within one type family and the numbers
+    in the names agree. Comparisons are blocked by the first letter so this stays fast with 50,000 names."""
     items = list(groups.values())
     for g in items:
         g["type"] = g["types"].most_common(1)[0][0]
         g["name"] = max(g["names"].items(), key=lambda kv: (kv[1], len(kv[0])))[0]
-    texts = [f"{g['name']} ({g['type']}): {g['descriptions'][0] if g['descriptions'] else ''}" for g in items]
     t0 = time.perf_counter()
-    vecs = np.asarray(embed_dense(texts), dtype=np.float32)
-    emb_s = time.perf_counter() - t0
-
     parent = list(range(len(items)))
 
     def find(i):
@@ -168,35 +136,25 @@ def resolve(groups: dict):
             i = parent[i]
         return i
 
-    auto, unclear = [], []
-    by_type = defaultdict(list)
+    auto = []
+    blocks = defaultdict(list)
     for i, g in enumerate(items):
-        by_type["place" if g["type"] in PLACE_TYPES else g["type"]].append(i)
-    for idx in by_type.values():
+        fam = "place" if g["type"] in PLACE_TYPES else g["type"]
+        blocks[(fam, g["key"][:1])].append(i)
+    for idx in blocks.values():
         if len(idx) < 2:
             continue
         names = [items[i]["key"] for i in idx]
-        scores = process.cdist(names, names, scorer=fuzz.token_sort_ratio, workers=-1)
-        cos = vecs[idx] @ vecs[idx].T
-        for a in range(len(idx)):
-            for b in range(a + 1, len(idx)):
-                i, j = idx[a], idx[b]
-                digits_differ = re.findall(r"\d+", items[i]["key"]) != re.findall(r"\d+", items[j]["key"])
-                if items[i]["type"] != items[j]["type"] and scores[a][b] < AUTO_MERGE_SCORE:
-                    continue                                     # place family: different types need exact-ish names
-                if scores[a][b] >= AUTO_MERGE_SCORE and not digits_differ:
-                    auto.append((i, j))
-                elif scores[a][b] >= CANDIDATE_SCORE or cos[a][b] >= CANDIDATE_COSINE:
-                    unclear.append((i, j))
+        scores = process.cdist(names, names, scorer=fuzz.token_sort_ratio, workers=-1, score_cutoff=AUTO_MERGE_SCORE)
+        for a, b in zip(*np.nonzero(np.triu(scores, 1))):
+            i, j = idx[a], idx[b]
+            if re.findall(r"\d+", items[i]["key"]) != re.findall(r"\d+", items[j]["key"]):
+                continue
+            if items[i]["type"] != items[j]["type"] and scores[a][b] < 99:
+                continue
+            auto.append((i, j))
     for i, j in auto:
         parent[find(i)] = find(j)
-    unclear = [(i, j) for i, j in unclear if find(i) != find(j)]
-    verdicts = _adjudicate([(items[i], items[j]) for i, j in unclear]) if unclear else []
-    llm_merges = []
-    for (i, j), same in zip(unclear, verdicts):
-        if same:
-            parent[find(i)] = find(j)
-            llm_merges.append((items[i]["name"], items[j]["name"]))
 
     merged: dict[int, dict] = {}
     for i, g in enumerate(items):
@@ -215,17 +173,15 @@ def resolve(groups: dict):
         name = max(names.items(), key=lambda kv: (kv[1], len(kv[0])))[0]
         eid = _eid(typ, norm(name))
         descs = list(dict.fromkeys(d for g in mem for d in g["descriptions"]))
-        entities.append({"id": eid, "name": name, "type": typ, "aliases": sorted(set(names) - {name}),
+        entities.append({"id": eid, "name": name, "type": typ, "aliases": sorted(set(names) - {name})[:20],
                          "description": " ".join(descs[:4]), "chunk_ids": sorted({c for g in mem for c in g["chunk_ids"]}),
                          "mentions": sum(names.values()),
                          "origin": sorted({g["origin"] for g in mem} | ({"table"} if any(g.get("tables") for g in mem) else set()))})
         for g in mem:
             key_to_id[g["key"]] = eid
     report = {"mention_groups": len(items), "entities": len(entities), "auto_merges": len(auto),
-              "llm_checked_pairs": len(unclear), "llm_merges": len(llm_merges),
-              "llm_merge_examples": llm_merges[:40],
-              "llm_rejected_examples": [(items[i]["name"], items[j]["name"]) for (i, j), s in zip(unclear, verdicts) if not s][:40],
-              "embedding_seconds": round(emb_s, 1)}
+              "merge_examples": [(items[i]["name"], items[j]["name"]) for i, j in auto[:40]],
+              "seconds": round(time.perf_counter() - t0, 1)}
     return entities, key_to_id, report
 
 
@@ -236,6 +192,8 @@ def aggregate(rels: list, key_to_id: dict) -> list[dict]:
         s, t = key_to_id.get(r["s"]), key_to_id.get(r["t"])
         if not s or not t or s == t:
             continue
+        if r["type"] == "RELATED_TO" and t < s:                # co-occurrence has no direction: one edge per pair
+            s, t = t, s
         a = agg.setdefault((s, r["type"], t), {"source_id": s, "target_id": t, "type": r["type"], "count": 0,
                                                "strength": 0, "descriptions": [], "chunk_ids": []})
         a["count"] += 1
@@ -305,32 +263,6 @@ def communities(entities: list[dict], relations: list[dict]) -> list[dict]:
 
 
 # ---------- 6. store ----------
-def index_vectors(entities: list[dict], comms: list[dict]):
-    from qdrant_client import models as qm
-
-    from rag.models import embed_dense
-    from rag.store import client
-    from rag.config import EMBED_DIM
-    qc = client()
-    for name in (ENTITY_COLLECTION, COMMUNITY_COLLECTION):
-        if qc.collection_exists(name):
-            qc.delete_collection(name)
-        qc.create_collection(name, vectors_config={"dense": qm.VectorParams(size=EMBED_DIM, distance=qm.Distance.COSINE)})
-    import uuid
-    texts = [f"{e['name']} ({e['type']}): {e['description'][:600]}" for e in entities]
-    vecs = embed_dense(texts)
-    pts = [qm.PointStruct(id=str(uuid.uuid5(uuid.NAMESPACE_URL, e["id"])), vector={"dense": v},
-                          payload={"id": e["id"], "name": e["name"], "type": e["type"], "degree": e.get("degree", 0)})
-           for e, v in zip(entities, vecs)]
-    for i in range(0, len(pts), 256):
-        qc.upsert(ENTITY_COLLECTION, points=pts[i:i + 256], wait=True)
-    cvecs = embed_dense([c["profile"] for c in comms])
-    qc.upsert(COMMUNITY_COLLECTION, wait=True, points=[
-        qm.PointStruct(id=c["id"], vector={"dense": v},
-                       payload={"id": c["id"], "level": c["level"], "size": len(c["entity_ids"])})
-        for c, v in zip(comms, cvecs)])
-
-
 def build(paths: list[str], tables: bool = True, reuse: bool = False):
     from . import store
     from rag.utils import read_json
@@ -348,8 +280,7 @@ def build(paths: list[str], tables: bool = True, reuse: bool = False):
           f" (+{n_table} table rows)", flush=True)
     entities, key_to_id, rep = resolve(groups)
     write_json("gr_2_resolution.json", rep)
-    print(f"  resolved to {len(entities)} entities ({rep['auto_merges']} auto merges, "
-          f"{rep['llm_merges']}/{rep['llm_checked_pairs']} LLM-confirmed)", flush=True)
+    print(f"  resolved to {len(entities)} entities ({rep['auto_merges']} near-spelling merges)", flush=True)
     relations = aggregate(rels, key_to_id)
     comms = communities(entities, relations)
     print(f"  {len(relations)} edges, {len(comms)} communities "
@@ -361,33 +292,41 @@ def build(paths: list[str], tables: bool = True, reuse: bool = False):
 
 def _store(store, read_json, entities, relations, comms, chunk_ids, t0):
     chunks = [c for c in read_json("2_chunks.json") if c["chunk_id"] in chunk_ids]
-    store.reset_graph()
-    store.load(entities, relations, chunks)
-    c = store.conn()
-    with c.cursor() as cur:
-        cur.executemany("UPDATE public.kg_entities SET community_l0 = %s, community_l1 = %s WHERE id = %s",
-                        [(e.get("community_l0"), e.get("community_l1"), e["id"]) for e in entities])
-        cur.executemany("INSERT INTO public.kg_communities (id, level, parent, size, entity_ids, profile) "
-                        "VALUES (%s, %s, %s, %s, %s, %s)",
-                        [(x["id"], x["level"], x["parent"], len(x["entity_ids"]), x["entity_ids"], x["profile"])
-                         for x in comms])
-    index_vectors(entities, comms)
+    age = {"stored_in_age": False}
+    try:                                   # Apache AGE copy for Cypher queries; answering works without it
+        store.reset_graph()
+        store.load(entities, relations, chunks)
+        c = store.conn()
+        with c.cursor() as cur:
+            cur.executemany("UPDATE public.kg_entities SET community_l0 = %s, community_l1 = %s WHERE id = %s",
+                            [(e.get("community_l0"), e.get("community_l1"), e["id"]) for e in entities])
+            cur.executemany("INSERT INTO public.kg_communities (id, level, parent, size, entity_ids, profile) "
+                            "VALUES (%s, %s, %s, %s, %s, %s)",
+                            [(x["id"], x["level"], x["parent"], len(x["entity_ids"]), x["entity_ids"], x["profile"])
+                             for x in comms])
+        age = store.stats() | {"stored_in_age": True}
+    except Exception as e:                                         # noqa: BLE001 - reported, not fatal
+        age["age_error"] = f"{type(e).__name__}: {str(e).splitlines()[0][:200]}"
+        print(f"  graph database not used ({age['age_error']}); answering reads the build file", flush=True)
 
     deg = sorted(entities, key=lambda e: -e.get("degree", 0))
-    report = store.stats() | {
+    report = age | {
+        "nodes": len(entities), "edges": len(relations),
         "entities": len(entities), "relations": len(relations), "chunks": len(chunks),
+        "entities_by_type": dict(Counter(e["type"] for e in entities).most_common()),
         "relations_by_type": dict(Counter(r["type"] for r in relations).most_common()),
         "isolated_entities": sum(1 for e in entities if not e.get("degree")),
         "from_tables": sum(1 for e in entities if "table" in e["origin"]),
-        "linked_table_and_document": [e["name"] for e in entities if len(e["origin"]) == 2],
+        "linked_table_and_document": [e["name"] for e in entities if len(e["origin"]) == 2][:50],
         "top_degree": [(e["name"], e["type"], e["degree"]) for e in deg[:20]],
+        "communities": len(comms),
         "seconds": round(time.perf_counter() - t0, 1),
     }
     write_json("gr_3_graph.json", report)
     write_json("gr_4_communities.json", {"communities": [
         {"id": x["id"], "level": x["level"], "parent": x["parent"], "size": len(x["entity_ids"]),
          "profile": x["profile"][:300]} for x in comms]})
-    print(f"  stored {report['nodes']} nodes / {report['edges']} edges in AGE graph; "
+    print(f"  graph: {report['nodes']} entities / {report['edges']} links / {len(comms)} communities; "
           f"{report['isolated_entities']} isolated; {report['seconds']}s", flush=True)
     return report
 

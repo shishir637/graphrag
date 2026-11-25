@@ -136,7 +136,7 @@ export function JobPanel({ job }: { job: Job | null }) {
   if (!job) return null
   return <div className={`callout ${job.status === 'failed' ? 'bad' : ''}`} style={{ marginBottom: 16 }}>
     <div className="row">{job.status === 'running' ? <Spinner /> : job.status === 'done' ? <Badge kind="ok">done</Badge> : <Badge kind="bad">failed</Badge>}
-      <b>{job.label}</b>{job.status === 'running' && <span className="muted small">The first run downloads the AI models and can take several minutes.</span>}</div>
+      <b>{job.label}</b>{job.status === 'running' && <span className="muted small">The first run downloads the local search models (about 5 GB) and can take several minutes.</span>}</div>
     {job.error && <div className="small" style={{ marginTop: 6 }}>{job.error}</div>}
     {job.log.length > 0 && <pre className="joblog">{job.log.slice(-12).join('\n')}</pre>}
   </div>
