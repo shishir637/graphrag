@@ -225,16 +225,22 @@ def graph_overview() -> dict | None:
            {"built": iso(_mtime(OUT_DIR / "gr_3_graph.json"))}
 
 
-def graph_explore(q: str = "", limit: int = 120) -> dict:
-    """Entities and relations for the explorer, from the merged graph the build saved."""
+def graph_explore(q: str = "", limit: int = 120, groups: list[str] | None = None) -> dict:
+    """Entities and relations for the explorer, from the merged graph the build saved. groups: only what passages
+    of these groups support (names, descriptions and link sentences included); None: everything (owners, admins)."""
+    from graph.access import visible
+    from graph.search import _seen, ent_view, rel_evidence
     g = _json(OUT_DIR / "_graph_build.json")
     if not g:
         return {"entities": [], "relations": [], "total": 0}
-    ents = g.get("entities", [])
-    rels = g.get("relations", [])
+    ents = [e for e in g.get("entities", []) if groups is None or _seen(e.get("chunk_ids"), groups, visible)]
+    shown = {e["id"] for e in ents}
+    rels = [r for r in g.get("relations", []) if r["source_id"] in shown and r["target_id"] in shown and
+            (groups is None or _seen(r.get("chunk_ids"), groups, visible))]
+    views = {e["id"]: ent_view(e, groups, visible) for e in ents}
     if q:
         ql = q.lower()
-        hit = [e for e in ents if ql in e["name"].lower()]
+        hit = [e for e in ents if ql in views[e["id"]]["name"].lower()]
         ids = {e["id"] for e in hit[:20]}
         near = {r["target_id"] for r in rels if r["source_id"] in ids} | {r["source_id"] for r in rels if r["target_id"] in ids}
         keep = ids | near
@@ -244,12 +250,12 @@ def graph_explore(q: str = "", limit: int = 120) -> dict:
     keep = set(list(keep)[: limit * 2])
     return {
         "total": len(ents),
-        "entities": [{"id": i, "name": by_id[i]["name"], "type": by_id[i]["type"], "degree": by_id[i].get("degree", 0),
-                      "description": (by_id[i].get("description") or "")[:400],
+        "entities": [{"id": i, "name": views[i]["name"], "type": by_id[i]["type"], "degree": by_id[i].get("degree", 0),
+                      "description": views[i]["description"][:400],
                       "community": by_id[i].get("community_l0"), "passages": len(by_id[i].get("chunk_ids", []) or [])}
                      for i in keep if i in by_id],
         "relations": [{"source": r["source_id"], "target": r["target_id"], "type": r["type"], "weight": r.get("weight", 1),
-                       "description": (r.get("description") or "")[:300]}
+                       "description": rel_evidence(r, groups, visible)}
                       for r in rels if r["source_id"] in keep and r["target_id"] in keep][:600],
     }
 
@@ -460,12 +466,19 @@ JOBS = {
 }
 
 
+def core_purge() -> int:
+    from app import core
+    return core.purge_events(int(core.get_setting("event_retention_days", 90) or 90))
+
+
 def _register_jobs():
     from app import jobs
     me = globals()                       # looked up when the job runs (so tests and plug-ins can replace a step)
     for kind, (label, fn, _) in JOBS.items():
         jobs.register(kind, label, lambda info, _n=fn.__name__: me[_n]())
     jobs.register("rebuild", "Adding uploaded files", lambda info: me["rebuild"](info))
+    jobs.register("retention", "Deleting old activity", lambda info: print(
+        f"  deleted {core_purge()} events older than the retention period"))
     jobs.register("monitor", "Checking metric definitions", lambda info: __import__("semantic.monitor").monitor.run())
     jobs.register("learn", "Suggesting synonyms from unanswered questions",
                   lambda info: __import__("semantic.learn").learn.run())

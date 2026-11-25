@@ -46,6 +46,19 @@ and agents only ask.
   instead of the hard-coded demo tables; their joins become relations.
 - API: `GET/PUT /api/v1/ontology`, `GET /api/v1/ontology/export.yaml`, `POST /api/v1/ontology/{kind}/{name}/status`.
 
+**Security**
+- Graph evidence is kept per passage: link sentences, entity descriptions and aliases are built at answer time only
+  from passages the caller can see (before, text merged from all passages could show once any passage was visible).
+  The admin graph explorer applies the same to viewers.
+- Delegate keys (scope `delegate`) for apps acting for their own end users (e.g. CodeVerse): each request names the
+  end user with signed headers (HMAC-SHA256, 5 minutes, one-time) or a short-lived HS256 token, signed with the key's
+  signing secret (shown once). The call gets that user's groups only (`PUT /api/v1/external-users/{id}`), never the
+  key's; no or bad identity is refused. Events record the key and the end user.
+- Keys can expire and can be limited to IP ranges (CIDR); behind a proxy set `CL_TRUST_PROXY=1`.
+- Qdrant requires an API key (`CL_QDRANT_API_KEY`) and stays inside the Docker network.
+- Activity is kept for `event_retention_days` (default 90, deleted nightly); questions can be stored as a hash and
+  length instead of text (`PUT /api/v1/settings/privacy`).
+
 **Answers**
 - Metrics respect row access rules (e.g. only the caller's repositories), in numbers and in known values.
 - The router returns an evidence plan: a "why" question about a metric also gets the number, and a number question

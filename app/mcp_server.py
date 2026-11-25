@@ -90,7 +90,10 @@ def resolve(token: str | None, resource: str | None = None) -> dict | None:
 
 
 def _agent(ctx: Context) -> dict:
-    a = resolve(_bearer(ctx.headers))
+    a = CALLER.get()                         # resolved once per request by KeyGate (identity, IP, delegate user)
+    a = dict(a) if a else None
+    if a and a.get("all_groups"):
+        a["groups"] = sorted(set(engine.all_groups()) | set(a["groups"]))
     if a is None:
         raise ToolError("Invalid, expired or revoked sign-in. Reconnect Context Layer.")
     if a["kind"] == "user":
@@ -117,8 +120,8 @@ def run(agent: dict, tool: str, args: dict, fn, wait: bool = True) -> dict:
         summary = out.get("route") or (f"{len(out['passages'])} passages" if "passages" in out else
                                        f"{out['row_count']} rows" if "row_count" in out else "ok")
         core.log_event("agent", agent["name"], f"tool.{tool}", args.get("question") or args.get("query") or
-                       args.get("passage_id") or "", {"args": args, "summary": summary, "agent_id": agent["id"]},
-                       True, t())
+                       args.get("passage_id") or "", {"args": args, "summary": summary, "agent_id": agent["id"]} |
+                       ({"end_user": agent["end_user"]} if agent.get("end_user") else {}), True, t())
         return out
     except ToolError as e:
         core.log_event("agent", agent["name"], f"tool.{tool}", "", {"args": args, "error": str(e),
@@ -578,10 +581,15 @@ class KeyGate:
         if scope["type"] == "http":
             from . import oauth
             from .public import base_url
-            tok = _bearer({k.decode().lower(): v.decode() for k, v in scope.get("headers", [])})
-            caller = core.principal_for_token(tok, base_url(scope) + "/mcp")
+            hdrs = {k.decode().lower(): v.decode("latin-1") for k, v in scope.get("headers", [])}
+            tok = _bearer(hdrs)
+            why = None
+            try:
+                caller = core.principal_for_token(tok, base_url(scope) + "/mcp", client_ip(scope), hdrs)
+            except PermissionError as e:              # a delegate key without a valid end-user identity
+                caller, why = None, str(e)
             if caller is None:
-                body = json.dumps({"error": "invalid_token", "error_description":
+                body = json.dumps({"error": "invalid_token", "error_description": why or
                                    "Sign in to Context Layer from your AI app, or send 'Authorization: Bearer <key>' "
                                    "(keys are made under Agents in Context Layer)."}).encode()
                 www = oauth.www_authenticate(scope, bool(tok)) if oauth.enabled() else b'Bearer error="invalid_token"'
@@ -598,6 +606,16 @@ class KeyGate:
                 CALLER.reset(t2)
             return
         await self.app(scope, receive, send)
+
+
+def client_ip(scope) -> str:
+    """The caller's address; behind a trusted proxy (CL_TRUST_PROXY=1) the first X-Forwarded-For address."""
+    import os
+    if os.environ.get("CL_TRUST_PROXY") == "1":
+        for k, v in scope.get("headers", []):
+            if k == b"x-forwarded-for":
+                return v.decode("latin-1").split(",")[0].strip()
+    return (scope.get("client") or ("", 0))[0]
 
 
 def transport_security():

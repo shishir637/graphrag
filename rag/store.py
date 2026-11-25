@@ -25,7 +25,8 @@ def client() -> QdrantClient:
     global _client
     if _client is None:
         url = os.environ.get("QDRANT_URL")
-        _client = QdrantClient(url=url, timeout=60) if url else QdrantClient(path=str(QDRANT_PATH))
+        _client = QdrantClient(url=url, api_key=os.environ.get("QDRANT_API_KEY") or None, timeout=60,
+                               https=url.startswith("https")) if url else QdrantClient(path=str(QDRANT_PATH))
     return _client
 
 

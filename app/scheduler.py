@@ -44,6 +44,8 @@ def periodic() -> list[tuple]:
                 out.append((t, "monitor", "Checking metric definitions", {}))
             if has_layer and _ago(core.get_setting("learn_last"), LEARN_EVERY):
                 out.append((t, "learn", "Suggesting synonyms from unanswered questions", {}))
+            if _ago(core.get_setting("retention_last"), timedelta(hours=24)):
+                out.append((t, "retention", "Deleting old activity", {}))
     return out
 
 
@@ -58,7 +60,7 @@ def tick() -> int:
             print(traceback.format_exc(), file=sys.__stderr__)
     for t, kind, label, info in due:
         with tenant_scope(t):
-            if kind in ("monitor", "learn"):
+            if kind in ("monitor", "learn", "retention"):
                 core.set_setting(f"{kind}_last", core.now())
             busy = core.db().execute("SELECT 1 FROM jobs WHERE tenant_id = ? AND kind = ? AND status IN ('queued', 'running') "
                                      "AND info = ?::jsonb", (t, kind, __import__("json").dumps(info))).fetchone()

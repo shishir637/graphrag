@@ -22,6 +22,7 @@ services:
       CL_DATABASE_URL: postgresql://rag:${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}@db:5432/contextlayer
       GRAPH_PG_DSN: host=db port=5432 dbname=contextlayer user=rag password=${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
       QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: ${CL_QDRANT_API_KEY:?set CL_QDRANT_API_KEY in .env}
       CL_SECRET_KEY: ${CL_SECRET_KEY:-}
       CL_SIGNUP: ${CL_SIGNUP:-invite}
       CL_GRAPH_MODE: ${CL_GRAPH_MODE:-}
@@ -51,6 +52,8 @@ services:
   qdrant:                       # search index (dense + BM25 vectors). Not published outside Docker.
     image: qdrant/qdrant:v1.19.1
     restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__API_KEY: ${CL_QDRANT_API_KEY:?set CL_QDRANT_API_KEY in .env}
     volumes:
       - qdrant_data:/qdrant/storage
     healthcheck:

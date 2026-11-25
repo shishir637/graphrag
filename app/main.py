@@ -595,7 +595,8 @@ def semantic_history(kind: str, name: str, u: dict = Depends(ANY)):
 
 @app.get("/api/v1/graph")
 def graph(q: str = "", u: dict = Depends(ANY)):
-    return {"overview": engine.graph_overview(), **engine.graph_explore(q.strip()[:100])}
+    groups = None if u["role"] in ("owner", "admin") else u["groups"]          # viewers: only their groups
+    return {"overview": engine.graph_overview(), **engine.graph_explore(q.strip()[:100], groups=groups)}
 
 
 # ------------------------------------------------------------------ jobs
@@ -632,11 +633,15 @@ class AgentIn(BaseModel):
     groups: list[str] = Field(default_factory=lambda: ["public"])
     capabilities: list[str] = Field(default_factory=lambda: ["documents"])
     scope: str = "agent"
+    expires: str | None = None
+    allowed_ips: list[str] = Field(default_factory=list)
 
 
 class AgentPatch(BaseModel):
     groups: list[str] | None = None
     capabilities: list[str] | None = None
+    expires: str | None = None
+    allowed_ips: list[str] | None = None
 
 
 @app.get("/api/v1/agents")
@@ -650,7 +655,7 @@ def create_agent(body: AgentIn, u: dict = Depends(ADMIN)):
     try:
         groups = engine.clean_groups(body.groups)
         a, token = core.create_agent(body.name, body.description, groups, body.capabilities, u["email"],
-                                     body.scope)
+                                     body.scope, body.expires, body.allowed_ips)
     except ValueError as e:
         raise HTTPException(400, str(e))
     audit(u, "agents.create", a["name"], {"groups": a["groups"], "capabilities": a["capabilities"],
@@ -662,7 +667,7 @@ def create_agent(body: AgentIn, u: dict = Depends(ADMIN)):
 def update_agent(aid: str, body: AgentPatch, u: dict = Depends(ADMIN)):
     try:
         groups = engine.clean_groups(body.groups) if body.groups is not None else None
-        a = core.update_agent(aid, groups, body.capabilities)
+        a = core.update_agent(aid, groups, body.capabilities, body.expires, body.allowed_ips)
     except KeyError:
         raise HTTPException(404, "No such agent.")
     except ValueError as e:
@@ -679,6 +684,57 @@ def revoke_agent(aid: str, u: dict = Depends(ADMIN)):
         raise HTTPException(404, "No such agent.")
     audit(u, "agents.revoke", a["name"])
     return {"agent": a}
+
+
+# ------------------------------------------------------------------ an app's end users (delegate keys)
+
+class ExternalUserIn(BaseModel):
+    groups: list[str]
+    name: str = ""
+    disabled: bool = False
+
+
+@app.get("/api/v1/external-users")
+def external_users(u: dict = Depends(ADMIN)):
+    from . import delegate
+    return {"users": delegate.list_users()}
+
+
+@app.put("/api/v1/external-users/{user_id}")
+def put_external_user(user_id: str, body: ExternalUserIn, u: dict = Depends(ADMIN)):
+    """The groups an app's end user may see when the app calls with its delegate key on their behalf."""
+    from . import delegate
+    try:
+        r = delegate.put_user(user_id, body.groups, body.name, body.disabled)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    audit(u, "external_user.put", user_id, {"groups": r["groups"], "disabled": r["disabled"]})
+    return {"user": r}
+
+
+@app.delete("/api/v1/external-users/{user_id}")
+def delete_external_user(user_id: str, u: dict = Depends(ADMIN)):
+    from . import delegate
+    if not delegate.delete_user(user_id):
+        raise HTTPException(404, "No such user.")
+    audit(u, "external_user.delete", user_id)
+    return {"ok": True}
+
+
+class PrivacyIn(BaseModel):
+    event_retention_days: int = 90
+    redact_questions: bool = False
+
+
+@app.put("/api/v1/settings/privacy")
+def set_privacy(body: PrivacyIn, u: dict = Depends(OWNER)):
+    """How long the activity log is kept, and whether agents' questions are stored as text or only as a hash."""
+    if not 1 <= body.event_retention_days <= 3650:
+        raise HTTPException(400, "Keep events between 1 and 3650 days.")
+    core.set_setting("event_retention_days", body.event_retention_days)
+    core.set_setting("redact_questions", body.redact_questions)
+    audit(u, "settings.privacy", "", body.model_dump())
+    return body.model_dump()
 
 
 # ------------------------------------------------------------------ playground

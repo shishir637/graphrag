@@ -66,10 +66,12 @@ def test_scheduler_queues_checks_once(ws):
     a, b = ws
     with core.tenant_scope(a):
         seed(a)
-    assert scheduler.tick() == 2                            # Acme: nightly check + weekly learning; Globex: no layer
+    assert scheduler.tick() == 4          # Acme: check + learning + retention; Globex (no layer): retention only
     assert scheduler.tick() == 0                            # not due again yet
     with core.tenant_scope(a):
-        assert {j["kind"] for j in jobs.list_jobs()} == {"monitor", "learn"}
+        assert {j["kind"] for j in jobs.list_jobs()} == {"monitor", "learn", "retention"}
+    with core.tenant_scope(b):
+        assert {j["kind"] for j in jobs.list_jobs()} == {"retention"}
 
 
 def test_monitor_takes_out_a_broken_metric_and_restores_it(ws):
