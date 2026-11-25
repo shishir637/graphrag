@@ -271,19 +271,29 @@ def prepare_data():
     print("[4/4] Building the metric catalog"); from semantic.enrich import build_enrichment; build_enrichment(embed=False)
 
 
+GRAPH_MODES = {"fast": "spaCy, no AI model", "accurate": "GLiNER + spaCy, no AI model",
+               "ai": "AI extraction (Settings → AI extraction)"}
+
+
 def graph_mode() -> str:
     import os
     from app import core
-    return os.environ.get("CL_GRAPH_MODE") or core.get_setting("graph_mode", "accurate") or "accurate"
+    m = os.environ.get("CL_GRAPH_MODE") or core.get_setting("graph_mode", "accurate") or "accurate"
+    return m if m in GRAPH_MODES else "accurate"
 
 
 def build_graph():
-    """No language model: GLiNER/spaCy entities, co-occurrence and section links, Leiden communities."""
+    """Entities and links (spaCy, GLiNER + spaCy, or optional AI extraction), merging, Leiden communities."""
     if not (OUT_DIR / "2_chunks.json").exists():
         raise RuntimeError("Prepare the documents first: the graph is built from their passages.")
     mode = graph_mode()
+    if mode == "ai":
+        from graph.extract_ai import problems
+        bad = problems()
+        if bad:
+            raise RuntimeError("AI extraction is not set up: " + " ".join(bad))
     out = OUT_DIR / f"gr_extract_{mode}.jsonl"
-    print(f"[1/2] Finding entities and links ({'GLiNER + spaCy' if mode == 'accurate' else 'spaCy'}, no AI model)")
+    print(f"[1/2] Finding entities and links ({GRAPH_MODES[mode]})")
     from graph.nlp_extract import extract_all
     extract_all(out, mode=mode, resume=True)
     print("[2/2] Merging duplicates, finding communities, storing the graph")

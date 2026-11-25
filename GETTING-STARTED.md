@@ -40,6 +40,10 @@ The first build and start take 10-20 minutes while the models download. Check pr
    drafts metric definitions; review and **Approve** them on the **Metrics** page.
 4. **Knowledge graph** (optional): click **Build graph**. "Accurate" mode takes about 1-2 seconds per passage
    on a laptop; "fast" mode (Settings) is about 20 times quicker.
+   For better links ("X heads Y", "Z owns W"), turn on **AI extraction** in Settings: choose Claude or an
+   OpenAI-compatible API with your own key, or a local model such as Ollama (no key; documents stay on your
+   network). Click **Test connection**, set graph quality to **ai**, then **Build graph**. It is used only for
+   building the graph; answering never calls an AI model.
 5. **Playground**: ask a question to check what agents will get back.
 6. **Access**: add team members. Viewers see only the access groups you give them; owners and admins see everything.
 

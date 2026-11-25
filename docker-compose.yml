@@ -6,7 +6,7 @@
 services:
   app:
     build: .
-    image: context-layer:0.3.0
+    image: context-layer:0.4.0
     restart: unless-stopped
     depends_on:
       graphdb: { condition: service_healthy }
@@ -16,6 +16,9 @@ services:
       CL_PUBLIC_HOSTS: ${CL_PUBLIC_HOSTS:-}
       CL_PUBLIC_URL: ${CL_PUBLIC_URL:-}
       GRAPH_PG_DSN: host=graphdb port=5432 dbname=graphrag user=rag password=${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
+      CL_GRAPH_MODE: ${CL_GRAPH_MODE:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"    # lets optional AI extraction reach a local model (Ollama) on this machine
     volumes:
       - documents:/app/documents
       - tables:/app/data

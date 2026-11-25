@@ -248,8 +248,10 @@ def extract_all(out: Path, mode: str = "accurate", relations: str = "cooc", ids:
     else:
         out.write_text("", encoding="utf-8")
     todo = [c for c in chunks if c["chunk_id"] not in done]
-    ex = Extractor(mode, relations)
     t0 = time.perf_counter()
+    if mode == "ai":
+        return _extract_ai(out, todo, t0)
+    ex = Extractor(mode, relations)
     with out.open("a", encoding="utf-8") as f:
         for i, c in enumerate(todo, 1):
             f.write(json.dumps(ex.run(c) | {"th": _th(c)}, ensure_ascii=False) + "\n")
@@ -259,10 +261,42 @@ def extract_all(out: Path, mode: str = "accurate", relations: str = "cooc", ids:
     return out
 
 
+def _extract_ai(out: Path, todo: list[dict], t0: float) -> Path:
+    """Graph mode "ai": one call per passage to the provider chosen in Settings, in parallel."""
+    from concurrent.futures import ThreadPoolExecutor
+    from graph.extract_ai import AIExtractor, destination, is_local
+    ex = AIExtractor()
+    where = destination(ex.cfg)
+    print(f"  AI extraction with {ex.cfg['model']} at {where}"
+          f" ({'on your network' if is_local(ex.cfg) else 'passages are sent to this service'}),"
+          f" {ex.cfg['workers']} at a time", flush=True)
+    with out.open("a", encoding="utf-8") as f, ThreadPoolExecutor(ex.cfg["workers"]) as pool:
+        for i, (c, rec) in enumerate(zip(todo, pool.map(ex.run, todo)), 1):
+            f.write(json.dumps(rec | {"th": _th(c)}, ensure_ascii=False) + "\n")
+            if i % 25 == 0 or i == len(todo):
+                f.flush()
+                print(f"  {i}/{len(todo)} passages ({time.perf_counter() - t0:.0f}s)", flush=True)
+    u = ex.usage
+    summary = {"model": ex.method, "destination": where, "passages": len(todo), "calls": u["calls"],
+               "from_cache": u["cached"], "fell_back_to_spacy": u["fallbacks"], "input_tokens": u["input_tokens"],
+               "output_tokens": u["output_tokens"], "seconds": round(time.perf_counter() - t0, 1),
+               "errors": ex.errors[:5]}
+    (out.parent / "gr_ai_usage.json").write_text(json.dumps(summary, indent=1), encoding="utf-8")
+    print(f"  AI calls: {u['calls']} new, {u['cached']} from cache, {u['input_tokens']} input / "
+          f"{u['output_tokens']} output tokens", flush=True)
+    if u["fallbacks"]:
+        print(f"  {u['fallbacks']} passages fell back to spaCy (first error: {ex.errors[0] if ex.errors else '?'})",
+              flush=True)
+        if todo and u["fallbacks"] == len(todo) - u["cached"] and u["fallbacks"] >= 3:
+            raise RuntimeError("Every AI call failed: " + (ex.errors[0] if ex.errors else "unknown error")
+                               + ". Check Settings → AI extraction (Test connection).")
+    return out
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser()
-    ap.add_argument("--mode", choices=["fast", "accurate"], default="accurate")
+    ap.add_argument("--mode", choices=["fast", "accurate", "ai"], default="accurate")
     ap.add_argument("--relations", choices=["cooc", "typed"], default="cooc")
     ap.add_argument("--chunks")
     ap.add_argument("--out")

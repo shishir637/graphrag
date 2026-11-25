@@ -6,6 +6,7 @@ import contextlib
 import csv
 import io
 import json
+import re
 import time
 from collections import defaultdict, deque
 from pathlib import Path
@@ -569,15 +570,20 @@ def settings(request: Request, u: dict = Depends(ANY)):
     pg_ok, pg_msg = engine.postgres_ok()
     return {
         "organisation": core.get_setting("organisation", ""),
-        "ai_model": {"inside": False, "note": "Context Layer runs no AI model. It finds the evidence (passages, "
-                     "numbers, graph links); the agent that connects over MCP writes the answer."},
+        "ai_model": {"inside": engine.graph_mode() == "ai",
+                     "note": "Answering uses no AI model: Context Layer finds the evidence (passages, numbers, graph "
+                     "links) and the agent that connects over MCP writes the answer." + (
+                         " The knowledge graph is built with AI extraction (Settings below)."
+                         if engine.graph_mode() == "ai" else "")},
         "mcp": {"url": str(request.base_url).rstrip("/") + "/mcp", "public_url": _public_url(),
                 "transport": "Streamable HTTP",
                 "auth": "Sign in from Claude or ChatGPT (OAuth), or Authorization: Bearer <agent key>"},
         "models": {"embeddings": "BAAI/bge-m3 (local)", "keyword search": "BM25 (local)",
                    "re-ranker": "BAAI/bge-reranker-v2-m3 (local)",
-                   "entities": "GLiNER urchade/gliner_medium-v2.1 + spaCy en_core_web_lg (local)"},
+                   "entities": ("GLiNER urchade/gliner_medium-v2.1 + spaCy en_core_web_lg (local)"
+                                if engine.graph_mode() != "ai" else "AI extraction (see below)")},
         "graph_mode": engine.graph_mode(),
+        "ai_extraction": _ai_settings(),
         "storage": {"data_folder": str(core.DATA_DIR), "graph_database": PG_DSN.split("password=")[0].strip(),
                     "graph_database_ok": pg_ok, "graph_database_message": pg_msg, "disk": engine.disk_usage()},
         "version": core.VERSION,
@@ -591,11 +597,68 @@ def _public_url():
 
 @app.put("/api/v1/settings/graph")
 def set_graph_mode(body: GraphModeIn, u: dict = Depends(OWNER)):
-    if body.mode not in ("fast", "accurate"):
-        raise HTTPException(400, "mode is fast or accurate")
+    if body.mode not in engine.GRAPH_MODES:
+        raise HTTPException(400, "mode is fast, accurate or ai")
+    if body.mode == "ai":
+        from graph.extract_ai import problems
+        bad = problems()
+        if bad:
+            raise HTTPException(400, "Set up AI extraction first: " + " ".join(bad))
     core.set_setting("graph_mode", body.mode)
     audit(u, "settings.graph_mode", body.mode)
     return {"ok": True}
+
+
+def _ai_settings() -> dict:
+    from graph.extract_ai import PROVIDERS, config, destination, is_local, problems
+    c = config()
+    usage = None
+    f = engine.OUT_DIR / "gr_ai_usage.json"
+    if f.exists():
+        try:
+            usage = json.loads(f.read_text(encoding="utf-8"))
+            usage.pop("errors", None)
+        except ValueError:
+            usage = None
+    return {"provider": c["provider"], "model": c["model"], "base_url": c["base_url"], "workers": c["workers"],
+            "key_set": bool(c["api_key"]), "key": core.mask(c["api_key"]), "destination": destination(c),
+            "local": is_local(c), "ready": not problems(c), "problems": problems(c), "last_build": usage,
+            "providers": {k: {kk: v[kk] for kk in ("label", "base_url", "model", "needs_key", "workers")}
+                          for k, v in PROVIDERS.items()}}
+
+
+class AIExtractIn(BaseModel):
+    provider: str
+    model: str = ""
+    base_url: str = ""
+    workers: int | None = None
+    api_key: str | None = None        # None: keep the saved key; "": remove it
+
+
+@app.put("/api/v1/settings/ai")
+def set_ai_extraction(body: AIExtractIn, u: dict = Depends(OWNER)):
+    from graph.extract_ai import KEY_ENV, PROVIDERS
+    if body.provider not in PROVIDERS:
+        raise HTTPException(400, "provider is anthropic, openai or local")
+    base = (body.base_url or PROVIDERS[body.provider]["base_url"]).strip().rstrip("/")
+    if not re.match(r"^https?://[^\s]+$", base):
+        raise HTTPException(400, "The address must start with http:// or https://")
+    model = body.model.strip()[:120] or PROVIDERS[body.provider]["model"]
+    workers = max(1, min(32, body.workers or PROVIDERS[body.provider]["workers"]))
+    core.set_setting("ai_extract", {"provider": body.provider, "model": model, "base_url": base, "workers": workers})
+    if body.api_key is not None:
+        core.save_secret(KEY_ENV, body.api_key.strip() or None)
+    audit(u, "settings.ai_extraction", f"{body.provider} {model} at {base}"
+          + ("" if body.api_key is None else (" (key changed)" if body.api_key.strip() else " (key removed)")))
+    return {"ok": True, "ai_extraction": _ai_settings()}
+
+
+@app.post("/api/v1/settings/ai/test")
+def test_ai_extraction(u: dict = Depends(OWNER)):
+    from graph.extract_ai import test_connection
+    r = test_connection()
+    audit(u, "settings.ai_extraction.test", "ok" if r["ok"] else r["message"][:120])
+    return r
 
 
 class OrgIn(BaseModel):

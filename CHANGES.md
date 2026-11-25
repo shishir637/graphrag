@@ -1,5 +1,26 @@
 # Changes
 
+## 0.4.0 (25 Nov 2026): optional AI extraction for the knowledge graph
+
+A third graph quality, **ai**, next to fast (spaCy) and accurate (GLiNER + spaCy). An AI model reads each
+passage and returns entities with **named links** (leads, located in, owns...) instead of "named in the same
+sentence". Kanakavalli's test on the 30 hand-labelled passages: link recall 0.11 for GLiNER vs 0.75 for Claude Haiku.
+
+- Off by default. Used only while building the graph, never for answering; answering still runs no AI model.
+- Providers (Settings → AI extraction): **Claude** (own API key), any **OpenAI-compatible** API (own key), or a
+  **local model** such as Ollama (no key; passages stay on the company network). Plain HTTPS calls: no AI SDK
+  added to the requirements.
+- Many passages at a time (8 by default for cloud providers, 2 for local), retries with back-off, and a cache per
+  passage + model, so rebuilds only pay for new or changed passages.
+- A passage whose call fails falls back to spaCy, so one bad call never stops a build; if every call fails the
+  build stops with the error. Settings shows tokens used in the last build. "Test connection" checks key and model.
+- The key is stored in the server's secrets file, shown masked, and never written to the activity log.
+  Changes to the provider are audited.
+- The build log says where passages are sent. Settings warns when the provider is outside the network.
+- Docker: `host.docker.internal` reaches a model running on the same machine (also on Linux).
+- `python -m experiments.extract_compare` compares fast, accurate and ai on the hand-labelled passages: entity and
+  link accuracy and real build time per passage.
+
 ## 0.3.0 (25 Nov 2026): use it from Claude or ChatGPT, add files from the chat
 
 People use Context Layer inside their own Claude or ChatGPT: the AI comes from their plan, Context Layer
