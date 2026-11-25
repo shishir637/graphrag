@@ -231,6 +231,12 @@ def import_layer(model: SemanticModel | None = None, metrics: MetricSet | None =
             store("verified", v.question, v.model_dump(mode="json", exclude_defaults=False))
     if instructions is not None and instructions.strip():
         store("instructions", "main", {"text": instructions})
+    if n["entity"] or n["join"]:                  # the graph's ontology follows the data's vocabulary
+        try:
+            from graph.ontology import sync_from_semantic
+            sync_from_semantic(by=by or source)
+        except Exception as e:                    # noqa: BLE001 - the semantic layer must not fail on this
+            print(f"  ontology not updated from the semantic model: {e}")
     return {k: v for k, v in n.items() if v}
 
 

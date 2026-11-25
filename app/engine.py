@@ -346,6 +346,11 @@ def build_graph():
     print("[2/2] Merging duplicates, finding communities, storing the graph")
     from graph.build import build
     build([str(out)])
+    if _in_workspace():                          # names that only fit a generic type -> proposed types (drafts)
+        from graph.ontology import propose_from_extractions
+        new = propose_from_extractions(str(out))
+        if new:
+            print(f"  proposed {len(new)} new entity types for review: {', '.join(x['type'] for x in new)}")
 
 
 def eval_documents():

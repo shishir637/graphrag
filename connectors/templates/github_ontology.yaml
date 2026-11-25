@@ -1,0 +1,39 @@
+# Ready-made knowledge-graph ontology for the GitHub connector (source: template, approved when GitHub is connected).
+entity_types:
+  Repository:  {description: "a code repository (owner/name)", gliner_label: "code repository"}
+  Service:     {description: "a deployable service, application or API", gliner_label: "software service or api"}
+  Module:      {description: "a package, module, library or component", gliner_label: "software module or library"}
+  Function:    {description: "a function, method, class or endpoint", gliner_label: "function or class"}
+  Team:        {description: "an engineering team or group", gliner_label: "team"}
+  Person:      {description: "named person (author, reviewer, owner)", gliner_label: "person"}
+  Issue:       {description: "an issue, bug or ticket", gliner_label: "issue or bug"}
+  PullRequest: {description: "a pull request or merge request", gliner_label: "pull request"}
+relation_types:
+  OWNS:       {description: "team or person X owns service, module or repository Y", domain_type: Team, range_type: Module}
+  CALLS:      {description: "function or service X calls Y", domain_type: Function, range_type: Function}
+  DEPENDS_ON: {description: "service or module X depends on Y", domain_type: Module, range_type: Module}
+  IMPORTS:    {description: "module X imports Y", domain_type: Module, range_type: Module}
+  AUTHORED:   {description: "person X authored pull request, commit or issue Y", domain_type: Person, range_type: PullRequest}
+  REVIEWED:   {description: "person X reviewed pull request Y", domain_type: Person, range_type: PullRequest}
+  FIXES:      {description: "pull request X fixes issue Y", domain_type: PullRequest, range_type: Issue}
+verb_rules:
+  own:      {type: OWNS}
+  maintain: {type: OWNS}
+  call:     {type: CALLS}
+  invoke:   {type: CALLS}
+  depend:   {type: DEPENDS_ON, preps: [on]}
+  import:   {type: IMPORTS}
+  author:   {type: AUTHORED}
+  write:    {type: AUTHORED}
+  review:   {type: REVIEWED}
+  fix:      {type: FIXES}
+  resolve:  {type: FIXES}
+copula_rules:
+  owner: OWNS
+  maintainer: OWNS
+  author: AUTHORED
+  reviewer: REVIEWED
+head_words:
+  - {pattern: "\\b(service|api|gateway|server|worker)\\b", type: Service}
+  - {pattern: "\\b(module|package|library|sdk|plugin)\\b", type: Module}
+  - {pattern: "\\b(team|squad|guild)\\b", type: Team}

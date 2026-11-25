@@ -58,12 +58,26 @@ GENERIC_SCHEMA = {   # used when a deployment has no graph_layer/schema.yaml
 SKIP = re.compile(r"^(\W+|\d[\d,.\s%]*|the|a|an|this|that|it|they|he|she|we|i)$", re.I)
 
 
-@lru_cache
 def schema() -> dict:
+    """The ontology: the workspace's approved one inside the app (graph/ontology.py), else graph_layer/schema.yaml."""
+    from rag.wspath import current_workspace
+    if current_workspace():
+        from .ontology import load
+        return load()
+    return _file_schema()
+
+
+@lru_cache
+def _file_schema() -> dict:
     s = yaml.safe_load(SCHEMA_FILE.read_text(encoding="utf-8")) if SCHEMA_FILE.exists() else {}
     out = dict(GENERIC_SCHEMA)
     out.update({k: v for k, v in (s or {}).items() if v})
     return out
+
+
+def schema_fingerprint() -> str:
+    from .ontology import fingerprint
+    return fingerprint(schema())
 
 
 def head_word_rules() -> list[tuple[re.Pattern, str]]:
@@ -230,6 +244,7 @@ def extract_all(out: Path, mode: str = "accurate", relations: str = "cooc", ids:
         keep = set(ids)
         chunks = [c for c in chunks if c["chunk_id"] in keep]
     done = set()
+    ov = schema_fingerprint()
     if resume and out.exists():
         # keep only results for passages that still exist with the same text: a deleted or edited document
         # must not leave its old entities in the graph (records from before 0.3 have no hash: kept)
@@ -239,13 +254,15 @@ def extract_all(out: Path, mode: str = "accurate", relations: str = "cooc", ids:
             if not line.strip():
                 continue
             r = json.loads(line)
-            if ids is None and (r["chunk_id"] not in want or r.get("th", want[r["chunk_id"]]) != want[r["chunk_id"]]):
+            if ids is None and (r["chunk_id"] not in want or r.get("th", want[r["chunk_id"]]) != want[r["chunk_id"]]
+                                or r.get("ov", ov) != ov):       # the ontology changed since: extract again
                 dropped += 1
                 continue
             kept[r["chunk_id"]] = line
         if dropped and ids is None:
             out.write_text("".join(x + "\n" for x in kept.values()), encoding="utf-8")
-            print(f"  removed {dropped} passages that were deleted or changed", flush=True)
+            print(f"  removed {dropped} passages that were deleted or changed (or extracted with another ontology)",
+                  flush=True)
         done = set(kept)
     else:
         out.write_text("", encoding="utf-8")
@@ -256,7 +273,7 @@ def extract_all(out: Path, mode: str = "accurate", relations: str = "cooc", ids:
     ex = Extractor(mode, relations)
     with out.open("a", encoding="utf-8") as f:
         for i, c in enumerate(todo, 1):
-            f.write(json.dumps(ex.run(c) | {"th": _th(c)}, ensure_ascii=False) + "\n")
+            f.write(json.dumps(ex.run(c) | {"th": _th(c), "ov": ov}, ensure_ascii=False) + "\n")
             if i % 50 == 0 or i == len(todo):
                 f.flush()
                 print(f"  {i}/{len(todo)} passages ({time.perf_counter() - t0:.0f}s)", flush=True)
@@ -274,7 +291,7 @@ def _extract_ai(out: Path, todo: list[dict], t0: float) -> Path:
           f" {ex.cfg['workers']} at a time", flush=True)
     with out.open("a", encoding="utf-8") as f, ThreadPoolExecutor(ex.cfg["workers"]) as pool:
         for i, (c, rec) in enumerate(zip(todo, pool.map(ex.run, todo)), 1):
-            f.write(json.dumps(rec | {"th": _th(c)}, ensure_ascii=False) + "\n")
+            f.write(json.dumps(rec | {"th": _th(c), "ov": schema_fingerprint()}, ensure_ascii=False) + "\n")
             if i % 25 == 0 or i == len(todo):
                 f.flush()
                 print(f"  {i}/{len(todo)} passages ({time.perf_counter() - t0:.0f}s)", flush=True)

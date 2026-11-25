@@ -49,7 +49,7 @@ You only see what your key allows; if something is refused, say so rather than g
 # who is calling (set by KeyGate for the request): decides which tools are listed
 CALLER: contextvars.ContextVar[dict | None] = contextvars.ContextVar("cl_caller", default=None)
 UPLOAD_TOOLS = {"add_document", "create_upload_link"}
-ADMIN_TOOLS = {"approve_metric", "connect_source", "list_sources", "sync_source"}          # setting the workspace up: admin-scope keys, signed-in owners/admins
+ADMIN_TOOLS = {"approve_metric", "connect_source", "list_sources", "sync_source", "review_ontology"}          # setting the workspace up: admin-scope keys, signed-in owners/admins
 
 
 def allowed_tools(caller: dict | None) -> set[str] | None:
@@ -367,12 +367,33 @@ def tool_sync_source(agent: dict, connector_id: str) -> dict:
     return {"job_id": job["id"], "status": job["status"]}
 
 
+def tool_review_ontology(agent: dict, approve: list[str] | None = None, retire: list[str] | None = None) -> dict:
+    """Proposed entity types (drafts) and, when given, approve or retire some by name (admin keys only)."""
+    _need_admin(agent)
+    from graph import ontology
+    who = agent.get("email") or agent["name"]
+    before = ontology.fingerprint()
+    done = []
+    for names, st in ((approve or [], "approved"), (retire or [], "retired")):
+        for n in names:
+            try:
+                ontology.set_status("entity_type", n.strip(), st, who)
+                done.append({"type": n, "status": st})
+            except KeyError:
+                raise ToolError(f"No entity type named {n}.") from None
+    if done and ontology.fingerprint() != before and engine.graph_ready():
+        jobs.enqueue("graph", "Building the knowledge graph", None, who, {"reason": "ontology changed"})
+    drafts = [{"type": r["name"], "description": r["definition"].get("description"), "note": r["note"]}
+              for r in ontology.rows("entity_type", ("draft",))]
+    return {"changed": done, "proposed": drafts, "approved_types": sorted(ontology.load()["entity_types"])}
+
+
 TOOLS = {"ask": tool_ask, "search_documents": tool_search, "describe_data": tool_describe_data,
          "query_metrics": tool_metrics, "list_metrics": tool_list_metrics, "find_connections": tool_connections,
          "explore_entity": tool_entity, "list_documents": tool_list_documents, "fetch_passage": tool_fetch,
          "add_document": tool_add_document, "create_upload_link": tool_upload_link, "build_status": tool_build_status,
          "approve_metric": tool_approve_metric, "connect_source": tool_connect_source,
-         "list_sources": tool_list_sources, "sync_source": tool_sync_source}
+         "list_sources": tool_list_sources, "sync_source": tool_sync_source, "review_ontology": tool_review_ontology}
 
 
 # ------------------------------------------------------------------ MCP registrations
@@ -535,6 +556,15 @@ def _sync_source(ctx: Context, connector_id: str) -> dict[str, Any]:
     """Sync a connected source now instead of waiting for its schedule (admin keys only). Returns a job_id."""
     a = _agent(ctx)
     return run(a, "sync_source", {"connector_id": connector_id}, lambda: tool_sync_source(a, connector_id), wait=False)
+
+
+@mcp.tool(name="review_ontology", annotations=WRITES, structured_output=True)
+def _review_ontology(ctx: Context, approve: list[str] | None = None, retire: list[str] | None = None) -> dict[str, Any]:
+    """The knowledge graph's entity types: proposed ones found in the documents (with examples) and the approved
+    ones. Pass type names in approve or retire to decide (admin keys only); confirm with the user first."""
+    a = _agent(ctx)
+    return run(a, "review_ontology", {"approve": approve, "retire": retire},
+               lambda: tool_review_ontology(a, approve, retire), wait=False)
 
 
 class KeyGate:

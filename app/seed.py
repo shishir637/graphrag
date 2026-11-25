@@ -25,15 +25,25 @@ def copy_tree_files(src: Path, dst, exts: set[str] | None = None) -> int:
     return n
 
 
+def seed_new_workspace(by: str) -> dict:
+    """A workspace made by sign-up: the generic graph ontology (Person, Organisation, Place...)."""
+    from graph.ontology import seed_generic
+    seed_generic(by)
+    return {"ontology": "generic"}
+
+
 def seed_first_workspace(by: str) -> dict:
     """Run inside the new workspace's scope."""
     from semantic import repo
     from semantic.config import DATA_DIR, LAYER_DIR, TABLE_EXTS
     if os.environ.get("CL_SEED_LAYER", "1") == "0" or not (LAYER_DIR / "model.yaml").exists():
-        return {}
+        return seed_new_workspace(by)
+    from graph.config import SCHEMA_FILE
+    from graph.ontology import seed_file, seed_generic
+    onto = seed_file(by) if SCHEMA_FILE.exists() else seed_generic(by)
     tables = copy_tree_files(ROOT / "data", DATA_DIR.resolve_now(), set(TABLE_EXTS))
     layer = repo.import_dir(LAYER_DIR, source="import", by=by, certified=True)
     if tables:                                    # known values (cities, channels...) for questions and agents
         from semantic.enrich import build_enrichment
         build_enrichment(embed=False)
-    return {"tables": tables, "layer": layer}
+    return {"tables": tables, "layer": layer, "ontology": onto}

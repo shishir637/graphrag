@@ -33,6 +33,19 @@ and agents only ask.
 - Nightly, every approved metric is run; a broken one is taken out (`needs_review`) with the reason and comes back
   once it works. Questions no metric matched become synonym suggestions for an owner.
 
+**Knowledge-graph ontology per workspace** (`graph/ontology.py`)
+- Entity types (with parent types), relation types (with domain and range) and extraction rules live per workspace
+  in Postgres, versioned, with history and the same approval policy as metrics. Extraction uses the approved
+  ontology; a change re-extracts only passages extracted with the old one.
+- The first workspace starts with `graph_layer/schema.yaml`, new ones with generic types. Every semantic entity
+  becomes an entity type and every join a relation type, so graph and data share one vocabulary (reviewed types of
+  the same name are kept). Connecting GitHub adds a software ontology (Repository, Service, Module, PullRequest...).
+- Names that only fit a generic type and share a head word ("Leave Policy", "Travel Policy"...) are proposed as new
+  types with examples; owners approve them (API or the `review_ontology` admin tool).
+- Rows of lookup tables (customers, regions, teams...) become graph entities from the workspace's semantic model
+  instead of the hard-coded demo tables; their joins become relations.
+- API: `GET/PUT /api/v1/ontology`, `GET /api/v1/ontology/export.yaml`, `POST /api/v1/ontology/{kind}/{name}/status`.
+
 **Answers**
 - Metrics respect row access rules (e.g. only the caller's repositories), in numbers and in known values.
 - The router returns an evidence plan: a "why" question about a metric also gets the number, and a number question

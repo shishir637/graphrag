@@ -74,7 +74,11 @@ def collect(paths: list[str]):
 # ---------- 2. structured tables ----------
 def map_tables(groups: dict, rels: list):
     """Rows of dimension tables become entities, foreign keys become relations. Orders/amounts stay in the
-    semantic layer (numbers are answered there, not by the graph)."""
+    semantic layer (numbers are answered there, not by the graph). Inside a workspace this is driven by its
+    semantic model (map_semantic_tables); on the command line by the demo tables below."""
+    from rag.wspath import current_workspace
+    if current_workspace():
+        return map_semantic_tables(groups, rels)
     import pandas as pd
     from semantic.config import DATA_DIR as data
     if not (data / "regions.csv").exists():
@@ -114,6 +118,74 @@ def map_tables(groups: dict, rels: list):
                 "products")
         rels.append({"s": k, "t": norm(f"{p.category} products"), "type": "PART_OF",
                      "description": f"{p.product_name} is in category {p.category}.", "strength": 10, "chunk_id": None})
+    return added
+
+
+def map_semantic_tables(groups: dict, rels: list, max_rows: int = 2000) -> int:
+    """Generic version for any workspace: entities that other entities point to (lookup / dimension tables such
+    as customers, regions, products) have their rows added as graph entities of the matching ontology type, and
+    many-to-one joins between two such entities become relations of the join's relation type. Fact tables
+    (orders, invoices...) stay in the semantic layer."""
+    from graph.ontology import join_relation, type_name
+    from semantic.db import connect
+    from semantic.yamlio import load_model
+    try:
+        model = load_model()
+        con = connect()
+    except Exception as e:                                     # noqa: BLE001 - no data layer: nothing to map
+        print(f"  tables not mapped: {e}")
+        return 0
+    joins = [j for j in model.joins if j.relationship == "many_to_one"]
+    dims = {j.to_entity for j in joins}
+    ents = {e.name: e for e in model.entities if e.name in dims}
+    added = 0
+    keys: dict[str, dict] = {}
+
+    def label_column(e):
+        for d in e.dimensions:
+            if d.type in ("text", "category") and re.search(r"name|title|label", d.name):
+                return d.column
+        return e.primary_key
+
+    for name, e in ents.items():
+        lab = label_column(e)
+        try:
+            rows = con.execute(f'SELECT CAST("{e.primary_key}" AS VARCHAR), CAST("{lab}" AS VARCHAR) FROM "{e.table}" '
+                               f'WHERE "{lab}" IS NOT NULL LIMIT {int(max_rows)}').fetchall()
+        except Exception as ex:                                # noqa: BLE001
+            print(f"  {e.table}: not mapped ({str(ex).splitlines()[0][:120]})")
+            continue
+        typ, keys[name] = type_name(name), {}
+        for pk, label in rows:
+            k = norm(label)
+            if not k:
+                continue
+            g = groups.setdefault(k, {"key": k, "names": Counter(), "types": Counter(), "descriptions": [],
+                                      "chunk_ids": set(), "origin": "table"})
+            g["names"][label] += 1
+            g["types"][typ] += 1
+            desc = f"{label}: {e.label or name} in the data ({e.table})."
+            if desc not in g["descriptions"]:
+                g["descriptions"].append(desc)
+            g.setdefault("tables", set()).add(e.table)
+            keys[name][pk] = k
+            added += 1
+    for j in joins:
+        if j.from_entity not in keys or j.to_entity not in keys:
+            continue
+        fe = ents[j.from_entity]
+        try:
+            pairs = con.execute(f'SELECT CAST("{fe.primary_key}" AS VARCHAR), CAST("{j.from_column}" AS VARCHAR) '
+                                f'FROM "{fe.table}" LIMIT {int(max_rows)}').fetchall()
+        except Exception:                                      # noqa: BLE001
+            continue
+        rtype = join_relation(j.from_entity, j.to_entity)
+        for pk, fk in pairs:
+            s, t = keys[j.from_entity].get(pk), keys[j.to_entity].get(fk)
+            if s and t and s != t:
+                rels.append({"s": s, "t": t, "type": rtype, "strength": 10, "chunk_id": None,
+                             "description": f"{j.from_entity} row belongs to {j.to_entity} ({j.from_column})."})
+    print(f"  {added} entities from {len(keys)} tables of the semantic model")
     return added
 
 

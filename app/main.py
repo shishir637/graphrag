@@ -171,6 +171,9 @@ def _new_workspace(body: SetupIn, request: Request, response: Response, action: 
         audit(u, action, body.organisation)
         if action == "setup":
             _seed_layer(u["email"])
+        else:
+            from .seed import seed_new_workspace
+            seed_new_workspace(u["email"])
     return {"user": u}
 
 
@@ -490,8 +493,74 @@ async def connector_webhook(kind: str, cid: str, request: Request):
     return JSONResponse({"detail": msg}, status)
 
 
+# ------------------------------------------------------------------ knowledge-graph ontology (per workspace)
+
+class OntologyIn(BaseModel):
+    yaml: str
+    certified: bool = True
+
+
+@app.get("/api/v1/ontology")
+def get_ontology(u: dict = Depends(ANY)):
+    """The approved ontology (schema.yaml format) and every definition with its status and source."""
+    from graph import ontology
+    return {"ontology": ontology.export_schema(),
+            "definitions": [{k: r[k] for k in ("kind", "name", "definition", "status", "source", "note", "version",
+                                               "updated_by", "updated_at")} for r in ontology.rows()]}
+
+
+@app.get("/api/v1/ontology/export.yaml")
+def export_ontology(u: dict = Depends(ADMIN)):
+    import yaml
+    from graph import ontology
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse(yaml.safe_dump(ontology.export_schema(), sort_keys=False, allow_unicode=True),
+                             media_type="application/x-yaml")
+
+
+def _ontology_changed(before: str, by: str):
+    """An approved change re-extracts the graph (only passages extracted with the old ontology)."""
+    from graph import ontology
+    if ontology.fingerprint() != before and engine.graph_ready():
+        jobs.enqueue("graph", "Building the knowledge graph", None, by, {"reason": "ontology changed"})
+
+
+@app.put("/api/v1/ontology")
+def import_ontology(body: OntologyIn, u: dict = Depends(ADMIN)):
+    """Import an ontology in the graph_layer/schema.yaml format (adds and updates; nothing is removed)."""
+    import yaml
+    from graph import ontology
+    try:
+        data = yaml.safe_load(body.yaml) or {}
+        assert isinstance(data, dict)
+        before = ontology.fingerprint()
+        n = ontology.import_schema(data, source="import", by=u["email"], certified=body.certified)
+    except Exception as e:                                       # noqa: BLE001 - shown to the admin
+        raise HTTPException(400, f"Not imported: {str(e)[:300]}")
+    audit(u, "ontology.import", "", n)
+    _ontology_changed(before, u["email"])
+    return {"imported": n}
+
+
 class DefinitionStatusIn(BaseModel):
     status: str
+
+
+@app.post("/api/v1/ontology/{kind}/{name}/status")
+def set_ontology_status(kind: str, name: str, body: DefinitionStatusIn, u: dict = Depends(ADMIN)):
+    """Approve, send back to draft, or retire an entity type, relation type or rule (e.g. a proposed type)."""
+    from graph import ontology
+    if kind not in ("entity_type", "relation_type", "rule") or body.status not in ("draft", "approved", "needs_review",
+                                                                                  "retired"):
+        raise HTTPException(400, "Unknown kind or status.")
+    before = ontology.fingerprint()
+    try:
+        r = ontology.set_status(kind, name, body.status, u["email"])
+    except KeyError:
+        raise HTTPException(404, "No such definition.")
+    audit(u, "ontology.status", f"{kind} {name}", {"status": body.status})
+    _ontology_changed(before, u["email"])
+    return {"definition": r}
 
 
 @app.put("/api/v1/semantic/{kind}/{name}/status")

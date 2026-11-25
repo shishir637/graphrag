@@ -89,7 +89,18 @@ def create(kind: str, name: str, config: dict, secrets: dict | None, groups: lis
     cls(cid, config, {}, g)                                       # validates the config shape early
     if kind == "github":
         GitHub(cid, config, {}, g).repos()
+        _import_ontology_template("github_ontology.yaml", f"connector:{cid}")
     return get(cid)
+
+
+def _import_ontology_template(file: str, by: str):
+    """A connector's ready-made graph ontology (approved, source=template)."""
+    from pathlib import Path
+    import yaml
+    from graph import ontology
+    path = Path(__file__).parent / "templates" / file
+    if path.exists():
+        ontology.import_schema(yaml.safe_load(path.read_text(encoding="utf-8")), source="template", by=by)
 
 
 def update(cid: str, config: dict | None = None, secrets: dict | None = None, groups: list[str] | None = None,
