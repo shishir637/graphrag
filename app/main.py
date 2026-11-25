@@ -165,16 +165,14 @@ def _new_workspace(body: SetupIn, request: Request, response: Response, action: 
 
 
 def _seed_layer(by: str):
-    """The server's first workspace starts with the reviewed layer shipped in semantic_layer/ (if any), so an
-    existing single-workspace installation keeps its metrics. New sign-ups start empty."""
-    from semantic import repo
-    from semantic.config import LAYER_DIR
-    if (LAYER_DIR / "model.yaml").exists() and os.environ.get("CL_SEED_LAYER", "1") != "0":
-        try:
-            n = repo.import_dir(LAYER_DIR, source="import", by=by, certified=True)
+    """The server's first workspace starts with the shipped semantic layer and its tables (app/seed.py)."""
+    from .seed import seed_first_workspace
+    try:
+        n = seed_first_workspace(by)
+        if n:
             core.log_event("system", by, "semantic.import", "semantic_layer/", n)
-        except Exception as e:                               # noqa: BLE001 - a bad seed must not block setup
-            core.log_event("system", by, "semantic.import", "semantic_layer/", {"error": str(e)[:300]}, ok=False)
+    except Exception as e:                                   # noqa: BLE001 - a bad seed must not block setup
+        core.log_event("system", by, "semantic.import", "semantic_layer/", {"error": str(e)[:300]}, ok=False)
 
 
 @app.post("/api/v1/signup")

@@ -8,6 +8,8 @@ from .config import DATA_DIR, TABLE_EXTS
 
 
 def table_files() -> dict[str, str]:
+    if not DATA_DIR.exists():                     # a workspace without tables yet
+        return {}
     return {p.stem: str(p).replace("\\", "/") for p in sorted(DATA_DIR.iterdir())
             if p.suffix.lower() in TABLE_EXTS}
 

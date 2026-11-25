@@ -51,13 +51,22 @@ def main(argv=None):
     if "oauth_hmac" in kv:
         with system():
             core.set_system_setting("oauth_hmac", kv["oauth_hmac"])
-    from semantic import repo
-    from semantic.config import LAYER_DIR
-    layer = {}
-    if (LAYER_DIR / "model.yaml").exists():
-        with tenant_scope(tid):
-            layer = repo.import_dir(LAYER_DIR, source="import", by="migrate_local", certified=True)
-    print(f"Moved into workspace {tid}: {core.user_count()} people, events {n}, semantic layer {layer}.")
+    from rag.config import DOCS_DIR, OUT_DIR
+    from semantic.config import DATA_DIR
+    from .seed import ROOT, copy_tree_files, seed_first_workspace
+    with tenant_scope(tid):
+        layer = seed_first_workspace("migrate_local")              # semantic_layer/ + data/
+        copy_tree_files(ROOT / "documents", DOCS_DIR.resolve_now())
+        copy_tree_files(ROOT / "outputs", OUT_DIR.resolve_now(), {".json", ".jsonl"})
+        access = ROOT / "documents" / "_access.json"
+        if access.exists():
+            from rag import registry
+            for name, groups in json.loads(access.read_text(encoding="utf-8")).items():
+                registry.set_groups(name, groups)
+        layer = layer or {}
+        n_data = len(list(DATA_DIR.resolve_now().glob("*"))) if DATA_DIR.exists() else 0
+    print("Run 'Prepare documents' once in the app so the search index is built for this workspace.")
+    print(f"Moved into workspace {tid}: {core.user_count()} people, events {n}, semantic layer {layer.get('layer')}, {n_data} tables.")
 
 
 if __name__ == "__main__":

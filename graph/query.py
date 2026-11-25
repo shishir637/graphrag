@@ -42,7 +42,7 @@ def _add_usage(total: dict, u: dict):
 def _entity_names():
     global _names
     if _names is None:
-        rows = store.conn().execute("SELECT id, name, type, aliases, degree FROM public.kg_entities").fetchall()
+        rows = store.conn().execute("SELECT id, name, type, aliases, degree FROM kg_entities").fetchall()
         _names = [(i, n, t, a or [], d or 0) for i, n, t, a, d in rows]
     return _names
 
@@ -74,7 +74,7 @@ from .access import _ACCESS, chunk_access, sees_everything, visible  # noqa: E40
 
 
 def _chunks(ids: list[str]) -> dict:
-    rows = store.conn().execute("SELECT chunk_id, source, headings, text FROM public.kg_chunks WHERE chunk_id = ANY(%s)",
+    rows = store.conn().execute("SELECT chunk_id, source, headings, text FROM kg_chunks WHERE chunk_id = ANY(%s)",
                                 (ids,)).fetchall()
     return {r[0]: {"chunk_id": r[0], "source": r[1], "headings": r[2], "pages": [], "text": r[3]} for r in rows}
 
@@ -85,7 +85,7 @@ def local_search(question: str, groups: list[str] | None = None) -> dict:
     qv = embed_dense([question])[0]
     seeds = link_entities(question, qv)
     if groups is not None and seeds:            # only entities the caller can see a source passage for
-        rows = store.conn().execute("SELECT entity_id, chunk_id FROM public.kg_entity_chunks WHERE entity_id = ANY(%s)",
+        rows = store.conn().execute("SELECT entity_id, chunk_id FROM kg_entity_chunks WHERE entity_id = ANY(%s)",
                                     ([s["id"] for s in seeds],)).fetchall()
         ok = {eid for eid, cid in rows if visible(cid, groups)}
         seeds = [s for s in seeds if s["id"] in ok]
@@ -110,7 +110,7 @@ def local_search(question: str, groups: list[str] | None = None) -> dict:
             votes[c] = votes.get(c, 0) + (2 if e["hop"] == 2 else 1)
     if seeds:
         for eid, cid in store.conn().execute(
-                "SELECT entity_id, chunk_id FROM public.kg_entity_chunks WHERE entity_id = ANY(%s)",
+                "SELECT entity_id, chunk_id FROM kg_entity_chunks WHERE entity_id = ANY(%s)",
                 ([s["id"] for s in seeds],)).fetchall():
             votes[cid] = votes.get(cid, 0) + 0.5
     votes = {c: v for c, v in votes.items() if visible(c, groups)}
@@ -164,11 +164,11 @@ class _Partial(BaseModel):
 
 def community_summary(cid: int, usage: dict) -> dict:
     c = store.conn()
-    row = c.execute("SELECT title, summary, entity_ids, level FROM public.kg_communities WHERE id = %s", (cid,)).fetchone()
+    row = c.execute("SELECT title, summary, entity_ids, level FROM kg_communities WHERE id = %s", (cid,)).fetchone()
     title, summary, ids, level = row
     if summary:                                          # cached: summarised by an earlier question
         return {"id": cid, "title": title, "summary": summary, "cached": True}
-    ents = c.execute("SELECT name, type, description FROM public.kg_entities WHERE id = ANY(%s) "
+    ents = c.execute("SELECT name, type, description FROM kg_entities WHERE id = ANY(%s) "
                      "ORDER BY degree DESC LIMIT 40", (ids,)).fetchall()
     rels = store.cypher("MATCH (a)-[r]->(b) WHERE a.id IN $ids AND b.id IN $ids "
                         "RETURN a.name, label(r), b.name, r.description ORDER BY r.weight DESC LIMIT 60",
@@ -180,7 +180,7 @@ def community_summary(cid: int, usage: dict) -> dict:
                                               f"graph about India, using only the facts given.\n\n{text}"}])
     _add_usage(usage, _usage(resp))
     s = resp.parsed_output
-    c.execute("UPDATE public.kg_communities SET title = %s, summary = %s, summarised_at = now() WHERE id = %s",
+    c.execute("UPDATE kg_communities SET title = %s, summary = %s, summarised_at = now() WHERE id = %s",
               (s.title, s.summary, cid))
     return {"id": cid, "title": s.title, "summary": s.summary, "cached": False}
 

@@ -8,8 +8,14 @@ from .config import CHUNK_MAX_TOKENS, EMBED_MODEL
 from .utils import read_json, write_json
 
 
-def _chunk_id(source: str, i: int) -> str:
-    return hashlib.md5(f"{source}::{i}".encode()).hexdigest()[:12]
+def _chunk_id(source: str, headings: list[str], text: str, seen: dict) -> str:
+    """Content-based id: the same passage keeps its id when other parts of the document change (so its vectors,
+    graph facts and citations stay valid). Identical passages in one document get #2, #3..."""
+    key = f"{source}::{' / '.join(headings or [])}::{hashlib.md5(text.encode('utf-8')).hexdigest()}"
+    seen[key] = seen.get(key, 0) + 1
+    if seen[key] > 1:
+        key += f"#{seen[key]}"
+    return hashlib.md5(key.encode()).hexdigest()[:12]
 
 
 def chunk_all() -> list[dict]:
@@ -28,7 +34,7 @@ def chunk_all() -> list[dict]:
         hf_tok, chunk_size=CHUNK_MAX_TOKENS, chunk_overlap=64
     )
 
-    chunks = []
+    chunks, seen = [], {}
     for doc in read_json("1_parsed.json"):
         base = {"source": doc["source"], "access": doc["access"]}
         if doc["parser"] == "docling":
@@ -36,7 +42,7 @@ def chunk_all() -> list[dict]:
             for i, ch in enumerate(chunker.chunk(dl_doc)):
                 pages = sorted({prov.page_no for item in ch.meta.doc_items for prov in item.prov})
                 chunks.append(base | {
-                    "chunk_id": _chunk_id(doc["source"], i),
+                    "chunk_id": _chunk_id(doc["source"], ch.meta.headings or [], ch.text, seen),
                     "headings": ch.meta.headings or [],
                     "pages": pages,
                     "text": ch.text,
@@ -46,7 +52,7 @@ def chunk_all() -> list[dict]:
         else:
             for i, text in enumerate(splitter.split_text(doc["markdown"])):
                 chunks.append(base | {
-                    "chunk_id": _chunk_id(doc["source"], i),
+                    "chunk_id": _chunk_id(doc["source"], [], text, seen),
                     "headings": [], "pages": [], "text": text, "embed_text": text,
                 })
 

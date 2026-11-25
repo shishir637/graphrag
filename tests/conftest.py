@@ -17,6 +17,20 @@ def pg_available() -> bool:
         return False
 
 
+@pytest.fixture(autouse=True)
+def _workspace_files(tmp_path, monkeypatch):
+    """Workspace folders (documents, data, outputs) go to the test's temporary folder."""
+    monkeypatch.setenv("CL_FILES_DIR", str(tmp_path / "workspaces"))
+
+
+def seed(tenant_id: str):
+    """The shipped semantic layer and its tables in a workspace (like the server's first workspace)."""
+    from app.core import tenant_scope
+    from app.seed import seed_first_workspace
+    with tenant_scope(tenant_id):
+        return seed_first_workspace("test")
+
+
 needs_pg = pytest.mark.skipif(not pg_available(), reason="no test Postgres (set CL_TEST_DATABASE_URL)")
 
 from semantic.db import connect

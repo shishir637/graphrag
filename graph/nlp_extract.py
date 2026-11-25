@@ -31,7 +31,9 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_FILE = ROOT / "graph_layer" / "schema.yaml"
-CHUNKS = ROOT / "outputs" / "2_chunks.json"
+from .config import OUT_DIR  # noqa: E402
+
+CHUNKS = OUT_DIR / "2_chunks.json"              # per workspace
 SPACY_MODEL = "en_core_web_lg"
 GLINER_MODEL = "urchade/gliner_medium-v2.1"          # Apache-2.0
 GLINER2_MODEL = "fastino/gliner2-base-v1"            # Apache-2.0

@@ -8,7 +8,7 @@ from app import core
 from semantic import repo
 from semantic import yamlio as Y
 from semantic.config import LAYER_DIR
-from tests.conftest import needs_pg
+from tests.conftest import needs_pg, seed
 
 pytestmark = needs_pg
 
@@ -17,8 +17,7 @@ pytestmark = needs_pg
 def ws(tmp_path):
     core.reset_for_tests(tmp_path / "var")
     a, b = core.create_tenant("Acme"), core.create_tenant("Globex")
-    with core.tenant_scope(a):
-        repo.import_dir(LAYER_DIR, by="test")
+    seed(a)
     return a, b
 
 

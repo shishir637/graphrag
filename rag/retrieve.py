@@ -91,7 +91,10 @@ _RERANK_CACHE: dict[tuple[str, str], float] = {}
 
 def build_filter(groups: list[str] | None, sources: list[str] | None,
                  headings: list[str] | None = None) -> models.Filter | None:
+    from .wspath import tenant_key
     must = []
+    if tenant_key():   # the app: only this workspace's passages (all workspaces share one collection)
+        must.append(models.FieldCondition(key="tenant", match=models.MatchValue(value=tenant_key())))
     if headings:   # restrict to chunks under any of these headings (e.g. a set of regions)
         must.append(models.FieldCondition(key="headings", match=models.MatchAny(any=headings)))
     if groups:   # user may only see chunks whose "access" contains one of their groups
@@ -113,7 +116,9 @@ def _hits(points, score_key="score"):
 
 
 def point_id(chunk_id: str) -> str:
-    return str(uuid.uuid5(uuid.NAMESPACE_URL, chunk_id))
+    from .wspath import tenant_key
+    t = tenant_key()
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"{t}/{chunk_id}" if t else chunk_id))
 
 
 def fetch_chunks(chunk_ids: list[str], groups: list[str] | None, sources: list[str] | None = None) -> list[dict]:
@@ -121,8 +126,11 @@ def fetch_chunks(chunk_ids: list[str], groups: list[str] | None, sources: list[s
     if not chunk_ids:
         return []
     pts = client().retrieve(COLLECTION, ids=[point_id(c) for c in chunk_ids], with_payload=True)
+    from .wspath import tenant_key
     out = []
     for p in pts:
+        if (p.payload.get("tenant") or "") != tenant_key():
+            continue
         if groups and not set(p.payload.get("access") or []) & set(groups):
             continue
         if sources and p.payload["source"] not in sources:
@@ -243,7 +251,9 @@ def retrieve(question: str, groups: list[str] | None = None, sources: list[str] 
 
 
 # ---------- surrounding context ----------
-_CHUNK_INDEX: dict = {"mtime": None, "by_id": {}, "by_source": {}}
+from .wspath import PerFile  # noqa: E402
+
+_CHUNK_INDEX = PerFile()                    # per chunks file (per workspace)
 
 
 def _chunk_index() -> dict:
@@ -254,15 +264,16 @@ def _chunk_index() -> dict:
         mtime = path.stat().st_mtime
     except OSError:
         return {"by_id": {}, "by_source": {}}
-    if _CHUNK_INDEX["mtime"] != mtime:
+    e = _CHUNK_INDEX.entry(path)
+    if e["mtime"] != mtime:
         import json
         by_id, by_source = {}, {}
         for c in json.loads(path.read_text(encoding="utf-8")):
             lst = by_source.setdefault(c["source"], [])
             by_id[c["chunk_id"]] = (c["source"], len(lst))
             lst.append(c)
-        _CHUNK_INDEX.update(mtime=mtime, by_id=by_id, by_source=by_source)
-    return _CHUNK_INDEX
+        e.update(mtime=mtime, by_id=by_id, by_source=by_source)
+    return e
 
 
 def neighbours(chunk_id: str, groups: list[str] | None, max_chars: int = 800) -> dict:

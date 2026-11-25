@@ -127,7 +127,7 @@ def build_enrichment(embed: bool = True) -> dict:
               f"{len(values)} lists, {len(compiled)} verified queries checked")
         return result
 
-    STORE_DIR.mkdir(exist_ok=True)
+    STORE_DIR.mkdir(parents=True, exist_ok=True)
     STORE_DB.unlink(missing_ok=True)
     store = duckdb.connect(str(STORE_DB))
     store.execute("CREATE TABLE synonyms (term VARCHAR, target VARCHAR)")

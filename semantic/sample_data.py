@@ -39,8 +39,8 @@ def _days(a: date, b: date) -> int:
 
 def generate(n_customers: int = 600, n_orders: int = 6000, seed: int = 7) -> dict:
     rng = np.random.default_rng(seed)
-    DATA_DIR.mkdir(exist_ok=True)
-    REFERENCE_DIR.mkdir(exist_ok=True)
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    REFERENCE_DIR.mkdir(parents=True, exist_ok=True)
 
     regions = pd.DataFrame(REGIONS, columns=["region_id", "region_name"]).assign(country="India")
 

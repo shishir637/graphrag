@@ -25,7 +25,9 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parent.parent
-CACHE = ROOT / "outputs" / "_graph_cache" / "ai"
+from .config import OUT_DIR  # noqa: E402
+
+CACHE = OUT_DIR / "_graph_cache" / "ai"         # per workspace
 PROMPT_VERSION = "ai-v1"
 KEY_ENV = "CL_AI_API_KEY"
 

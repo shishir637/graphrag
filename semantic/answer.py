@@ -194,7 +194,7 @@ def cached_plan(question: str, ctx: dict) -> tuple["_Plan", list[str], bool]:
         return _Plan.model_validate(cache[key]), [], True
     plan, errors = plan_query(question, ctx)
     if use and not errors:
-        STORE_DIR.mkdir(exist_ok=True)
+        STORE_DIR.mkdir(parents=True, exist_ok=True)
         cache[key] = plan.model_dump(mode="json")
         path.write_text(json.dumps(cache), encoding="utf-8")
     return plan, errors, False

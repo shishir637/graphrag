@@ -7,9 +7,11 @@ from .config import OUT_DIR
 
 
 def write_json(name: str, data) -> Path:
-    OUT_DIR.mkdir(exist_ok=True)
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
     path = OUT_DIR / name
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    tmp = path.with_suffix(path.suffix + ".tmp")          # readers (agents' questions) never see half a file
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(path)
     print(f"  -> wrote {path.relative_to(OUT_DIR.parent)}")
     return path
 

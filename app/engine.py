@@ -56,10 +56,23 @@ def safe_filename(name: str) -> str:
 # ------------------------------------------------------------------ documents
 
 def access_map() -> dict:
+    """Access groups per document (Postgres inside a workspace; documents/_access.json otherwise)."""
+    if _in_workspace():
+        from rag.registry import access_map as reg
+        return reg()
     return _json(ACCESS_FILE, {}) or {}
 
 
 def _save_access(m: dict):
+    if _in_workspace():
+        from rag import registry
+        old = registry.access_map()
+        for name in set(old) - set(m):
+            registry.forget(name)
+        for name, g in m.items():
+            if old.get(name) != g:
+                registry.set_groups(name, g)
+        return
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
     tmp = ACCESS_FILE.with_suffix(".tmp")
     tmp.write_text(json.dumps(m, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -433,6 +446,7 @@ JOBS = {
     "eval_data": ("Testing metric questions", eval_data, "admin"),
     "eval_graph": ("Testing entity and link extraction", eval_graph, "admin"),
 }
+
 
 
 # ------------------------------------------------------------------ quality

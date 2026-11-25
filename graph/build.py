@@ -76,7 +76,7 @@ def map_tables(groups: dict, rels: list):
     """Rows of dimension tables become entities, foreign keys become relations. Orders/amounts stay in the
     semantic layer (numbers are answered there, not by the graph)."""
     import pandas as pd
-    data = ROOT / "data"
+    from semantic.config import DATA_DIR as data
     if not (data / "regions.csv").exists():
         return 0
     regions = pd.read_csv(data / "regions.csv")
@@ -299,9 +299,9 @@ def _store(store, read_json, entities, relations, comms, chunk_ids, t0):
         print(f"  graph database copy: {loaded['age_edges']} strongest links in {loaded['age_seconds']}s", flush=True)
         c = store.conn()
         with c.cursor() as cur:
-            cur.executemany("UPDATE public.kg_entities SET community_l0 = %s, community_l1 = %s WHERE id = %s",
+            cur.executemany("UPDATE kg_entities SET community_l0 = %s, community_l1 = %s WHERE id = %s",
                             [(e.get("community_l0"), e.get("community_l1"), e["id"]) for e in entities])
-            cur.executemany("INSERT INTO public.kg_communities (id, level, parent, size, entity_ids, profile) "
+            cur.executemany("INSERT INTO kg_communities (id, level, parent, size, entity_ids, profile) "
                             "VALUES (%s, %s, %s, %s, %s, %s)",
                             [(x["id"], x["level"], x["parent"], len(x["entity_ids"]), x["entity_ids"], x["profile"])
                              for x in comms])

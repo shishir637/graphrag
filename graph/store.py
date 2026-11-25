@@ -13,9 +13,21 @@ from collections import defaultdict
 
 import psycopg
 
-from .config import GRAPH_NAME, PG_DSN
+from .config import GRAPH_NAME as DEFAULT_GRAPH, PG_DSN
 
 _conn = None
+
+
+def graph_name() -> str:
+    """Each workspace has its own AGE graph and kg_* tables (schema kg_<workspace>); 'india_kg' + public outside."""
+    from rag.wspath import tenant_key
+    t = tenant_key()
+    return f"kg_{re.sub(r'[^a-z0-9_]', '_', t.lower())}" if t else DEFAULT_GRAPH
+
+
+def _schema() -> str:
+    from rag.wspath import tenant_key
+    return graph_name() if tenant_key() else "public"
 _LABEL = re.compile(r"^[A-Z][A-Za-z0-9_]*$")
 
 
@@ -25,7 +37,8 @@ def conn() -> psycopg.Connection:
         _conn = psycopg.connect(PG_DSN, autocommit=True)
         _conn.execute("CREATE EXTENSION IF NOT EXISTS age")
         _conn.execute("LOAD 'age'")
-        _conn.execute('SET search_path = ag_catalog, "$user", public')
+    sch = _schema()
+    _conn.execute(f'SET search_path = "{sch}", ag_catalog')        # kg_* tables are created and read in sch
     return _conn
 
 
@@ -38,7 +51,7 @@ def _label(name: str) -> str:
 def cypher(query: str, params: dict | None = None, columns: tuple[str, ...] = ("r",)) -> list[tuple]:
     """Run openCypher through AGE; params are passed as one agtype JSON parameter."""
     cols = ", ".join(f"{c} agtype" for c in columns)
-    sql = f"SELECT * FROM cypher('{GRAPH_NAME}', $$ {query} $$" + (", %s" if params is not None else "") + f") AS ({cols})"
+    sql = f"SELECT * FROM cypher('{graph_name()}', $$ {query} $$" + (", %s" if params is not None else "") + f") AS ({cols})"
     rows = conn().execute(sql, (json.dumps(params),) if params is not None else None,
                           prepare=params is not None).fetchall()
     return [tuple(_agtype(v) for v in row) for row in rows]
@@ -56,18 +69,18 @@ def _agtype(v):
 
 def reset_graph():
     c = conn()
-    if c.execute("SELECT count(*) FROM ag_graph WHERE name = %s", (GRAPH_NAME,)).fetchone()[0]:
-        c.execute("SELECT drop_graph(%s, true)", (GRAPH_NAME,))
-    c.execute("SELECT create_graph(%s)", (GRAPH_NAME,))
+    if c.execute("SELECT count(*) FROM ag_graph WHERE name = %s", (graph_name(),)).fetchone()[0]:
+        c.execute("SELECT drop_graph(%s, true)", (graph_name(),))
+    c.execute("SELECT create_graph(%s)", (graph_name(),))
     c.execute("""
-        DROP TABLE IF EXISTS public.kg_entities, public.kg_entity_chunks, public.kg_communities, public.kg_chunks;
-        CREATE TABLE public.kg_entities (id text PRIMARY KEY, name text, type text, description text,
+        DROP TABLE IF EXISTS kg_entities, kg_entity_chunks, kg_communities, kg_chunks;
+        CREATE TABLE kg_entities (id text PRIMARY KEY, name text, type text, description text,
                                          aliases text[], degree int, community_l0 int, community_l1 int);
-        CREATE TABLE public.kg_entity_chunks (entity_id text, chunk_id text, PRIMARY KEY (entity_id, chunk_id));
-        CREATE TABLE public.kg_communities (id int PRIMARY KEY, level int, parent int, size int,
+        CREATE TABLE kg_entity_chunks (entity_id text, chunk_id text, PRIMARY KEY (entity_id, chunk_id));
+        CREATE TABLE kg_communities (id int PRIMARY KEY, level int, parent int, size int,
                                             entity_ids text[], profile text,
                                             title text, summary text, summarised_at timestamptz);
-        CREATE TABLE public.kg_chunks (chunk_id text PRIMARY KEY, source text, headings text[], text text);
+        CREATE TABLE kg_chunks (chunk_id text PRIMARY KEY, source text, headings text[], text text);
     """)
 
 
@@ -88,12 +101,12 @@ def load(entities: list[dict], relations: list[dict], chunks: list[dict], batch:
         by_type.setdefault(e["type"], []).append(
             {"id": e["id"], "name": e["name"], "description": e["description"][:1500], "degree": e.get("degree", 0)})
     for typ, rows in by_type.items():
-        c.execute("SELECT create_vlabel(%s, %s)", (GRAPH_NAME, _label(typ)))
+        c.execute("SELECT create_vlabel(%s, %s)", (graph_name(), _label(typ)))
         for i in range(0, len(rows), batch):
             cypher(f"UNWIND $rows AS r CREATE (:{_label(typ)} {{id: r.id, name: r.name, description: r.description, "
                    f"degree: r.degree}})", {"rows": rows[i:i + batch]})
         # property index on id for this label (AGE stores properties as agtype)
-        c.execute(f'CREATE INDEX IF NOT EXISTS "{typ}_id" ON {GRAPH_NAME}."{_label(typ)}" '
+        c.execute(f'CREATE INDEX IF NOT EXISTS "{typ}_id" ON {graph_name()}."{_label(typ)}" '
                   f"(ag_catalog.agtype_access_operator(properties, '\"id\"'::agtype))")
 
     keep = [r for r in relations if r["type"] != "MENTIONS" and (r["type"] != "RELATED_TO" or r.get("count", 1) >= 2)]
@@ -109,7 +122,7 @@ def load(entities: list[dict], relations: list[dict], chunks: list[dict], batch:
     made = set()
     for (typ, la, lb), rows in groups.items():
         if typ not in made:
-            c.execute("SELECT create_elabel(%s, %s)", (GRAPH_NAME, typ))
+            c.execute("SELECT create_elabel(%s, %s)", (graph_name(), typ))
             made.add(typ)
         for i in range(0, len(rows), batch):
             if _t.perf_counter() - t0 > AGE_TIME_BUDGET_S:
@@ -123,13 +136,13 @@ def load(entities: list[dict], relations: list[dict], chunks: list[dict], batch:
             break
 
     with c.cursor() as cur:
-        cur.executemany("INSERT INTO public.kg_entities (id, name, type, description, aliases, degree) "
+        cur.executemany("INSERT INTO kg_entities (id, name, type, description, aliases, degree) "
                         "VALUES (%s, %s, %s, %s, %s, %s)",
                         [(e["id"], e["name"], e["type"], e["description"], e.get("aliases", []), e.get("degree", 0))
                          for e in entities])
-        cur.executemany("INSERT INTO public.kg_entity_chunks VALUES (%s, %s) ON CONFLICT DO NOTHING",
+        cur.executemany("INSERT INTO kg_entity_chunks VALUES (%s, %s) ON CONFLICT DO NOTHING",
                         [(e["id"], cid) for e in entities for cid in e["chunk_ids"]])
-        cur.executemany("INSERT INTO public.kg_chunks VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
+        cur.executemany("INSERT INTO kg_chunks VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
                         [(ch["chunk_id"], ch["source"], ch["headings"], ch["text"]) for ch in chunks])
     return {"age_vertices": len(entities), "age_edges": loaded, "age_edges_skipped": len(relations) - loaded,
             "age_stopped_at_time_budget": stopped, "age_seconds": round(_t.perf_counter() - t0, 1)}
@@ -146,7 +159,7 @@ def neighbourhood(seed_ids: list[str], limit: int = 200) -> list[dict]:
     if not seed_ids:
         return []
     c = conn()
-    g = GRAPH_NAME
+    g = graph_name()
     gid_rows = c.execute(
         f"SELECT id::text, properties::text FROM {g}._ag_label_vertex "
         f"WHERE ag_catalog.agtype_access_operator(properties, '\"id\"'::agtype) = ANY(%s::agtype[])",
@@ -183,5 +196,5 @@ def stats() -> dict:
     c = conn()
     nodes = cypher("MATCH (n) RETURN count(n)")[0][0]
     edges = cypher("MATCH ()-[r]->() RETURN count(r)")[0][0]
-    by_label = c.execute("SELECT type, count(*) FROM public.kg_entities GROUP BY type ORDER BY 2 DESC").fetchall()
+    by_label = c.execute("SELECT type, count(*) FROM kg_entities GROUP BY type ORDER BY 2 DESC").fetchall()
     return {"nodes": nodes, "edges": edges, "entities_by_type": dict(by_label)}

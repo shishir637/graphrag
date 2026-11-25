@@ -71,7 +71,8 @@ def test_documents_and_groups(client):
     assert c.patch("/api/v1/documents/leave.txt", headers=H, json={"groups": ["hr", "public"]}).json()["groups"] == ["hr", "public"]
     docs = c.get("/api/v1/documents").json()
     assert docs["documents"][0]["status"] == "new" and docs["groups"] == ["hr", "public"]
-    assert json.loads((tmp / "documents" / "_access.json").read_text()) == {"leave.txt": ["hr", "public"]}
+    with core.tenant_scope(c.get("/api/v1/me").json()["user"]["tenant_id"]):     # groups live in Postgres
+        assert engine.access_map() == {"leave.txt": ["hr", "public"]}
     assert c.delete("/api/v1/documents/leave.txt", headers=H).status_code == 200
     assert not (tmp / "documents" / "leave.txt").exists()
 

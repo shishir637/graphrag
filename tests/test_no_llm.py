@@ -80,7 +80,7 @@ def test_graph_search_respects_groups(tmp_path, monkeypatch):
     f = tmp_path / "_graph_build.json"
     f.write_text(json.dumps(build))
     monkeypatch.setattr(GS, "BUILD", f)
-    GS._G["mtime"] = None
+    GS._GS.clear()
     access = {"c1": ["public"], "c2": ["public"], "c3": ["finance"]}
     vis = lambda c, g: g is None or bool(set(access.get(c, [])) & set(g))            # noqa: E731
     r = GS.local("Who heads the department that owns GridSense?", ["public", "finance"], vis)

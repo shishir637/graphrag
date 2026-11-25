@@ -2,8 +2,11 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DOCS_DIR = ROOT / "documents"          # drop your files here
-OUT_DIR = ROOT / "outputs"             # every step writes one file here
+from .wspath import WorkspaceDir  # noqa: E402
+
+# per workspace inside the app (rag/wspath.py); these folders on the command line
+DOCS_DIR = WorkspaceDir("documents", ROOT / "documents")    # drop your files here
+OUT_DIR = WorkspaceDir("outputs", ROOT / "outputs")         # every step writes one file here
 QDRANT_PATH = ROOT / "qdrant_data"     # local, embedded Qdrant (no server needed)
 
 # Files handled by Docling (layout-aware) vs. the plain-text splitter

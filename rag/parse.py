@@ -13,9 +13,10 @@ from .utils import timer, write_json
 
 
 def load_access_map() -> dict:
-    """Optional documents/_access.json: {"file.pdf": ["hr", "admin"]}. Default group is "public"."""
-    path = DOCS_DIR / "_access.json"
-    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    """Access groups per file (rag/registry.py: Postgres in the app, documents/_access.json on the command line).
+    Default group is "public"."""
+    from .registry import access_map
+    return access_map()
 
 
 def _flatten(obj, prefix=""):

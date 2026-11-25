@@ -3,7 +3,9 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT_DIR = ROOT / "outputs"
+from rag.wspath import WorkspaceDir  # noqa: E402
+
+OUT_DIR = WorkspaceDir("outputs", ROOT / "outputs")       # per workspace inside the app
 SCHEMA_FILE = ROOT / "graph_layer" / "schema.yaml"
 
 # Apache AGE (PostgreSQL) - see docker-compose.graph.yml; local development defaults
