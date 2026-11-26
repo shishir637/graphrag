@@ -175,6 +175,6 @@ pre.code { background: var(--code); border: 1px solid var(--line); border-radius
 .guide .tick .n { color: var(--muted); font-size: 11.5px; font-weight: 700; }
 .guide-bd { padding: 0 2px 14px 34px; display: flex; flex-direction: column; gap: 8px; }
 .guide-bd p { margin: 0; }
-.guide-bd pre.code { white-space: pre-wrap; word-break: break-all; }
+.guide-bd pre.code { white-space: pre-wrap; word-break: break-all; padding-top: 40px; }   /* room for Copy */
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (max-width: 600px) { .guide-bd { padding-left: 0; } .modal .ft { flex-wrap: wrap; } }

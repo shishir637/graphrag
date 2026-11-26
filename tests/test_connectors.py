@@ -20,6 +20,7 @@ pytestmark = needs_pg
 class FakeGitHub:
     def __init__(self):
         self.files = {"README.md": ("s1", "# Orion API\nThe Orion API serves field-service bookings."),
+                      "LICENSE": ("s5", "MIT License"),
                       "src/app.py": ("s2", "def book(slot):\n    return slot\n"),
                       "node_modules/x/index.js": ("s3", "junk"), "logo.png": ("s4", "png")}
         self.calls = []
@@ -104,7 +105,8 @@ def test_github_sync_documents_tables_layer_and_access(ws):
         manage.run_sync({"connector": c["id"]})
         group = G.repo_group("acme/orion")
         docs = registry.access_map()
-        assert set(docs) == {G._doc_name("acme/orion", "README.md"), G._doc_name("acme/orion", "src/app.py")}
+        assert set(docs) == {G._doc_name("acme/orion", "README.md"), G._doc_name("acme/orion", "src/app.py"),
+                             G._doc_name("acme/orion", "LICENSE")}                  # extensionless well-known files too
         assert all(g == [group] for g in docs.values())                       # one access group per repository
         assert "```python" in (DOCS_DIR / G._doc_name("acme/orion", "src/app.py")).read_text()
         assert (DATA_DIR / "github_pull_requests.csv").exists()
@@ -134,7 +136,7 @@ def test_github_sync_documents_tables_layer_and_access(ws):
         fake.files["src/app.py"] = ("s2b", "def book(slot, who):\n    return slot\n")
         del fake.files["README.md"]
         manage.run_sync({"connector": c["id"]})
-        assert set(registry.access_map()) == {G._doc_name("acme/orion", "src/app.py")}
+        assert set(registry.access_map()) == {G._doc_name("acme/orion", "src/app.py"), G._doc_name("acme/orion", "LICENSE")}
         assert "who" in (DOCS_DIR / G._doc_name("acme/orion", "src/app.py")).read_text()
         st = manage.get(c["id"])
         assert st["last_error"] is None and st["secrets"]["token"].startswith("ghp_x"[:3])

@@ -29,6 +29,8 @@ CODE_LANG = {".py": "python", ".js": "javascript", ".jsx": "jsx", ".ts": "typesc
              ".dart": "dart", ".r": "r", ".m": "objectivec", ".ex": "elixir", ".lua": "lua", ".css": "css",
              ".gradle": "groovy", ".dockerfile": "dockerfile"}
 DOC_TEXT = {".md", ".markdown", ".rst", ".txt", ".adoc"}
+DOC_NAMES = {"readme", "license", "licence", "changelog", "contributing", "codeowners", "notice", "authors",
+             "security", "makefile"}                          # well-known files without an extension
 SKIP_DIRS = {"node_modules", "vendor", "dist", "build", ".git", "__pycache__", ".venv", "venv", "target", "out",
              ".next", "coverage", "third_party", ".idea", ".vscode", "bin", "obj"}
 SKIP_FILES = re.compile(r"(\.min\.(js|css)$|\.lock$|package-lock\.json$|yarn\.lock$|\.pb\.go$|_pb2\.py$)", re.I)
@@ -171,7 +173,7 @@ class GitHub(Connector):
             if e.get("type") != "blob" or (e.get("size") or 0) > max_bytes:
                 continue
             p = PurePosixPath(e["path"])
-            ext = ".dockerfile" if p.name.lower() == "dockerfile" else p.suffix.lower()
+            ext = _ext(p)
             if set(p.parts[:-1]) & SKIP_DIRS or SKIP_FILES.search(p.name) or (ext not in CODE_LANG and ext not in DOC_TEXT):
                 continue
             want[e["path"]] = e["sha"]
@@ -247,10 +249,18 @@ class GitHub(Connector):
         st.update(commits_since=stamp, prs_since=stamp, issues_since=stamp, runs_since=stamp)
 
 
+def _ext(p: PurePosixPath) -> str:
+    if p.name.lower() == "dockerfile":
+        return ".dockerfile"
+    if not p.suffix and p.name.lower() in DOC_NAMES:
+        return ".txt"
+    return p.suffix.lower()
+
+
 def _render(full: str, path: str, branch: str, text: str) -> str:
     p = PurePosixPath(path)
     head = f"# {full}: {path}\n\nRepository {full}, file `{path}` (branch {branch}).\n\n"
-    ext = ".dockerfile" if p.name.lower() == "dockerfile" else p.suffix.lower()
+    ext = _ext(p)
     if ext in DOC_TEXT:
         return head + text
     return head + f"```{CODE_LANG.get(ext, '')}\n{text}\n```\n"
