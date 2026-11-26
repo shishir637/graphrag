@@ -583,6 +583,31 @@ def import_ontology(body: OntologyIn, u: dict = Depends(ADMIN)):
     return {"imported": n}
 
 
+# ------------------------------------------------------------------ the owner's inbox
+
+class DecisionIn(BaseModel):
+    action: str
+    value: str | None = None
+
+
+@app.get("/api/v1/inbox")
+def inbox(u: dict = Depends(ADMIN)):
+    """Everything waiting for a person: uncertain facts (with quote and source), name matches, drafts."""
+    from facts.inbox import items
+    return {"items": items()}
+
+
+@app.post("/api/v1/inbox/{kind}/{item_id}")
+def decide_inbox(kind: str, item_id: str, body: DecisionIn, u: dict = Depends(ADMIN)):
+    from facts.inbox import decide
+    try:
+        return decide(kind, item_id, body.action, u["email"], body.value)
+    except KeyError:
+        raise HTTPException(404, "No such item.")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 class DefinitionStatusIn(BaseModel):
     status: str
 

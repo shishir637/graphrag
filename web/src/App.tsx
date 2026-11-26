@@ -7,6 +7,7 @@ import Overview from './pages/Overview'
 import Documents from './pages/Documents'
 import DataTables from './pages/DataTables'
 import Metrics from './pages/Metrics'
+import Inbox from './pages/Inbox'
 import Graph from './pages/Graph'
 import Agents from './pages/Agents'
 import Playground from './pages/Playground'
@@ -20,7 +21,7 @@ export interface Session { user: User; organisation: string; version: string }
 const NAV: { sec?: string; to?: string; label?: string; icon?: string }[] = [
   { to: '/', label: 'Overview', icon: 'home' },
   { sec: 'Sources' }, { to: '/sources/documents', label: 'Documents', icon: 'file' }, { to: '/sources/data', label: 'Data tables', icon: 'table' },
-  { sec: 'Knowledge' }, { to: '/knowledge/metrics', label: 'Metrics', icon: 'metric' }, { to: '/knowledge/graph', label: 'Knowledge graph', icon: 'graph' },
+  { sec: 'Knowledge' }, { to: '/knowledge/inbox', label: 'Inbox', icon: 'check' }, { to: '/knowledge/metrics', label: 'Metrics', icon: 'metric' }, { to: '/knowledge/graph', label: 'Knowledge graph', icon: 'graph' },
   { sec: 'Agents' }, { to: '/agents', label: 'Agents', icon: 'agent' }, { to: '/playground', label: 'Playground', icon: 'play' },
   { sec: 'Govern' }, { to: '/activity', label: 'Activity', icon: 'activity' }, { to: '/quality', label: 'Quality', icon: 'check' }, { to: '/access', label: 'Access', icon: 'lock' },
   { to: '/settings', label: 'Settings', icon: 'gear' },
@@ -51,6 +52,7 @@ function Shell({ s, onLogout }: { s: Session; onLogout: () => void }) {
         <Route path="/sources/documents" element={<Documents s={s} />} />
         <Route path="/sources/data" element={<DataTables s={s} />} />
         <Route path="/knowledge/metrics" element={<Metrics s={s} />} />
+        <Route path="/knowledge/inbox" element={<Inbox s={s} />} />
         <Route path="/knowledge/graph" element={<Graph s={s} />} />
         <Route path="/agents" element={<Agents s={s} />} />
         <Route path="/playground" element={<Playground />} />

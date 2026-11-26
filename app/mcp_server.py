@@ -50,7 +50,7 @@ You only see what your key allows; if something is refused, say so rather than g
 # who is calling (set by KeyGate for the request): decides which tools are listed
 CALLER: contextvars.ContextVar[dict | None] = contextvars.ContextVar("cl_caller", default=None)
 UPLOAD_TOOLS = {"add_document", "create_upload_link"}
-ADMIN_TOOLS = {"approve_metric", "connect_source", "list_sources", "sync_source", "review_ontology"}          # setting the workspace up: admin-scope keys, signed-in owners/admins
+ADMIN_TOOLS = {"approve_metric", "connect_source", "list_sources", "sync_source", "review_ontology", "review_inbox"}          # setting the workspace up: admin-scope keys, signed-in owners/admins
 
 
 def allowed_tools(caller: dict | None) -> set[str] | None:
@@ -401,12 +401,38 @@ def tool_review_ontology(agent: dict, approve: list[str] | None = None, retire: 
     return {"changed": done, "proposed": drafts, "approved_types": sorted(ontology.load()["entity_types"])}
 
 
+def tool_review_inbox(agent: dict, approve: list[str] | None = None, reject: list[str] | None = None,
+                      edit: dict[str, str] | None = None) -> dict:
+    """Items waiting for an owner; decide by "type/id" (from the list). Admin keys and signed-in owners/admins."""
+    _need_admin(agent)
+    from facts.inbox import decide, items
+    who = agent.get("email") or agent["name"]
+    done = []
+    for ids, action in ((approve or [], "approve"), (reject or [], "reject")):
+        for ref in ids:
+            kind, _, iid = ref.partition("/")
+            try:
+                done.append(decide(kind, iid, action, who))
+            except (KeyError, ValueError) as e:
+                raise ToolError(f"{ref}: {e}") from None
+    for ref, value in (edit or {}).items():
+        kind, _, iid = ref.partition("/")
+        try:
+            done.append(decide(kind, iid, "edit", who, value))
+        except (KeyError, ValueError) as e:
+            raise ToolError(f"{ref}: {e}") from None
+    waiting = [{"ref": f"{i['type']}/{i['id']}", "title": i["title"], "reason": i.get("reason"), "quote": i.get("quote"),
+                "document": i.get("document")} for i in items(100)]
+    return {"decided": done, "waiting": waiting}
+
+
 TOOLS = {"get_doc_card": tool_doc_card, "ask": tool_ask, "search_documents": tool_search, "describe_data": tool_describe_data,
          "query_metrics": tool_metrics, "list_metrics": tool_list_metrics, "find_connections": tool_connections,
          "explore_entity": tool_entity, "list_documents": tool_list_documents, "fetch_passage": tool_fetch,
          "add_document": tool_add_document, "create_upload_link": tool_upload_link, "build_status": tool_build_status,
          "approve_metric": tool_approve_metric, "connect_source": tool_connect_source,
-         "list_sources": tool_list_sources, "sync_source": tool_sync_source, "review_ontology": tool_review_ontology}
+         "list_sources": tool_list_sources, "sync_source": tool_sync_source, "review_ontology": tool_review_ontology,
+         "review_inbox": tool_review_inbox}
 
 
 # ------------------------------------------------------------------ MCP registrations
@@ -587,6 +613,18 @@ def _review_ontology(ctx: Context, approve: list[str] | None = None, retire: lis
     a = _agent(ctx)
     return run(a, "review_ontology", {"approve": approve, "retire": retire},
                lambda: tool_review_ontology(a, approve, retire), wait=False)
+
+
+@mcp.tool(name="review_inbox", annotations=WRITES, structured_output=True)
+def _review_inbox(ctx: Context, approve: list[str] | None = None, reject: list[str] | None = None,
+                  edit: dict[str, str] | None = None) -> dict[str, Any]:
+    """What waits for an owner: facts read from documents that need a check (with the quote and the document), names
+    matched to database rows, drafted metrics and proposed graph types. Decide with refs from the list:
+    approve / reject ["fact/f_123", "link/f_456", "definition/metric:net_revenue"], edit {"fact/f_123": "30"}.
+    Admin keys only; show the user the quote and confirm before deciding."""
+    a = _agent(ctx)
+    return run(a, "review_inbox", {"approve": approve, "reject": reject, "edit": edit},
+               lambda: tool_review_inbox(a, approve, reject, edit), wait=False)
 
 
 class KeyGate:

@@ -44,6 +44,9 @@ def facts(u: dict) -> dict:
                                (t,)).fetchone()[0]
     drafts += core.db().execute("SELECT count(*) FROM onto_definitions WHERE tenant_id = ? AND status = 'draft'",
                                 (t,)).fetchone()[0]
+    drafts += core.db().execute("SELECT count(*) FROM facts WHERE tenant_id = ? AND status = 'needs_review'", (t,)).fetchone()[0]
+    drafts += core.db().execute("SELECT count(*) FROM fact_links WHERE tenant_id = ? AND status = 'needs_review'",
+                                (t,)).fetchone()[0]
     keys = [a for a in core.list_agents() if not a["revoked"]]
     apps = oauth.grants(None)
     asked_any = core.db().execute("SELECT 1 FROM events WHERE tenant_id = ? AND action IN ('playground.ask', 'tool.ask', "
@@ -97,8 +100,9 @@ def steps(u: dict, base: str = "") -> dict:
                      "Questions work while it builds.", "running": f["building"],
              "progress": {"passages": f["status"]["documents"]["passages"], "entities": f["status"]["graph"]["entities"],
                           "metrics": f["status"]["data"]["metrics"]}},
-            {"id": "review", "title": "Review drafts", "done": f["built"] and f["drafts"] == 0, "to": "/knowledge/metrics",
-             "body": "New metrics and proposed graph types wait for your approval before agents use them.",
+            {"id": "review", "title": "Review the inbox", "done": f["built"] and f["drafts"] == 0, "to": "/knowledge/inbox",
+             "body": "New metrics, proposed graph types and facts Context Layer was unsure about wait for your approval "
+                     "before agents use them.",
              "count": f["drafts"]},
             {"id": "connect", "title": "Connect an AI app", "done": f["connected"], "to": "/agents",
              "body": "Give Claude, ChatGPT, Cursor or your own app the MCP link. People sign in as themselves; apps and "

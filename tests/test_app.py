@@ -128,7 +128,7 @@ def test_tools_registered_read_only():
     tools = {t.name: t for t in M.mcp._tool_manager.list_tools()}
     read = {"ask", "search_documents", "describe_data", "query_metrics", "list_metrics", "find_connections",
             "explore_entity", "list_documents", "fetch_passage", "build_status", "list_sources", "get_doc_card"}
-    writes = {"add_document", "create_upload_link", "approve_metric", "connect_source", "sync_source", "review_ontology"}
+    writes = {"add_document", "create_upload_link", "approve_metric", "connect_source", "sync_source", "review_ontology", "review_inbox"}
     assert set(tools) == read | writes
     assert all(tools[t].annotations.read_only_hint for t in read)
     assert not any(tools[t].annotations.read_only_hint or tools[t].annotations.destructive_hint for t in writes)

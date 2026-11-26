@@ -178,3 +178,5 @@ pre.code { background: var(--code); border: 1px solid var(--line); border-radius
 .guide-bd pre.code { white-space: pre-wrap; word-break: break-all; padding-top: 40px; }   /* room for Copy */
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (max-width: 600px) { .guide-bd { padding-left: 0; } .modal .ft { flex-wrap: wrap; } }
+
+.quote { margin: 0; padding: 8px 12px; border-left: 3px solid var(--brand); background: var(--line-2); border-radius: 0 6px 6px 0; font-size: 13.5px; overflow-wrap: anywhere; }

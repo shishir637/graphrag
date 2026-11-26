@@ -79,7 +79,9 @@ def run(verbose: bool = True) -> bool:
                 (fid, t, doc, kind, f["record"], f["field"], value, json.dumps(norm, default=str), f["chunk_id"], f["quote"],
                  f["start"], f["end"], f["extractor"], f["confidence"], status, reason[:300], by, core.now()))
             n_facts += 1
-        approved = [dict(f, norm=f["norm"]) for f in facts if (old.get(fact_id(t, doc, f)) or {}).get("status", f["status"]) == "approved"]
+        approved = [{k: r[k] for k in ("record", "field", "value", "norm")} for r in core.db().execute(   # as decided
+            "SELECT record, field, value, norm FROM facts WHERE tenant_id = ? AND document = ? AND status = 'approved'",
+            (t, doc))]
         c = card(doc, kind, cs, approved)
         c["groups"] = groups.get(doc, ["public"])
         core.db().execute("INSERT INTO doc_cards (tenant_id, name, kind, card, updated) VALUES (?, ?, ?, ?::jsonb, ?) "
