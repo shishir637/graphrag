@@ -63,7 +63,7 @@ def get(kind: str, name: str) -> dict | None:
 def to_schema(items: list[dict]) -> dict:
     """Approved rows -> the schema dict the extractors use."""
     out = {"entity_types": {}, "relation_types": {}, "spacy_label_map": {}, "verb_rules": {}, "copula_rules": {},
-           "head_words": [], "gazetteer": {}}
+           "head_words": [], "gazetteer": {}, "constraints": {}}
     for x in items:
         d = x["definition"]
         if x["kind"] == "entity_type":
@@ -82,6 +82,8 @@ def to_schema(items: list[dict]) -> dict:
                 out["head_words"].append({"pattern": key, "type": val})
             elif k == "gazetteer":
                 out["gazetteer"][key] = val
+            elif k == "constraint":                     # checks on facts read from documents (facts/validate.py)
+                out["constraints"][key] = val
     return out
 
 
@@ -173,6 +175,7 @@ def import_schema(s: dict, *, source: str = "import", by: str = "", certified: b
     rules += [("copula", k, v) for k, v in (s.get("copula_rules") or {}).items()]
     rules += [("head_word", r["pattern"], r["type"]) for r in s.get("head_words") or []]
     rules += [("gazetteer", k, v) for k, v in (s.get("gazetteer") or {}).items()]
+    rules += [("constraint", k, v) for k, v in (s.get("constraints") or {}).items()]
     for k, key, val in rules:
         n["rule"] += _store("rule", f"{k}:{key}", {"kind": k, "key": key, "value": val}, source=source, by=by,
                             certified=certified)

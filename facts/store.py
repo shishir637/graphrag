@@ -18,10 +18,12 @@ from collections import defaultdict
 from .extract import card, extract, kind_of
 
 TABLES = {
-    "fact_contracts": ("contract", ["document", "title", "party_1", "party_2", "effective_date", "term_months",
+    "fact_contracts": ("contract", ["document", "title", "party_1", "party_1_key", "party_2", "party_2_key",
+                                    "effective_date", "term_months",
                                     "notice_days", "annual_fee", "currency", "payment_terms_days", "governing_law",
                                     "auto_renew", "liability"]),
-    "fact_invoices": ("invoice", ["document", "invoice_number", "invoice_date", "vendor", "amount", "tax", "currency"]),
+    "fact_invoices": ("invoice", ["document", "invoice_number", "invoice_date", "vendor", "vendor_key", "amount", "tax",
+                                  "currency"]),
     "fact_meeting_decisions": ("meeting", ["document", "meeting_date", "decision"]),
     "fact_meeting_actions": ("meeting", ["document", "meeting_date", "owner", "task", "due_date"]),
 }
@@ -87,6 +89,9 @@ def run(verbose: bool = True) -> bool:
     for i in range(0, len(gone), 500):
         core.db().execute("DELETE FROM facts WHERE tenant_id = ? AND id = ANY(?)", (t, gone[i:i + 500]))
     core.db().execute("DELETE FROM doc_cards WHERE tenant_id = ? AND NOT (name = ANY(?))", (t, list(by_doc)))
+    core.db().execute("DELETE FROM fact_links WHERE tenant_id = ? AND NOT (fact_id = ANY(?))", (t, list(keep)))
+    from .match import link_all
+    link_all(verbose)                                    # names in facts -> rows of the workspace's tables
     changed = write_tables()
     if verbose:
         print(f"  facts: {n_facts} from {len(by_doc)} documents ({dict(kinds)}); "
@@ -99,7 +104,9 @@ def run(verbose: bool = True) -> bool:
 def approved_rows() -> dict[str, list[dict]]:
     """One row per record of every approved fact, per fact table."""
     core = _db()
-    rows = core.db().execute("SELECT document, kind, record, field, value, norm FROM facts WHERE tenant_id = ? AND "
+    from .match import links
+    lk = links()
+    rows = core.db().execute("SELECT id, document, kind, record, field, value, norm FROM facts WHERE tenant_id = ? AND "
                              "status = 'approved' ORDER BY document, record, field", (core.current_tenant(),)).fetchall()
     cards = {r["name"]: (r["card"] if isinstance(r["card"], dict) else json.loads(r["card"]))
              for r in core.db().execute("SELECT name, card FROM doc_cards WHERE tenant_id = ?", (core.current_tenant(),))}
@@ -119,6 +126,8 @@ def approved_rows() -> dict[str, list[dict]]:
             table = "fact_contracts" if r["kind"] == "contract" else "fact_invoices"
             rec = recs.setdefault((table, r["document"], ""), {"document": r["document"]})
             rec[r["field"]] = norm
+            if r["id"] in lk:                            # the matched database row (joins with that table)
+                rec[f"{r['field']}_key"] = lk[r["id"]]["row_key"]
     out: dict[str, list[dict]] = {t: [] for t in TABLES}
     for (table, doc, _), rec in recs.items():
         if table == "fact_contracts":
