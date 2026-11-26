@@ -312,6 +312,11 @@ def prepare_documents():
     print("[4/4] Building the search index"); from rag.store import build_index; build_index()
     from graph.access import chunk_access
     chunk_access()
+    if _in_workspace():                          # typed facts and document cards, checked before they go live
+        print("Reading facts (contracts, invoices, meeting notes) and document cards")
+        from facts.store import run as read_facts
+        if read_facts():
+            prepare_data()                       # fact tables changed: profile, drafts, checks
 
 
 def prepare_data():
@@ -569,7 +574,19 @@ def search(query: str, groups: list[str], top_k: int = 5, files: list[str] | Non
     ret = retrieve(query, groups, files or None, save=False, top_k=max(1, min(top_k, 10)), use_graph=use_graph)
     g = ret.get("graph") or {}
     return {"passages": _passages_out(ret["passages"], query, groups), "evidence": ret.get("evidence", "none"),
-            "entities": [e["name"] for e in g.get("entities", [])], "timings_s": ret["timings_s"]}
+            "entities": [e["name"] for e in g.get("entities", [])], "timings_s": ret["timings_s"],
+            "cards": _cards([p["source"] for p in ret["passages"][:3]], groups)}
+
+
+def _cards(sources: list[str], groups) -> list[dict]:
+    """Document cards (kind, title, summary, key facts) of the top documents, when the workspace has them."""
+    if not _in_workspace():
+        return []
+    try:
+        from facts.store import cards_for
+        return cards_for(sources, groups)
+    except Exception:                                          # noqa: BLE001 - cards are extra context
+        return []
 
 
 def metric_query(request: dict | None = None, question: str | None = None, groups: list[str] | None = None) -> dict:
@@ -720,6 +737,8 @@ def _ask(question: str, groups: list[str] | None, capabilities: list[str], mode:
         if "documents" in caps:
             s = search(question, g, 5, use_graph=use_graph)
             out["passages"], out["evidence"] = s["passages"], s["evidence"]
+            if s.get("cards"):
+                out["documents"] = s["cards"]
         if chosen == "connections" and use_graph:
             loc = GS.local(question, groups, visible)
             out["graph"] = {"entities": loc["entities"], "bridges": loc["bridges"], "relations": loc["relations"][:25]}

@@ -39,6 +39,7 @@ how things connect. It does not write answers: you do, from the evidence it retu
 - `find_connections` and `explore_entity`: how people, places, organisations and things are linked, with the
   sentence behind every link.
 - `fetch_passage`: the full text of a passage id before you quote it.
+- `get_doc_card`: what a document is (contract, invoice, meeting notes...) with its checked key facts.
 - Adding files (needs upload permission): when the user shares a file in the chat, call `add_document`
   (ChatGPT passes the attached file itself; otherwise pass its text, or base64 for small binary files).
   For large or binary files you cannot pass, call `create_upload_link` and give the user the link.
@@ -146,7 +147,16 @@ def tool_search(agent: dict, query: str, top_k: int = 5, files: list[str] | None
     _need(agent, "documents")
     r = engine.search(query, agent["groups"], top_k, files, use_graph="graph" in agent["capabilities"])
     return {"query": query, "evidence": r["evidence"], "passages": r["passages"], "entities_found": r["entities"],
-            "guidance": engine.GUIDANCE}
+            "documents": r.get("cards", []), "guidance": engine.GUIDANCE}
+
+
+def tool_doc_card(agent: dict, name: str) -> dict:
+    if not {"documents", "graph"} & set(agent["capabilities"]):
+        raise ToolError("This key may not read documents.")
+    from facts.store import doc_card
+    c = doc_card(name.strip(), agent["groups"])
+    return {"found": True, **c} if c else {"found": False, "name": name,
+                                           "note": "No card for that document, or your key may not see it."}
 
 
 def _row_groups(agent: dict) -> list[str] | None:
@@ -391,7 +401,7 @@ def tool_review_ontology(agent: dict, approve: list[str] | None = None, retire: 
     return {"changed": done, "proposed": drafts, "approved_types": sorted(ontology.load()["entity_types"])}
 
 
-TOOLS = {"ask": tool_ask, "search_documents": tool_search, "describe_data": tool_describe_data,
+TOOLS = {"get_doc_card": tool_doc_card, "ask": tool_ask, "search_documents": tool_search, "describe_data": tool_describe_data,
          "query_metrics": tool_metrics, "list_metrics": tool_list_metrics, "find_connections": tool_connections,
          "explore_entity": tool_entity, "list_documents": tool_list_documents, "fetch_passage": tool_fetch,
          "add_document": tool_add_document, "create_upload_link": tool_upload_link, "build_status": tool_build_status,
@@ -477,6 +487,15 @@ def _list_documents(ctx: Context) -> dict[str, Any]:
     """List the documents this key can read."""
     a = _agent(ctx)
     return run(a, "list_documents", {}, lambda: tool_list_documents(a))
+
+
+@mcp.tool(name="get_doc_card", annotations=READ_ONLY, structured_output=True)
+def _doc_card(name: str, ctx: Context) -> dict[str, Any]:
+    """A document's card: its kind (contract, invoice, meeting notes, policy...), title, a short extractive summary,
+    sections, approved key facts (parties, dates, amounts, notice period...), decisions and action items.
+    name: the document's file name (from list_documents or a passage's source)."""
+    a = _agent(ctx)
+    return run(a, "get_doc_card", {"name": name}, lambda: tool_doc_card(a, name))
 
 
 @mcp.tool(name="fetch_passage", annotations=READ_ONLY, structured_output=True)
