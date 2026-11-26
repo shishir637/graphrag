@@ -29,7 +29,8 @@ files. The YAML below is the format for **import and export** and the seed of a 
 | Kept correct | nightly check (`semantic/monitor.py`): every approved metric is run; failures become `needs_review` with the reason and come back when they work again |
 | Learns | counting questions no metric matched are recorded; repeated unknown words that look like a metric become synonym drafts (`semantic/learn.py`) |
 | Row access | `sl_access_rules`: a group sees only rows whose column has allowed values (e.g. a repository); applied inside every query (`semantic/db.py connect_for`) |
-| Data | each workspace's tables (uploads, GitHub activity, Postgres snapshots) in its folder, or a Postgres database attached live; one cached DuckDB per workspace |
+| Data | each workspace's tables (uploads, GitHub activity, Postgres snapshots, fact tables read from documents) in its folder, or a Postgres database attached live; one cached DuckDB per workspace |
+| Facts from documents (0.6) | approved facts become `fact_contracts`, `fact_invoices`, `fact_meeting_decisions`, `fact_meeting_actions` (Parquet) with keys of matched database rows, drafted like any table and joinable in DuckDB |
 
 ## Folder layout
 

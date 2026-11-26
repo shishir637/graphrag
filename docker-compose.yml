@@ -3,13 +3,15 @@
 #   2. docker compose up -d
 #   3. open http://localhost:8080 and create the owner account
 # Data lives in the named volumes below; `docker compose down` keeps it (add -v to delete everything).
-#   db      Postgres: workspaces, people, keys, audit, semantic layer, documents, graph (+ Apache AGE copy)
+#   db      Postgres: workspaces, people, keys, audit, semantic layer, ontology, document groups, facts and
+#           document cards, jobs, connectors, encrypted secrets (+ an Apache AGE copy of each graph)
+#   app_data each workspace's files: documents, data tables, and the build outputs (passages, graph build)
 #   qdrant  search vectors (one collection; every point carries its workspace)
 #   app     web app, API and MCP server
 services:
   app:
     build: .
-    image: context-layer:0.5.0
+    image: context-layer:0.6.0
     restart: unless-stopped
     depends_on:
       db: { condition: service_healthy }

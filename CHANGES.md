@@ -1,5 +1,46 @@
 # Changes
 
+## 0.6.0: accuracy: facts, checks, an inbox, "answerable?" and a grounding check
+
+No AI model is added: everything below is rules, regular expressions, RapidFuzz and the local models already used.
+
+**Facts and document cards** (`facts/`)
+- Each document gets a kind (contract, invoice, meeting notes, policy, other) from rules; optional local GLiNER
+  zero-shot (`CL_FACTS_ZERO_SHOT=1`) when the rules are unsure.
+- Typed facts are read with provenance (document, passage id, exact quote and span, extractor, confidence):
+  contracts (parties, effective date, term, notice period, fee, payment terms, governing law, auto-renewal,
+  liability), invoices (number, date, vendor, amount, tax), meeting notes (date, attendees, decisions, action items
+  with owner and due date). Amounts (lakh/crore), dates and durations are normalised.
+- Approved facts become tables in the workspace (`fact_contracts`, `fact_invoices`, `fact_meeting_decisions`,
+  `fact_meeting_actions`) that the data build drafts like any table, so metrics and DuckDB joins work on them;
+  row access follows the documents' groups.
+- One card per document (kind, title, extractive summary, sections, key facts, decisions, actions): MCP
+  `get_doc_card`; `search_documents` and `ask` return the cards of the top documents.
+
+**Checks before facts go live**
+- Quote check (the quote must be in its passage, normalised) or the fact is rejected.
+- Constraints in the workspace's ontology (required fields, ranges, amount > 0, two parties, tax <= amount, an
+  action due after its meeting): violations go to review with the reason.
+- Parties and vendors are matched to database rows (an id in the passage, or names without legal suffixes,
+  RapidFuzz): 92+ linked, 75-92 to the owner. Fact tables carry the matched keys, so a PDF invoice joins with the
+  vendor master.
+- Agents, cards and fact tables only use approved facts.
+
+**Owner inbox**: uncertain facts (with quote and source), name matches, drafted metrics and proposed graph types in
+one list; approve, reject or correct; decisions are kept on rebuilds. API `/api/v1/inbox`, admin MCP `review_inbox`,
+web Knowledge -> Inbox.
+
+**"Answerable?" check**: before gathering evidence, rules decide whether the workspace can answer (metric, entity,
+fact or document coverage; unknown names). If not: `found: false`, route `not_answerable`, the reason and clarifying
+questions, no retrieval. Mixed questions are split into parts with their own routes. `CL_ANSWERABLE=0` turns it off.
+
+**Grounding check**: MCP `check_answer(question, answer, evidence_ids?)` marks each sentence of a draft supported,
+partly supported, unsupported or without checkable claims, by matching its numbers, dates, names and quotes to the
+caller's evidence (passages in their groups, approved metric rows and facts). The agent guidance asks agents to use it.
+
+**Docs**: 0.5 keeps passages and the graph build as files in each workspace's folder (Postgres holds what people
+define or decide, Qdrant the vectors); README and the Docker notes now say so.
+
 ## 0.5.0: workspaces, Postgres, sources kept up to date on their own
 
 One server, many workspaces. Each workspace connects its sources once; Context Layer then picks changes up by itself
@@ -9,7 +50,8 @@ and agents only ask.
 - People, sessions, keys, OAuth sign-ins, audit and settings moved from SQLite to Postgres (`app/db.py`,
   `migrations/`). `python -m app.migrate_local` moves a 0.4 installation into one workspace.
 - The semantic layer is stored per workspace in Postgres with versions and history; YAML is import/export.
-- Document access groups in Postgres; documents, tables and build outputs in the workspace's folder.
+- Document access groups in Postgres; documents, tables and build outputs (passages `2_chunks.json`, embeddings,
+  the graph build `_graph_build.json`) stay as files in the workspace's folder.
 - Qdrant runs as a server shared by all workspaces (tenant key on every point and search).
 - Secrets (connector tokens, database passwords, the AI extraction key) are encrypted per workspace (`CL_SECRET_KEY`).
 - Docker: `db` (Postgres 17 + Apache AGE + pgvector) and `qdrant` services.
