@@ -7,7 +7,7 @@ from tests.conftest import needs_pg, seed
 
 pytestmark = needs_pg
 LEAVE = ("# Leave policy\n\nEmployees get 24 days of annual leave and 12 days of sick leave each year. "
-         "Leave requests go to the line manager at least two weeks ahead.")
+         "Leave requests go to the line manager at least two weeks ahead. Incident INC-2041 was a payroll bug.")
 
 
 @pytest.fixture
@@ -29,6 +29,7 @@ def test_answerable_signals(ws):
         assert check("Net revenue by region last quarter")["signals"]["metric"]
         r = check("How many days of sick leave do employees get?")
         assert r["answerable"] and r["signals"]["coverage"] >= 0.5
+        assert check("What caused incident INC-2041?")["answerable"]           # ids are known names too
         r = check("What is the capital of Mongolia?")
         assert not r["answerable"] and "Mongolia" in r["reason"] and r["clarify"]
         r = check("Wat is the levae policy for managers in Ulaanbaatar?")

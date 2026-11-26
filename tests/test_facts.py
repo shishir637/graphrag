@@ -116,6 +116,12 @@ def test_run_stores_facts_tables_cards_and_access(ws):
     with core.tenant_scope(a):
         write_chunks({"MSA-001.txt": (MSA, ["legal"]), "INV-2101.txt": (INVOICE, ["public"]),
                       "review.md": (MEETING, ["public"])})
+        from rag.config import OUT_DIR                       # like Docling: title and date only in the headings
+        import json as J
+        cs = J.loads((OUT_DIR / "2_chunks.json").read_text())
+        lines = MEETING.splitlines()
+        cs[-1] |= {"headings": [lines[0]], "text": "\n".join(lines[1:])}
+        (OUT_DIR / "2_chunks.json").write_text(J.dumps(cs))
         assert store.run() is True
         facts = store.facts_for(None)
         assert {f["kind"] for f in facts} == {"contract", "invoice", "meeting"}

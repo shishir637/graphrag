@@ -56,6 +56,8 @@ def run(verbose: bool = True) -> bool:
     old = {r["id"]: r for r in core.db().execute("SELECT id, status, decided_by, value, norm FROM facts WHERE tenant_id = ?", (t,))}
     keep, n_facts, kinds = set(), 0, defaultdict(int)
     for doc, cs in by_doc.items():
+        # each passage with its section headings in front: titles and dates often live only in the headings
+        cs = [c | {"text": (" / ".join(c.get("headings") or []) + "\n" if c.get("headings") else "") + c["text"]} for c in cs]
         kind, _ = kind_of(doc, "\n".join(c["text"] for c in cs))
         kinds[kind] += 1
         facts = [f.as_dict() for c in cs for f in extract(kind, c)]

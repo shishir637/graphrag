@@ -122,7 +122,7 @@ def check(question: str, caps: list[str] | None = None) -> dict:
     if words and vocab:
         known = [w for w in words if _known(w, vocab, sv)]
         signals["coverage"] = round(len(known) / len(words), 2)
-    names = [m.group(0) for m in re.finditer(r"(?<!^)(?<![.?!]\s)\b[A-Z][a-zA-Z\-]{2,}(?:\s+[A-Z][a-zA-Z\-]{2,})*", q)]
+    names = [m.group(0) for m in re.finditer(r"(?<!^)(?<![.?!]\s)\b[A-Z][\w\-]{2,}(?:\s+[A-Z][\w\-]{2,})*", q)]   # ids too
     signals["unknown"] = [n for n in names if not all(_known(w, vocab, sv) for w in _words(n))] if vocab else []
     matched = bool(signals["metric"] or signals["entity"] or signals["facts"])
     ok = matched or (signals["coverage"] >= COVERAGE_MIN and not signals["unknown"])
