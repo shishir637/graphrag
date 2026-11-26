@@ -103,7 +103,7 @@ def write_chunks(docs):
     chunks = []
     for name, (text, groups) in docs.items():
         registry.set_groups(name, groups)
-        chunks.append(chunk(text, f"{name}-1", name))
+        chunks.append(chunk(text, f"{name}-1", name) | {"access": groups})
     (OUT_DIR / "2_chunks.json").write_text(json.dumps(chunks), encoding="utf-8")
 
 

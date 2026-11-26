@@ -533,7 +533,9 @@ GUIDANCE = ("Context Layer returns evidence, not a written answer: answer from t
             "(strong = answers the question, partial = related, weak = barely related): do not state a fact that only "
             "weak passages support. 'evidence' at the top level is the best passage's label; 'none' means nothing "
             "relevant was found, so say the sources do not cover it. When passages disagree, prefer the most "
-            "recently updated source and mention the conflict.")
+            "recently updated source and mention the conflict. route 'not_answerable' means this workspace does not "
+            "know: ask the clarifying question instead of answering. Before you reply, call check_answer with your "
+            "draft and the passage ids you used; fix or drop every unsupported number, date, name or quote.")
 CONTEXT_FOR_TOP = 3                     # passages that get their neighbouring text from the same section
 
 

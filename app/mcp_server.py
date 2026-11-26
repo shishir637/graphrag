@@ -40,6 +40,9 @@ how things connect. It does not write answers: you do, from the evidence it retu
   sentence behind every link.
 - `fetch_passage`: the full text of a passage id before you quote it.
 - `get_doc_card`: what a document is (contract, invoice, meeting notes...) with its checked key facts.
+- `check_answer`: before you reply, pass your draft (and the passage ids you used). Every number, date, name and
+  quote must be in your evidence; fix or remove what it marks unsupported.
+- If `ask` says not_answerable, ask the user the clarifying question; do not answer from general knowledge.
 - Adding files (needs upload permission): when the user shares a file in the chat, call `add_document`
   (ChatGPT passes the attached file itself; otherwise pass its text, or base64 for small binary files).
   For large or binary files you cannot pass, call `create_upload_link` and give the user the link.
@@ -426,7 +429,14 @@ def tool_review_inbox(agent: dict, approve: list[str] | None = None, reject: lis
     return {"decided": done, "waiting": waiting}
 
 
-TOOLS = {"get_doc_card": tool_doc_card, "ask": tool_ask, "search_documents": tool_search, "describe_data": tool_describe_data,
+def tool_check_answer(agent: dict, question: str, answer: str, evidence_ids: list[str] | None = None) -> dict:
+    if not answer or not answer.strip():
+        raise ToolError("Pass the draft answer to check.")
+    from .grounding import check
+    return check(agent, question or "", answer[:20000], evidence_ids)
+
+
+TOOLS = {"check_answer": tool_check_answer, "get_doc_card": tool_doc_card, "ask": tool_ask, "search_documents": tool_search, "describe_data": tool_describe_data,
          "query_metrics": tool_metrics, "list_metrics": tool_list_metrics, "find_connections": tool_connections,
          "explore_entity": tool_entity, "list_documents": tool_list_documents, "fetch_passage": tool_fetch,
          "add_document": tool_add_document, "create_upload_link": tool_upload_link, "build_status": tool_build_status,
@@ -513,6 +523,17 @@ def _list_documents(ctx: Context) -> dict[str, Any]:
     """List the documents this key can read."""
     a = _agent(ctx)
     return run(a, "list_documents", {}, lambda: tool_list_documents(a))
+
+
+@mcp.tool(name="check_answer", annotations=READ_ONLY, structured_output=True)
+def _check_answer(question: str, answer: str, ctx: Context, evidence_ids: list[str] | None = None) -> dict[str, Any]:
+    """Check a draft answer against the evidence before you send it. Each sentence is split into its numbers, dates,
+    names and quoted phrases; each must occur in the evidence (the passage ids you used, else passages found again
+    for the question in your groups, approved metric results and facts). Returns per sentence: supported,
+    partly_supported, unsupported or no_claims, the evidence ids that back it and what was not found."""
+    a = _agent(ctx)
+    return run(a, "check_answer", {"question": question, "evidence_ids": evidence_ids},
+               lambda: tool_check_answer(a, question, answer, evidence_ids))
 
 
 @mcp.tool(name="get_doc_card", annotations=READ_ONLY, structured_output=True)
