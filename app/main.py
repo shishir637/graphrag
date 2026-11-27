@@ -36,6 +36,11 @@ async def lifespan(app):
     # a fresh MCP app (and session manager) per server start: a manager can only be run once
     global _mcp_asgi
     _mcp_asgi = M.http_app()
+    try:                                                  # existing workspaces -> the 0.7 layout (idempotent)
+        from . import upgrade
+        upgrade.run()
+    except Exception as e:                                # noqa: BLE001 - never block the start
+        print(f"0.7 upgrade skipped: {type(e).__name__}: {e}")
     if os.environ.get("CL_WORKERS", "2") != "0":
         jobs.start_workers()
     from . import scheduler
@@ -332,7 +337,7 @@ async def upload_documents(files: list[UploadFile] = File(...), groups: str = Fo
             errors.append(f"{f.filename}: larger than {MAX_UPLOAD_MB} MB")
             continue
         try:
-            saved.append(engine.save_document(f.filename or "file", data, gl))
+            saved.append(engine.save_document(f.filename or "file", data, gl, by=u["email"], source="web"))
         except ValueError as e:
             errors.append(str(e))
     if saved:
@@ -382,7 +387,7 @@ async def upload_tables(files: list[UploadFile] = File(...), u: dict = Depends(A
     saved, errors = [], []
     for f in files:
         try:
-            saved += engine.save_table(f.filename or "table", await f.read())
+            saved += engine.save_table(f.filename or "table", await f.read(), by=u["email"], source="web")
         except ValueError as e:
             errors.append(str(e))
     if saved:
@@ -976,7 +981,8 @@ async def _upload_into(token: str, r, files: list[UploadFile]):
             errors.append(f"{f.filename}: larger than {MAX_UPLOAD_MB} MB")
             continue
         try:
-            saved.append(engine.ingest_upload(f.filename or "file", data, json.loads(r["groups"])))
+            saved.append(engine.ingest_upload(f.filename or "file", data, json.loads(r["groups"]),
+                                              by=r["principal"], source="upload_link"))
         except ValueError as e:
             errors.append(str(e))
     core.db().execute("UPDATE upload_links SET files = files + ? WHERE token_hash = ?", (len(saved), core.token_hash(token)))

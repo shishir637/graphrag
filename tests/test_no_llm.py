@@ -40,7 +40,9 @@ def test_router():
 def test_ingest_excel_and_json(tmp_path, monkeypatch):
     import pandas as pd
     from semantic import ingest
+    from semantic import config
     monkeypatch.setattr(ingest, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)                  # the landing zone (app/storage.py)
     monkeypatch.setattr(ingest, "UPLOAD_DIR", tmp_path / "_uploads")
     xl = tmp_path / "src.xlsx"
     with pd.ExcelWriter(xl) as w:

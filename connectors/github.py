@@ -266,13 +266,29 @@ def _render(full: str, path: str, branch: str, text: str) -> str:
     return head + f"```{CODE_LANG.get(ext, '')}\n{text}\n```\n"
 
 
+def _as_text(v) -> str:
+    """A value read back from the stored table, written the way GitHub's API gives it (times as ...Z)."""
+    import datetime as dt
+    if v is None:
+        return ""
+    if isinstance(v, dt.datetime):
+        if v.tzinfo is not None:
+            v = v.astimezone(dt.timezone.utc).replace(tzinfo=None)
+        return v.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return v
+
+
 def _merge_csv(table: str, key: str, new: list[dict]) -> bytes:
     """The workspace's current table updated with new rows (same id: replaced)."""
-    from semantic.config import DATA_DIR
+    from app.storage import store
+    st = store()
     rows: dict[str, dict] = {}
-    path = DATA_DIR / f"{table}.csv"
-    if path.exists():
-        with open(path, newline="", encoding="utf-8") as f:
+    if st.exists("data", f"{table}.parquet"):                # the landed table (0.7+)
+        import pyarrow.parquet as pq
+        for r in pq.read_table(st.path_for_duckdb("data", f"{table}.parquet")).to_pylist():
+            rows[str(r[key])] = {k: _as_text(v) for k, v in r.items()}
+    elif st.exists("data", f"{table}.csv"):                  # a workspace not upgraded yet
+        with st.open("data", f"{table}.csv") as fb, io.TextIOWrapper(fb, encoding="utf-8", newline="") as f:
             for r in csv.DictReader(f):
                 rows[r[key]] = r
     for r in new:

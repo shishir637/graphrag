@@ -144,29 +144,34 @@ def approved_rows() -> dict[str, list[dict]]:
 
 def write_tables() -> bool:
     """Write the fact tables (Parquet) and their row access rules; True when a table changed."""
+    import io
     import pandas as pd
+    from app.storage import store
     from rag.registry import access_map
     from semantic import access
-    from semantic.config import DATA_DIR
+    st = store()
     changed = False
     groups = access_map()
     rules = []
     for table, rows in approved_rows().items():
-        path = DATA_DIR / f"{table}.parquet"
+        name = f"{table}.parquet"                          # derived: a projection of approved facts, rebuilt here
         if not rows:
-            if path.exists():
-                path.unlink()
+            if st.delete("data", name):
                 changed = True
             continue
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
         df = pd.DataFrame(rows, columns=TABLES[table][1])
         for col in ("effective_date", "invoice_date", "meeting_date", "due_date"):
             if col in df:
                 df[col] = pd.to_datetime(df[col], errors="coerce").dt.date
         new = df.to_json(orient="records", date_format="iso")
-        old = pd.read_parquet(path).to_json(orient="records", date_format="iso") if path.exists() else None
+        old = None
+        if st.exists("data", name):
+            with st.open("data", name) as f:
+                old = pd.read_parquet(f).to_json(orient="records", date_format="iso")
         if new != old:
-            df.to_parquet(path, index=False)
+            buf = io.BytesIO()
+            df.to_parquet(buf, index=False, compression="zstd")
+            st.put("data", name, buf.getvalue())
             changed = True
         by_group: dict[str, list] = defaultdict(list)
         for doc in df["document"].unique():

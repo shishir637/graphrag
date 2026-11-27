@@ -28,13 +28,15 @@ def pub(tmp_path, monkeypatch):
     docs, out = tmp_path / "documents", tmp_path / "outputs"
     docs.mkdir(); out.mkdir()
     monkeypatch.setattr(engine, "DOCS_DIR", docs)
+    import rag.config
+    monkeypatch.setattr(rag.config, "DOCS_DIR", docs)                 # the landing zone (app/storage.py)
     monkeypatch.setattr(engine, "ACCESS_FILE", docs / "_access.json")
     monkeypatch.setattr(engine, "OUT_DIR", out)
     monkeypatch.setattr(engine, "postgres_ok", lambda: (False, "test"))
     monkeypatch.setattr(engine, "graph_ready", lambda: False)
     tables = tmp_path / "tables"
     tables.mkdir()
-    monkeypatch.setattr(engine, "save_table", lambda name, data: [(tables / name).write_bytes(data) and name.rsplit(".", 1)[0]])
+    monkeypatch.setattr(engine, "save_table", lambda name, data, **kw: [(tables / name).write_bytes(data) and name.rsplit(".", 1)[0]])
     monkeypatch.setenv("CL_PUBLIC_HOSTS", "*.trycloudflare.com")
     oauth._hits.clear()
     built = []

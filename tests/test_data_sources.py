@@ -73,11 +73,11 @@ def test_postgres_snapshot_drafts_metrics_and_is_incremental(ws, source):
     from app import engine
     from semantic.config import DATA_DIR
     with core.tenant_scope(ws):
-        c = manage.create("postgres", "Shop DB", {"schemas": ["src_shop"], "updated_column": "updated_at"},
-                          {"dsn": DSN}, None, 60, "ann")
+        c = manage.create("postgres", "Shop DB", {"schemas": ["src_shop"], "updated_column": "updated_at",
+                                                  "batch_rows": 2}, {"dsn": DSN}, None, 60, "ann")
         assert manage.test(c["id"])["ok"]
         manage.run_sync({"connector": c["id"]})                     # copies, then runs the data build
-        assert (DATA_DIR / "src_shop_sales.csv").read_text().count("\n") == 4
+        assert _rows("src_shop_sales") == 3 and not (DATA_DIR / "src_shop_sales.csv").exists()   # Parquet, 2 batches
         drafts = {r["name"]: r for r in repo.rows("metric") if r["status"] == "draft"}
         assert any("src_shop_sales" in n or "sales" in n for n in drafts), list(drafts)
         ents = {r["name"] for r in repo.rows("entity")}
@@ -86,10 +86,21 @@ def test_postgres_snapshot_drafts_metrics_and_is_incremental(ws, source):
         with psycopg.connect(DSN, autocommit=True) as pc:
             pc.execute("UPDATE src_shop.sales SET amount = 999, updated_at = '2026-11-01' WHERE sale_id = 2")
         manage.run_sync({"connector": c["id"]})
-        text = (DATA_DIR / "src_shop_sales.csv").read_text()
-        assert text.count("\n") == 4 and "999" in text
+        assert _rows("src_shop_sales") == 3 and _rows("src_shop_sales", "amount = 999") == 1
+        from app import landing
+        h = landing.history("src_shop_sales.parquet")
+        assert len(h) == 2 and h[-1]["source"] == "connector" and h[-1]["connector_id"] == c["id"]
+        manage.run_sync({"connector": c["id"]})                     # nothing changed at the source: no new landing
+        assert len(landing.history("src_shop_sales.parquet")) == 2
         q = engine.metric_query({"metrics": [next(n for n in drafts if "total" in n and "amount" in n)]}, groups=None)
         assert float(list(q["rows"][0].values())[0]) == 100 + 999 + 25
+
+
+def _rows(table, where="true"):
+    import duckdb
+    from app.storage import store
+    path = store().path_for_duckdb("data", f"{table}.parquet")
+    return duckdb.connect().execute(f"SELECT count(*) FROM read_parquet('{path}') WHERE {where}").fetchone()[0]
 
 
 def test_postgres_live_mode_queries_the_source(ws, source):

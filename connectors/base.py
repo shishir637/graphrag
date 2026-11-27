@@ -21,8 +21,13 @@ class Document:
 
 @dataclass
 class Table:
+    """A whole table (replaces the previous version). Give one of: `parquet_path` (a Parquet file the connector
+    wrote in batches, e.g. with pyarrow; it is moved into the landing zone), `parquet` (bytes) or `csv` (bytes,
+    for older connectors; converted to Parquet with DuckDB's inferred types)."""
     name: str                       # snake_case table name
-    csv: bytes                      # the whole table as CSV (replaces the previous version)
+    csv: bytes = b""
+    parquet: bytes | None = None
+    parquet_path: str | None = None
 
 
 @dataclass

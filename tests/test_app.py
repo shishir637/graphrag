@@ -17,6 +17,8 @@ def client(tmp_path, monkeypatch):
     docs, out = tmp_path / "documents", tmp_path / "outputs"
     docs.mkdir(); out.mkdir()
     monkeypatch.setattr(engine, "DOCS_DIR", docs)
+    import rag.config
+    monkeypatch.setattr(rag.config, "DOCS_DIR", docs)                 # the landing zone (app/storage.py)
     monkeypatch.setattr(engine, "ACCESS_FILE", docs / "_access.json")
     monkeypatch.setattr(engine, "OUT_DIR", out)
     monkeypatch.setattr(engine, "postgres_ok", lambda: (False, "test"))

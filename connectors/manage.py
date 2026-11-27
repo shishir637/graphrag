@@ -129,13 +129,13 @@ def update(cid: str, config: dict | None = None, secrets: dict | None = None, gr
 
 def delete(cid: str, by: str) -> dict:
     """Remove the connector, its secrets and the documents it added (tables stay until removed by hand)."""
+    from app import landing
     from rag import registry
-    from rag.config import DOCS_DIR
     r = _row(cid)
     removed = []
     for name, src in registry.sources().items():
         if src["source"] == f"connector:{cid}":
-            (DOCS_DIR / name).unlink(missing_ok=True)
+            landing.remove_document(name)
             registry.forget(name)
             removed.append(name)
     for f in KINDS[r["kind"]].SECRETS:
@@ -161,12 +161,12 @@ def queue_sync(cid: str, by: str) -> dict:
 
 def run_sync(info: dict):
     """Job handler: sync one connector and rebuild what changed."""
-    from app import engine
+    from app import engine, landing
+    from app.storage import store
     from rag import registry
-    from rag.config import DOCS_DIR
-    from semantic.config import DATA_DIR
     cid = info["connector"]
     r = _row(cid)
+    by = f"connector:{r['name']}"
     print(f"Syncing {r['name']} ({r['kind']})")
     try:
         res = _instance(r).sync(dict(r["state"]))
@@ -184,19 +184,25 @@ def run_sync(info: dict):
                               source="template", by=f"connector:{cid}")
         print(f"  semantic layer: {n or 'unchanged'}")
     for d in res.documents:
-        DOCS_DIR.mkdir(parents=True, exist_ok=True)
-        (DOCS_DIR / d.name).write_bytes(d.data)
+        landing.land_document(d.name, d.data, d.groups, source="connector", connector_id=cid, pushed_by=by)
         registry.set_groups(d.name, d.groups, source=f"connector:{cid}", source_ref=d.ref)
         changed.append({"file": d.name, "kind": "document", "groups": d.groups})
     for name in res.deleted:
-        (DOCS_DIR / name).unlink(missing_ok=True)
+        landing.remove_document(name)
         registry.forget(name)
     for t in res.tables:
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        old = (DATA_DIR / f"{t.name}.csv").read_bytes() if (DATA_DIR / f"{t.name}.csv").exists() else None
-        if old != t.csv:
-            (DATA_DIR / f"{t.name}.csv").write_bytes(t.csv)
-            changed.append({"file": f"{t.name}.csv", "kind": "table"})
+        kw = {"source": "connector", "connector_id": cid, "pushed_by": by}
+        if t.parquet_path:
+            new = landing.land_table_file(t.name, t.parquet_path, **kw)
+        elif t.parquet is not None:
+            tmp = store().scratch(".parquet")
+            with open(tmp, "wb") as f:
+                f.write(t.parquet)
+            new = landing.land_table_file(t.name, tmp, **kw)
+        else:
+            new = landing.land_table_csv(t.name, t.csv, **kw)
+        if new:
+            changed.append({"file": f"{t.name}.parquet", "kind": "table"})
     if res.access_rules:
         from semantic import access
         access.replace_rules(res.access_rules, source=f"connector:{cid}")

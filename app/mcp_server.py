@@ -293,7 +293,7 @@ def tool_add_document(agent: dict, filename: str | None = None, text: str | None
     if not filename:
         raise ToolError("Give the file a name, e.g. report.pdf.")
     try:
-        saved = engine.ingest_upload(filename, data, g, kind)
+        saved = engine.ingest_upload(filename, data, g, kind, by=agent["name"], source="mcp")
     except ValueError as e:
         raise ToolError(str(e)) from e
     job = engine.queue_rebuild([saved], agent["name"])

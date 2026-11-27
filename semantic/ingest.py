@@ -1,14 +1,16 @@
-"""Turn uploaded data files into tables DuckDB can query.
+"""Turn uploaded data files into tables DuckDB can query: one Parquet file (zstd) per table in data/.
 
-  .csv / .parquet   used as they are
+  .csv              converted to Parquet with the column names and types DuckDB infers from the CSV (as tables
+                    were read before 0.7, so metric definitions keep working)
+  .parquet          cleaned and rewritten
   .xlsx / .xls      every non-empty sheet becomes a table: <file> (one sheet) or <file>__<sheet> (several)
   .json             an array of records, an object holding one or more arrays of records, or one record;
                     nested objects are flattened (customer.name -> customer_name); lists of scalars are joined
   .jsonl / .ndjson  one record per line
 
-Converted tables are written as Parquet next to the other tables; the original upload is kept in
-data/_uploads/ so it can be re-imported. Column names are cleaned to snake_case so metric definitions
-and SQL stay simple.
+Tables land through app/landing.py (storage interface + landing manifest); the original upload is kept in
+data/_uploads/ so it can be re-imported. Column names of converted files (not CSV) are cleaned to snake_case so
+metric definitions and SQL stay simple.
 """
 import json
 import re
@@ -69,27 +71,32 @@ def _flat(records: list) -> pd.DataFrame:
     return pd.json_normalize(records, sep="_", max_level=3)
 
 
-def convert(path: Path) -> list[Path]:
-    """Convert one uploaded file into table files in DATA_DIR; returns the table files written."""
+def convert(path: Path) -> list[tuple[str, Path]]:
+    """Convert one uploaded file into Parquet files in a scratch folder; returns [(table name, scratch file)]."""
+    from app.storage import csv_to_parquet, store
     ext = path.suffix.lower()
     stem = snake(path.stem)
-    out: list[Path] = []
-    if ext == ".csv":                                   # kept as CSV (DuckDB reads it directly)
-        target = DATA_DIR / f"{stem}.csv"
-        target.write_bytes(path.read_bytes())
-        out.append(target)
+    out: list[tuple[str, Path]] = []
+
+    def scratch() -> Path:
+        return Path(store().scratch(".parquet"))
+
+    def write(name: str, df: pd.DataFrame):
+        target = scratch()
+        _clean(df).to_parquet(target, index=False, compression="zstd")
+        out.append((name, target))
+
+    if ext == ".csv":                                   # DuckDB's own reading of the CSV, stored as Parquet
+        target = scratch()
+        csv_to_parquet(path, target)
+        out.append((stem, target))
     elif ext == ".parquet":
-        target = DATA_DIR / f"{stem}.parquet"
-        _clean(pd.read_parquet(path)).to_parquet(target, index=False)
-        out.append(target)
+        write(stem, pd.read_parquet(path))
     elif ext in (".xlsx", ".xls"):
         sheets = pd.read_excel(path, sheet_name=None)
         sheets = {k: v for k, v in sheets.items() if not v.dropna(how="all").empty}
         for sheet, df in sheets.items():
-            name = stem if len(sheets) == 1 else f"{stem}__{snake(sheet)}"
-            target = DATA_DIR / f"{name}.parquet"
-            _clean(df).to_parquet(target, index=False)
-            out.append(target)
+            write(stem if len(sheets) == 1 else f"{stem}__{snake(sheet)}", df)
     elif ext in (".json", ".jsonl", ".ndjson"):
         text = path.read_text(encoding="utf-8-sig")
         if ext == ".json":
@@ -100,17 +107,15 @@ def convert(path: Path) -> list[Path]:
         else:
             tables = {"": [json.loads(line) for line in text.splitlines() if line.strip()]}
         for suffix, recs in tables.items():
-            name = stem if not suffix or len(tables) == 1 else f"{stem}__{snake(suffix)}"
-            target = DATA_DIR / f"{name}.parquet"
-            _clean(_flat(recs)).to_parquet(target, index=False)
-            out.append(target)
+            write(stem if not suffix or len(tables) == 1 else f"{stem}__{snake(suffix)}", _flat(recs))
     else:
         raise ValueError(f"{path.name}: use CSV, Excel, JSON, JSON Lines or Parquet.")
     return out
 
 
-def save_upload(filename: str, data: bytes) -> list[str]:
-    """Keep the original in data/_uploads and write the table files. Returns table names."""
+def save_upload(filename: str, data: bytes, by: str = "", source: str = "upload") -> list[str]:
+    """Keep the original in data/_uploads and land the tables (Parquet + manifest). Returns table names."""
+    from app import landing
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     src = UPLOAD_DIR / filename
     src.write_bytes(data)
@@ -120,8 +125,6 @@ def save_upload(filename: str, data: bytes) -> list[str]:
         raise ValueError(f"{filename}: could not read it as a table ({type(e).__name__}: {str(e)[:200]})") from e
     if not written:
         raise ValueError(f"{filename}: no table with data was found.")
-    for p in written:                                   # one file per table name
-        for other in DATA_DIR.glob(p.stem + ".*"):
-            if other != p and other.suffix.lower() in {".csv", ".parquet", ".xlsx"}:
-                other.unlink()
-    return [p.stem for p in written]
+    for name, tmp in written:                           # one file per table name (older CSV / Excel copies moved away)
+        landing.land_table_file(name, tmp, source=source, pushed_by=by)
+    return [name for name, _ in written]

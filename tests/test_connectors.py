@@ -109,7 +109,7 @@ def test_github_sync_documents_tables_layer_and_access(ws):
                              G._doc_name("acme/orion", "LICENSE")}                  # extensionless well-known files too
         assert all(g == [group] for g in docs.values())                       # one access group per repository
         assert "```python" in (DOCS_DIR / G._doc_name("acme/orion", "src/app.py")).read_text()
-        assert (DATA_DIR / "github_pull_requests.csv").exists()
+        assert (DATA_DIR / "github_pull_requests.parquet").exists()                # landed as Parquet
         assert repo.get("metric", "median_hours_to_merge")["status"] == "approved"   # ready-made layer, approved
         assert {(r["entity"], r["group"]) for r in access.rules()} >= {("github_commits", group)}
         kinds = {f["kind"] for f in rebuilt[-1]["files"]}

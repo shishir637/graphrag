@@ -109,13 +109,14 @@ def documents() -> list[dict]:
     return out
 
 
-def save_document(filename: str, data: bytes, groups: list[str]) -> dict:
+def save_document(filename: str, data: bytes, groups: list[str], by: str = "", source: str = "upload") -> dict:
+    """Land an original document (landing zone + manifest, app/landing.py) and set its access groups."""
+    from app import landing
     name = safe_filename(filename)
     if Path(name).suffix.lower() not in DOC_EXTS:
         raise ValueError(f"{name}: unsupported type. Use one of {', '.join(sorted(DOC_EXTS))}.")
     groups = clean_groups(groups) or ["public"]
-    DOCS_DIR.mkdir(parents=True, exist_ok=True)
-    (DOCS_DIR / name).write_bytes(data)
+    landing.land_document(name, data, groups, source=source, pushed_by=by)
     m = access_map()
     m[name] = groups
     _save_access(m)
@@ -135,10 +136,11 @@ def set_document_groups(name: str, groups: list[str]) -> list[str]:
 
 
 def delete_document(name: str):
+    from app import landing
     p = DOCS_DIR / safe_filename(name)
     if not p.exists():
         raise KeyError(name)
-    p.unlink()
+    landing.remove_document(p.name)
     m = access_map()
     m.pop(p.name, None)
     _save_access(m)
@@ -164,24 +166,24 @@ def tables() -> list[dict]:
     prof = _json(SC.OUT_DIR / "sl_1_profile.json", {}) or {}
     pt = prof.get("tables", {}) if isinstance(prof, dict) else {}
     ptables = pt if isinstance(pt, dict) else {t.get("name") or t.get("table"): t for t in pt}
+    from app.storage import store
+    st = store()
     out = []
-    if SC.DATA_DIR.exists():
-        for p in sorted(SC.DATA_DIR.iterdir()):
-            if p.suffix.lower() in SC.TABLE_EXTS:
-                t = ptables.get(p.stem, {})
-                out.append({"name": p.name, "table": p.stem, "size": p.stat().st_size, "modified": iso(p.stat().st_mtime),
-                            "rows": t.get("rows") or t.get("row_count"), "columns": len(t.get("columns", []) or [])})
+    for name in st.list("data", SC.TABLE_EXTS):
+        stem, s = Path(name).stem, st.stat("data", name)
+        t = ptables.get(stem, {})
+        out.append({"name": name, "table": stem, "size": s["bytes"], "modified": iso(s["modified"]),
+                    "rows": t.get("rows") or t.get("row_count"), "columns": len(t.get("columns", []) or [])})
     return out
 
 
-def save_table(filename: str, data: bytes) -> list[str]:
-    """CSV, Excel (every sheet), JSON / JSON Lines (nested fields flattened) or Parquet -> tables."""
+def save_table(filename: str, data: bytes, by: str = "", source: str = "upload") -> list[str]:
+    """CSV, Excel (every sheet), JSON / JSON Lines (nested fields flattened) or Parquet -> Parquet tables."""
     from semantic.ingest import ACCEPTED, save_upload
     name = safe_filename(filename)
     if Path(name).suffix.lower() not in ACCEPTED:
         raise ValueError(f"{name}: use CSV, Excel (.xlsx), JSON, JSON Lines or Parquet.")
-    SC.DATA_DIR.mkdir(parents=True, exist_ok=True)
-    return save_upload(name, data)
+    return save_upload(name, data, by=by, source=source)
 
 
 def metrics() -> dict:
@@ -391,7 +393,8 @@ TABLE_FIRST = {".csv", ".xlsx", ".xls", ".parquet"}       # go to data tables (m
 TEXT_EXTS = {".txt", ".md", ".csv", ".json", ".jsonl", ".ndjson", ".html", ".htm"}
 
 
-def ingest_upload(filename: str, data: bytes, groups: list[str], kind: str = "auto") -> dict:
+def ingest_upload(filename: str, data: bytes, groups: list[str], kind: str = "auto", by: str = "",
+                  source: str = "upload") -> dict:
     """Save one uploaded file as a document (search + graph) or a data table (metrics). Does not rebuild."""
     from semantic.ingest import ACCEPTED
     name = safe_filename(filename)
@@ -405,8 +408,8 @@ def ingest_upload(filename: str, data: bytes, groups: list[str], kind: str = "au
     if kind == "table":
         if ext not in ACCEPTED:
             raise ValueError(f"{name}: data tables must be CSV, Excel, JSON, JSON Lines or Parquet.")
-        return {"file": name, "kind": "table", "tables": save_table(name, data)}
-    d = save_document(name, data, groups)
+        return {"file": name, "kind": "table", "tables": save_table(name, data, by=by, source=source)}
+    d = save_document(name, data, groups, by=by, source=source)
     return {"file": d["name"], "kind": "document", "groups": d["groups"]}
 
 
