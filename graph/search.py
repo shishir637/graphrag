@@ -90,6 +90,31 @@ def _visible_chunks(ids, groups, visible):
     return [c for c in ids or [] if visible(c, groups)]
 
 
+def _seen(chunk_ids, groups, visible) -> bool:
+    """Evidence from data tables (no passage) is shown; evidence from passages only when one is visible."""
+    return not chunk_ids or any(visible(c, groups) for c in chunk_ids)
+
+
+def rel_evidence(r: dict, groups, visible, limit: int = 300) -> str:
+    """The sentences behind a link, only from passages the caller can see (older builds: the merged text)."""
+    ev = r.get("evidence")
+    if ev is None:
+        return (r.get("description") or "")[:limit]
+    texts = list(dict.fromkeys(e["text"] for e in ev if _seen([e["chunk_id"]] if e["chunk_id"] else [], groups, visible)))
+    return " ".join(texts[:3])[:limit]
+
+
+def ent_view(e: dict, groups, visible) -> dict:
+    """An entity's name, aliases and description built only from what the caller may see."""
+    ne, de = e.get("names_evidence"), e.get("description_evidence")
+    if ne is None:
+        return {"name": e["name"], "aliases": e.get("aliases") or [], "description": e.get("description") or ""}
+    names = [x["text"] for x in ne if _seen(x["chunk_ids"], groups, visible)]
+    name = e["name"] if e["name"] in names else (names[0] if names else e["name"])
+    desc = " ".join(list(dict.fromkeys(x["text"] for x in de or [] if _seen(x["chunk_ids"], groups, visible)))[:4])
+    return {"name": name, "aliases": [n for n in names if n != name][:20], "description": desc}
+
+
 # ---------------------------------------------------------------- linking
 def link(question: str, limit: int = 8) -> list[dict]:
     """Entity names in the question: exact word n-grams first (longest wins), then near-spellings."""
@@ -214,11 +239,12 @@ def local(question: str, groups=None, visible=lambda c, g: True, max_relations: 
                 score[c] += 0.5 + overlap(c)
     ranked = sorted(score.items(), key=lambda kv: -kv[1])[:max_passages]
     E = G["ents"]
+    V = lambda eid: ent_view(E[eid], groups, visible)                    # noqa: E731
     return {
-        "entities": [{k: s[k] for k in ("id", "name", "type", "how")} for s in seeds],
-        "bridges": [{"id": b, "name": E[b]["name"], "type": E[b]["type"]} for b in list(bridges)[:10]],
-        "relations": [{"source": E[r["source_id"]]["name"], "type": r["type"], "target": E[r["target_id"]]["name"],
-                       "weight": r.get("weight", 1), "evidence": (r.get("description") or "")[:300],
+        "entities": [{k: s[k] for k in ("id", "type", "how")} | {"name": V(s["id"])["name"]} for s in seeds],
+        "bridges": [{"id": b, "name": V(b)["name"], "type": E[b]["type"]} for b in list(bridges)[:10]],
+        "relations": [{"source": V(r["source_id"])["name"], "type": r["type"], "target": V(r["target_id"])["name"],
+                       "weight": r.get("weight", 1), "evidence": rel_evidence(r, groups, visible),
                        "passages": ch[:3], **({"hop": 2} if r.get("hop") == 2 else {})} for r, ch in chosen],
         "passage_ids": [c for c, _ in ranked],
         "passage_scores": {c: round(v, 3) for c, v in ranked},
@@ -260,11 +286,12 @@ def overview(question: str, groups=None, visible=lambda c, g: True, top: int = 5
         for m in vis[:30]:
             for ch in _visible_chunks(m.get("chunk_ids"), groups, visible):
                 pas[ch] += 1
-        out.append({"community": c["id"], "title": ", ".join(m["name"] for m in vis[:3]), "size": len(vis),
+        V = lambda e: ent_view(e, groups, visible)["name"]                  # noqa: E731
+        out.append({"community": c["id"], "title": ", ".join(V(m) for m in vis[:3]), "size": len(vis),
                     "score": round(s, 2),
-                    "main_entities": [{"name": m["name"], "type": m["type"], "links": m.get("degree", 0)} for m in vis[:12]],
-                    "key_links": [{"source": E[r["source_id"]]["name"], "type": r["type"], "target": E[r["target_id"]]["name"],
-                                   "evidence": (r.get("description") or "")[:200]} for r in links],
+                    "main_entities": [{"name": V(m), "type": m["type"], "links": m.get("degree", 0)} for m in vis[:12]],
+                    "key_links": [{"source": V(E[r["source_id"]]), "type": r["type"], "target": V(E[r["target_id"]]),
+                                   "evidence": rel_evidence(r, groups, visible, 200)} for r in links],
                     "passage_ids": [p for p, _ in pas.most_common(4)]})
     return {"communities": out}
 
@@ -289,11 +316,13 @@ def entity(name: str, groups=None, visible=lambda c, g: True, limit: int = 25) -
         ch = _visible_chunks(r.get("chunk_ids"), groups, visible)
         if r.get("chunk_ids") and not ch:
             continue
-        links.append({"entity": G["ents"][other]["name"], "type": r["type"],
+        links.append({"entity": ent_view(G["ents"][other], groups, visible)["name"], "type": r["type"],
                       "direction": "out" if r["source_id"] == eid else "in", "weight": r.get("weight", 1),
-                      "evidence": (r.get("description") or "")[:300], "passages": ch[:3]})
+                      "evidence": rel_evidence(r, groups, visible), "passages": ch[:3]})
         if len(links) >= limit:
             break
-    return {"id": eid, "name": e["name"], "type": e["type"], "aliases": e.get("aliases", [])[:10],
+    me = ent_view(e, groups, visible)
+    return {"id": eid, "name": me["name"], "type": e["type"], "aliases": me["aliases"][:10],
+            "description": me["description"][:400],
             "passages": _visible_chunks(e.get("chunk_ids"), groups, visible)[:20], "links": links,
             "community": e.get("community_l0")}

@@ -374,7 +374,13 @@ def set_metric_status(name: str, body: MetricStatusIn, u: dict = Depends(ADMIN))
 
 @app.get("/api/v1/graph")
 def graph(q: str = "", u: dict = Depends(ANY)):
-    return {"overview": engine.graph_overview(), **engine.graph_explore(q.strip()[:100])}
+    """The graph explorer: company admins see everything; anyone else only what their data sets' passages support."""
+    groups = None
+    if u["role"] not in ("owner", "admin"):
+        from . import access
+        groups, _ = access.for_agent(u["email"], u["role"])
+        groups = sorted(set(groups or ["public"]) | {f"layer:user:{u['id']}"})
+    return {"overview": engine.graph_overview(), **engine.graph_explore(q.strip()[:100], groups=groups)}
 
 
 # ------------------------------------------------------------------ jobs
