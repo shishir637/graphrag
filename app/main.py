@@ -37,13 +37,19 @@ async def lifespan(app):
         print(f"Could not describe the organisation for Claude: {e}", flush=True)
     _warm_up()
     _landing_backfill()
-    from . import scheduler
-    scheduler.start()
+    import os
+    from . import jobqueue, scheduler
+    role = os.environ.get("CL_ROLE", "all")         # api: answers only; the worker container runs jobs and the schedule
+    if role in ("all", "worker"):
+        scheduler.start()
+        if jobs.db_mode():
+            jobqueue.start_workers()
     try:
         async with M.mcp.session_manager.run():
             yield
     finally:
         scheduler.stop()
+        jobqueue.stop_workers()
 
 
 def _landing_backfill():
