@@ -591,6 +591,10 @@ def metric_query(request: dict | None = None, question: str | None = None) -> di
             q = SemanticQuery.model_validate(req)
         except Exception as e:                                       # noqa: BLE001 - shown to the caller
             raise ValueError(f"Invalid request: {e}") from e
+        review = [m.name for m in mets.metrics if m.name in q.metrics and m.status == "needs_review"]
+        if review:
+            raise ValueError(f"{', '.join(review)} is being reviewed (it no longer runs on the current data, e.g. a "
+                             "column was renamed); it cannot be used until an admin fixes it.")
     else:
         from semantic.rule_planner import planner
         p = planner().plan(question or "", today())

@@ -184,6 +184,7 @@ def test_webhook_signature_and_schedule(env, monkeypatch):
     assert queued == [(s["id"], "webhook")]
     # the scheduler queues a due source once, then moves next_run on
     queued.clear()
+    monkeypatch.setattr(scheduler, "DUE", [scheduler._sources_due])      # only the source check here
     assert scheduler.tick() == 1 and queued == [(s["id"], "schedule")]
     assert scheduler.tick() == 0
     manage.update(s["id"], status="paused")

@@ -200,8 +200,8 @@ def draft(approve: bool = False) -> dict:
 def set_status(name: str, status: str, by: str = "") -> dict:
     """Approve or un-approve a metric. Approving records who reviewed it as the owner if none is set
     (every approved metric needs an owner)."""
-    if status not in ("draft", "approved"):
-        raise ValueError("status is draft or approved")
+    if status not in ("draft", "approved", "needs_review"):
+        raise ValueError("status is draft, approved or needs_review")
     metrics = read(METRICS_FILE)
     for m in metrics["metrics"]:
         if m["name"] == name:

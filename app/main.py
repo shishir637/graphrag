@@ -1810,9 +1810,22 @@ def approvals_list(status: str = "waiting", u: dict = Depends(ANY)):
     a = _as_agent(u)
     if not teams.is_company_admin(a) and not teams.managed_teams(a):
         raise HTTPException(403, "Only admins approve changes.")
+    checks = []
+    if teams.is_company_admin(a):                        # metrics the nightly check took out (semantic/monitor.py)
+        from semantic import monitor
+        checks = monitor.taken_out()
     if status == "waiting":
-        return {"items": approvals.waiting_for(a)}
-    return {"items": approvals.history(a, status)}
+        return {"items": approvals.waiting_for(a), "metric_checks": checks}
+    return {"items": approvals.history(a, status), "metric_checks": checks}
+
+
+@app.post("/api/v1/metric-check/run")
+def metric_check_run(u: dict = Depends(ADMIN)):
+    """Run the nightly metric check now (e.g. after fixing a renamed column)."""
+    from semantic import monitor
+    job = jobs.enqueue("monitor", "Checking metric definitions", lambda info: monitor.run(u["email"]), u["email"], {})
+    audit(u, "metrics.check", "now")
+    return {"job": job}
 
 
 @app.post("/api/v1/approvals/file/{rid}")

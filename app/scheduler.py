@@ -22,6 +22,14 @@ def _sources_due() -> int:
 DUE.append(_sources_due)
 
 
+def _metric_check_due() -> int:
+    from semantic import monitor
+    return monitor.due()
+
+
+DUE.append(_metric_check_due)
+
+
 def tick() -> int:
     """Queue everything that is due. Returns how many jobs were queued."""
     n = 0
