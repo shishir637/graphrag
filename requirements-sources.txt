@@ -1,0 +1,4 @@
+# Optional source drivers. Without them the matching source type is simply not offered.
+# The Docker image installs them.
+pymysql>=1.1      # MySQL / MariaDB source (sources/mysql.py)
+boto3>=1.34       # S3-compatible folder source (sources/s3.py)

@@ -4,6 +4,7 @@ import os
 os.environ.setdefault("CL_SCRYPT_N", "16384")
 os.environ.setdefault("CL_MIN_PASSWORD_LENGTH", "10")
 os.environ.setdefault("CL_BREACH_CHECK", "0")
+os.environ.setdefault("CL_SCHEDULER", "0")          # no background scheduler thread in tests
 
 import pytest
 

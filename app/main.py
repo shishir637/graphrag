@@ -36,8 +36,13 @@ async def lifespan(app):
     except Exception as e:                           # noqa: BLE001 - generic wording stays
         print(f"Could not describe the organisation for Claude: {e}", flush=True)
     _warm_up()
-    async with M.mcp.session_manager.run():
-        yield
+    from . import scheduler
+    scheduler.start()
+    try:
+        async with M.mcp.session_manager.run():
+            yield
+    finally:
+        scheduler.stop()
 
 
 def _warm_up():
@@ -1291,7 +1296,16 @@ def data_overview(u: dict = Depends(ANY)):
     return {"files": files, "datasets": [{**d, "files": sum(1 for f in files if d["name"] in f["datasets"])} for d in ds],
             "labels": labels, "upload_to": sorted(allowed) if allowed is not None else [d["name"] for d in ds],
             "tables": engine.tables() if company else [], "company_admin": company,
-            "pending": sum(1 for f in files if f["status"] != "ready"), "job": run and jobs.public(run)}
+            "pending": sum(1 for f in files if f["status"] != "ready"), "job": run and jobs.public(run),
+            "sources": _sources_summary() if company else []}
+
+
+def _sources_summary() -> list[dict]:
+    try:
+        from sources import manage
+        return manage.list_all()
+    except Exception:                                      # noqa: BLE001 - the Data tab works without sources
+        return []
 
 
 @app.post("/api/v1/data/files")
@@ -1354,6 +1368,104 @@ def data_prepare(u: dict = Depends(ANY)):
         return {"job": jobs.start("documents", label, fn, u["email"])}
     except RuntimeError as e:
         raise HTTPException(409, str(e)) from e
+
+
+# ------------------------------------------------------------------ sources: GitHub, databases, S3 folders (company admins)
+# ("connectors" in this app means what Claude may use for a person; outside systems are "sources".)
+
+class SourceIn(BaseModel):
+    kind: str
+    name: str = ""
+    config: dict = Field(default_factory=dict)
+    secrets: dict[str, str] = Field(default_factory=dict)
+    dataset: str | None = None
+    every_minutes: int = 360
+
+
+class SourcePatch(BaseModel):
+    name: str | None = None
+    config: dict | None = None
+    secrets: dict[str, str] | None = None
+    dataset: str | None = None
+    every_minutes: int | None = None
+    status: str | None = None
+
+
+@app.get("/api/v1/sources")
+def sources_list(u: dict = Depends(ADMIN)):
+    from sources import manage
+    return {"sources": manage.list_all(), "kinds": manage.catalog()}
+
+
+@app.post("/api/v1/sources")
+def sources_create(body: SourceIn, u: dict = Depends(ADMIN)):
+    from sources import manage
+    try:
+        s = manage.create(body.kind, body.name, body.config, body.secrets, body.dataset, body.every_minutes, u["email"])
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    audit(u, "source.create", s["name"], {"kind": s["kind"], "dataset": s["dataset"]})
+    return s
+
+
+@app.patch("/api/v1/sources/{sid}")
+def sources_update(sid: str, body: SourcePatch, u: dict = Depends(ADMIN)):
+    from sources import manage
+    try:
+        s = manage.update(sid, body.config, body.secrets, body.dataset, body.every_minutes, body.status, body.name,
+                          by=u["email"])
+    except KeyError:
+        raise HTTPException(404, "No such source.")
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    audit(u, "source.update", s["name"], {"fields": [k for k, v in body.model_dump().items()
+                                                     if v is not None and k != "secrets"]
+                                          + (["secrets"] if body.secrets else [])})
+    return s
+
+
+@app.delete("/api/v1/sources/{sid}")
+def sources_delete(sid: str, u: dict = Depends(ADMIN)):
+    from sources import manage
+    try:
+        out = manage.delete(sid, u["email"])
+    except KeyError:
+        raise HTTPException(404, "No such source.")
+    audit(u, "source.delete", sid, out)
+    return out
+
+
+@app.post("/api/v1/sources/{sid}/test")
+def sources_test(sid: str, u: dict = Depends(ADMIN)):
+    from sources import manage
+    try:
+        return manage.test(sid)
+    except KeyError:
+        raise HTTPException(404, "No such source.")
+
+
+@app.post("/api/v1/sources/{sid}/sync")
+def sources_sync(sid: str, u: dict = Depends(ADMIN)):
+    from sources import manage
+    try:
+        job = manage.queue_sync(sid, u["email"])
+    except KeyError:
+        raise HTTPException(404, "No such source.")
+    audit(u, "source.sync", sid)
+    return {"job": job}
+
+
+@app.post("/hooks/{kind}/{sid}", include_in_schema=False)
+async def source_webhook(kind: str, sid: str, request: Request):
+    """Signed webhook from a source (GitHub: X-Hub-Signature-256). Queues a sync; the schedule is the fallback."""
+    from sources import manage
+    body = await request.body()
+    if len(body) > 5 * 2 ** 20:
+        raise HTTPException(413, "Too large.")
+    _rate_limit(f"hook:{sid}", limit=60, window=60)
+    code, msg = manage.webhook(kind, sid, body, request.headers.get("x-hub-signature-256", ""),
+                               request.headers.get("x-github-event", ""))
+    return JSONResponse({"detail": msg}, status_code=code)
 
 
 # ------------------------------------------------------------------ activity for admins (plain words)

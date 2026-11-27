@@ -27,7 +27,27 @@ def connect() -> duckdb.DuckDBPyConnection:
         con.execute("INSTALL excel; LOAD excel;")
     for name, path in table_files().items():
         con.execute(f'CREATE TABLE "{name}" AS SELECT * FROM {_reader(path)}')
+    for s in _live_sources():                               # database sources in live mode: read-only views
+        typ = s.get("type", "postgres")
+        target = (s.get("attach") or "").replace("'", "''")
+        try:
+            con.execute(f"INSTALL {typ}; LOAD {typ};")
+            con.execute(f"ATTACH '{target}' AS \"{s['alias']}\" (TYPE {typ}, READ_ONLY)")
+            for name, src in s["tables"].items():
+                schema, table = src.split(".", 1)
+                con.execute(f'CREATE OR REPLACE VIEW "{name}" AS SELECT * FROM "{s["alias"]}"."{schema}"."{table}"')
+        except duckdb.Error as e:                           # one unreachable database must not stop the others
+            print(f"live source {s['alias']} skipped: {e}")
     return con
+
+
+def _live_sources() -> list[dict]:
+    """Database sources in live mode (sources/manage.py); none outside the app."""
+    try:
+        from sources.manage import live_sources
+        return live_sources()
+    except Exception:                                      # noqa: BLE001 - no app database here
+        return []
 
 
 def columns(con, table: str) -> dict[str, str]:
