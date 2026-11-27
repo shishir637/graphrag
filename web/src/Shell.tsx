@@ -9,11 +9,12 @@ import AccessPage from './pages/AccessPage'
 import ActivityPage from './pages/ActivityPage'
 import ApprovalsPage from './pages/ApprovalsPage'
 import SettingsPage from './pages/SettingsPage'
+import QualityPage from './pages/Quality'
 
-type Tab = 'users' | 'teams' | 'approvals' | 'data' | 'access' | 'activity' | 'settings'
+type Tab = 'users' | 'teams' | 'approvals' | 'data' | 'access' | 'activity' | 'quality' | 'settings'
 const TABS: { t: Tab; label: string; icon: string; company?: boolean }[] = [
   { t: 'users', label: 'Users', icon: 'agent' }, { t: 'teams', label: 'Teams', icon: 'graph' }, { t: 'data', label: 'Data', icon: 'file' },
-  { t: 'access', label: 'Access', icon: 'lock' }, { t: 'approvals', label: 'Approvals', icon: 'check' }, { t: 'activity', label: 'Activity', icon: 'activity' }, { t: 'settings', label: 'Settings', icon: 'gear', company: true }]
+  { t: 'access', label: 'Access', icon: 'lock' }, { t: 'approvals', label: 'Approvals', icon: 'check' }, { t: 'activity', label: 'Activity', icon: 'activity' }, { t: 'quality', label: 'Quality', icon: 'check', company: true }, { t: 'settings', label: 'Settings', icon: 'gear', company: true }]
 
 const readCollapsed = () => { try { return localStorage.getItem('cl.nav') === 'small' } catch { return false } }
 
@@ -58,7 +59,7 @@ export default function Shell({ s, onLogout }: { s: Session; onLogout: () => voi
     <main className="onemain">
       {!h.data ? <Loading /> :
         tab === 'users' ? <UsersPage home={h.data} /> : tab === 'teams' ? <TeamsPage /> : tab === 'data' ? <DataPage /> : tab === 'access' ? <AccessPage /> :
-          tab === 'approvals' ? <ApprovalsPage onChange={h.reload} /> : tab === 'activity' ? <ActivityPage onChange={h.reload} /> : <SettingsPage />}
+          tab === 'approvals' ? <ApprovalsPage onChange={h.reload} /> : tab === 'activity' ? <ActivityPage onChange={h.reload} /> : tab === 'quality' ? <QualityPage /> : <SettingsPage />}
     </main>
   </div>
 }

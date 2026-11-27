@@ -1,5 +1,73 @@
 # Changes
 
+## 0.9.0 (27 Nov 2026): add-on features on top of the admin app
+
+Fifteen add-ons from the 0.5-0.7 line, ported onto 0.8's admin app (teams, data sets, roles, approvals, layers,
+check_answer, the AI-proposed ontology, entity resolution by meaning and the Kestrel demo all stay as they were).
+No AI model runs at question time; MCP tool names, parameters and response shapes are unchanged (fields only added).
+
+- **Sources** (Data tab -> Sources): GitHub, Postgres, MySQL and S3-compatible folders connected once and kept up
+  to date on a schedule (15 minutes to a day) and, for GitHub, on a signed webhook (`/hooks/github/<id>`,
+  HMAC-SHA256). Each source puts its files into one data set you choose (default: a new one named after it), so
+  who sees them is set on the Access tab. GitHub brings code and docs as documents and its activity as tables with
+  a ready-made engineering layer (median time to merge, open bugs ...). SQL sources copy tables as Parquet (batched,
+  incremental by an updated-at column) or read them live through DuckDB. Tokens and connection strings are stored
+  encrypted and never shown again. ("Connectors" keeps its meaning: what Claude may use for a person.)
+- **Quality tab**: after every build the app scores itself with gold answers and no AI model: document search
+  (recall@1/5, all@5, MRR, nDCG@10 on gold passages), metric questions (the rule planner against gold requests,
+  including new Kestrel gold questions when the demo is loaded) and graph extraction (entity F1, link recall on
+  hand-labelled passages). Latest scores, the change since the last run and a trend line per suite; "Score after
+  every build" can be turned off.
+- **Better search results**: every passage has a relevance (0-1) and a label (strong / partial / weak); unrelated
+  passages (below `CL_MIN_RELEVANCE`, 0.02) and near-duplicates are dropped; the top passages get the text just
+  before and after them in the same section; `source_updated` helps the agent prefer the newest source. The same
+  question asked again (same access, same data) is answered from a cache until anything is rebuilt.
+- **"Can this be answered?"** before any search: a rule-based check (a known metric, a graph entity, how much of the
+  question's wording the documents and data know, names nothing mentions). If not, the answer says what is not
+  known and suggests clarifying questions instead of guessing. A question that mixes a number and a policy is
+  answered part by part. `CL_ANSWERABLE=0` turns it off.
+- **Accounts and access in Postgres**: people, sessions, keys, activity, settings, the access tables, teams, the
+  directory, approvals, chats, sources and quality runs move from `var/app.db` to Postgres (`CL_DATABASE_URL`;
+  Docker sets it). An existing `app.db` is copied in once at the first start (idempotent; the file is left as it
+  is). Without `CL_DATABASE_URL` the app still runs on SQLite.
+- **Separate workspaces per company**: every workspace table has a tenant id and a Postgres row-level security
+  policy (FORCEd; the app works as the non-superuser role `cl_app`). `CL_SIGNUP=open` lets a company sign up
+  (`POST /api/v1/signup`): it gets its own workspace with the person as owner (company admin). The existing install
+  is the first workspace and keeps its folders; other workspaces' files are under `CL_FILES_DIR/<id>`, their
+  definitions in a schema of their own (`cl_defs_<id>`).
+- **Graph leak fix**: link sentences, entity descriptions, names and aliases come only from passages the caller may
+  see (evidence kept per passage), in find_connections, explore_entity, overview and the graph explorer.
+- **Row rules for numbers** (Access tab -> Row rules): metrics count only the rows a data set, team or role may see
+  (e.g. region managers see their region). Rows joined to hidden rows are hidden too, so totals never include them.
+- **Nightly metric check**: every approved metric is run on the current data each night; one that fails (a renamed
+  or dropped column) is taken out (status needs_review), hidden from agents and shown on the Approvals tab with
+  the reason, and approved again when it works again.
+- **Keys for apps** (Settings -> Keys for apps): a key that acts for an app's own users (e.g. CodeVerse) proves on
+  every call which user it acts for (one-time HMAC-signed headers or a 15-minute token) and gets only that user's
+  data sets and roles, never more than the key has. Any key can expire and be limited to IP ranges.
+- **Qdrant as its own server** (`QDRANT_URL`, `QDRANT_API_KEY`; a `qdrant` service in Docker, not published): one
+  shared collection filtered per workspace; builds write only new or changed passages and remove the ones that are
+  gone, so answers keep working during a rebuild. An existing index is moved at the first start without
+  re-embedding. Without `QDRANT_URL` the embedded index works as before.
+- **Graph in Postgres tables** (`graph_*`) with an in-memory graph (and a NetworkX view) per workspace and version.
+  Apache AGE is no longer used: Docker uses the official `postgres:17` image; `python -m app.upgrade drop-age`
+  removes AGE's leftovers from an older database.
+- **Tables as Parquet**: every table that arrives is stored as Parquet with a manifest (`data/_manifest.json`:
+  source, who, rows, columns, hash) and read by DuckDB through views, so nothing is copied into memory. Older CSV
+  tables are converted at start in Docker (`CL_LANDING_BACKFILL=1`, or `python -m app.landing backfill`).
+- **API and worker containers**: on Postgres the job queue is a table; `CL_ROLE=api` answers only, the `worker`
+  service (`python -m app.worker`) runs builds, syncs, quality runs and the nightly check; one process schedules
+  (advisory lock).
+- **Secrets key management**: the key that encrypts stored secrets comes from `CL_SECRET_KEY` (several keys for
+  rotation), `CL_SECRET_KEY_FILE` or a secrets manager (`CL_SECRET_KEY_PROVIDER`: aws, gcp, azure, vault, your own
+  module); `python -m app.vault rotate` re-encrypts with the newest key; with `CL_ENV=production` the app refuses to
+  start without a key. `*_FILE` variants for the database URL and password, the Qdrant key, the definitions DSN.
+- Upgrade from 0.8 with Docker: add `CL_QDRANT_API_KEY` (and ideally `CL_SECRET_KEY`) to `.env`, then
+  `docker compose up -d --build`. The first start copies `app.db`, moves the search index and the graph, and
+  converts CSV tables. Then `docker compose exec app python -m app.upgrade drop-age` once.
+- Tests: the whole suite runs on SQLite and, with `CL_TEST_DATABASE_URL`, on Postgres (row-level security on);
+  Qdrant server tests use `CL_TEST_QDRANT_URL`.
+
 ## 0.8.0 (27 Nov 2026): admin app with data and access
 
 - **Personal changes to the team or company, with approval.** From chat a person asks Claude to share their own

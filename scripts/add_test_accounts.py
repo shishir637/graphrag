@@ -43,7 +43,8 @@ def main(team: str, out: str):
         directory.save_person({**(dict(old) if old else {}), "email": email, "name": name, "title": "Test account",
                                "team": team, "status": "active"}, "test script")
         lines += [what.format(team=team), f"  Email:    {email}", f"  Password: {pw}", ""]
-    teams.db().execute("INSERT OR IGNORE INTO team_admins (team, email, added_by, added) VALUES (?, ?, ?, ?)",
+    teams.db().execute("INSERT INTO team_admins (team, email, added_by, added) VALUES (?, ?, ?, ?) "
+                       "ON CONFLICT DO NOTHING",
                        (team, ACCOUNTS[0][0], "test script", core.now()))
     lines.append("Delete these accounts on the Users tab when you are done testing.")
     Path(out).write_text("\n".join(lines) + "\n", encoding="utf-8")

@@ -1,5 +1,8 @@
 """Background jobs (prepare documents, data, graph; quality runs). One at a time, because the engines share
-the embedded search index and output files. Agent questions wait for a running job (see LOCK)."""
+the embedded search index and output files. Agent questions wait for a running job (see LOCK).
+
+On Postgres (0.9) the queue is the jobs table (app/jobqueue.py): the API queues, workers run (app/worker.py,
+CL_ROLE=worker or all), so API and worker can be separate containers. CL_JOBS=memory keeps the in-process queue."""
 import io
 import time
 import re
@@ -37,22 +40,47 @@ class _Log(io.TextIOBase):
         return len(s)
 
 
-def running() -> dict | None:
-    return next((_jobs[j] for j in reversed(_order) if _jobs[j]["status"] == "running"), None)
+def db_mode() -> bool:
+    import os
+    from .db import postgres
+    return postgres() and os.environ.get("CL_JOBS", "db") != "memory"
+
+
+def _mine(job: dict) -> bool:
+    from .db import TENANT
+    return job.get("tenant") == TENANT.get()
+
+
+def running(any_workspace: bool = False) -> dict | None:
+    """The running job of this workspace (any_workspace: of any; jobs run one at a time per process)."""
+    if db_mode():
+        from . import jobqueue
+        return jobqueue.running(any_workspace)
+    return next((_jobs[j] for j in reversed(_order) if _jobs[j]["status"] == "running"
+                 and (any_workspace or _mine(_jobs[j]))), None)
 
 
 def public(job: dict) -> dict:
+    if db_mode():
+        from . import jobqueue
+        return jobqueue.public(job)
     return {k: job[k] for k in ("id", "kind", "label", "status", "started", "finished", "by", "error")} | \
            {"log": job["log"][-60:], "steps": list(job.get("steps") or [])[-40:], "queue_position": (_queue.index(job["id"]) + 1) if job["id"] in _queue else None}
 
 
 def list_jobs(limit: int = 20) -> list[dict]:
-    return [public(_jobs[j]) for j in reversed(_order[-limit:])]
+    if db_mode():
+        from . import jobqueue
+        return jobqueue.list_jobs(limit)
+    return [public(_jobs[j]) for j in reversed(_order) if _mine(_jobs[j])][:limit]
 
 
 def get(job_id: str) -> dict | None:
+    if db_mode():
+        from . import jobqueue
+        return jobqueue.get(job_id)
     j = _jobs.get(job_id)
-    return public(j) if j else None
+    return public(j) if j and _mine(j) else None
 
 
 _qlock = threading.Lock()
@@ -60,8 +88,9 @@ _queue: list[str] = []
 
 
 def _new(kind: str, label: str, by: str, status: str) -> dict:
+    from .db import TENANT
     job = {"id": secrets.token_hex(5), "kind": kind, "label": label, "status": status, "started": None,
-           "finished": None, "by": by, "error": None, "log": [], "info": {}}
+           "finished": None, "by": by, "error": None, "log": [], "info": {}, "tenant": TENANT.get()}
     _jobs[job["id"]] = job
     _order.append(job["id"])
     for old in _order[:-50]:
@@ -75,6 +104,11 @@ def _launch(job: dict, fn):
     job["status"], job["started"] = "running", core.now()
 
     def run():
+        from .db import tenant_scope
+        with tenant_scope(job.get("tenant")):            # a job runs in the workspace that queued it
+            _run()
+
+    def _run():
         t = core.timer()
         log = _Log(job)
         with LOCK:
@@ -90,6 +124,17 @@ def _launch(job: dict, fn):
                 job["finished"] = core.now()
                 core.log_event("user", job["by"], f"job.{job['kind']}", job["label"],
                                {"job": job["id"], "error": job["error"]}, ok=job["status"] == "done", seconds=t())
+        try:                                               # answers may change: drop cached evidence
+            from . import engine
+            engine.clear_ask_cache()
+        except Exception:                                  # noqa: BLE001
+            pass
+        if job["status"] == "done":
+            try:                                           # scores after every build (Quality tab)
+                from . import quality
+                quality.after_build(job["kind"], job.get("info") or {}, job["by"])
+            except Exception:                              # noqa: BLE001 - never blocks the queue
+                print(traceback.format_exc(), file=sys.__stderr__)
         _kick()
 
     threading.Thread(target=run, daemon=True, name=f"job-{job['kind']}").start()
@@ -97,16 +142,21 @@ def _launch(job: dict, fn):
 
 def _kick():
     with _qlock:
-        if running() or not _queue:
+        if running(True) or not _queue:
             return
         job = _jobs[_queue.pop(0)]
         _launch(job, job.pop("fn"))
 
 
 def start(kind: str, label: str, fn, by: str) -> dict:
+    if db_mode():                                  # run by a worker; fn is looked up again from the kind there
+        from . import jobqueue
+        return jobqueue.start(kind, label, by)
     with _qlock:
-        if running():
-            raise RuntimeError(f"'{running()['label']}' is still running. Wait for it to finish.")
+        busy = running(True)
+        if busy:
+            raise RuntimeError(f"'{busy['label']}' is still running. Wait for it to finish." if _mine(busy)
+                               else "Another build is running on this server. Try again in a few minutes.")
         job = _new(kind, label, by, "running")
         _launch(job, fn)
     return public(job)
@@ -114,11 +164,15 @@ def start(kind: str, label: str, fn, by: str) -> dict:
 
 def enqueue(kind: str, label: str, make_fn, by: str, info: dict) -> dict:
     """Run after whatever is running now. A waiting job of the same kind is reused: its info is merged
-    (lists extended, sets joined), so many uploads in a row become one rebuild. make_fn(info) -> callable."""
+    (lists extended, sets joined), so many uploads in a row become one rebuild. make_fn(info) -> callable.
+    On Postgres the job is stored and a worker runs the handler registered for its kind (app/jobqueue.py)."""
+    if db_mode():
+        from . import jobqueue
+        return jobqueue.enqueue(kind, label, by, info)
     with _qlock:
         for jid in _queue:
             j = _jobs[jid]
-            if j["kind"] == kind and j["info"].get("layer") == info.get("layer"):
+            if j["kind"] == kind and j["info"].get("layer") == info.get("layer") and _mine(j):
                 for k, v in info.items():
                     if isinstance(v, list):
                         j["info"].setdefault(k, [])
@@ -135,5 +189,14 @@ def enqueue(kind: str, label: str, make_fn, by: str, info: dict) -> dict:
 
 
 def info(job_id: str) -> dict:
+    if db_mode():
+        from . import jobqueue
+        return jobqueue.info(job_id)
     j = _jobs.get(job_id)
-    return dict(j["info"]) if j else {}
+    return dict(j["info"]) if j and _mine(j) else {}
+
+
+def stop_workers():
+    """Stop this process's job workers (tests, shutdown)."""
+    from . import jobqueue
+    jobqueue.stop_workers()

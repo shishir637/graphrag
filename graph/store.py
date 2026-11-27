@@ -13,7 +13,7 @@ from collections import defaultdict
 
 import psycopg
 
-from .config import GRAPH_NAME, PG_DSN
+from .config import PG_DSN, graph_name
 
 _conn = None
 _LABEL = re.compile(r"^[A-Z][A-Za-z0-9_]*$")
@@ -38,7 +38,7 @@ def _label(name: str) -> str:
 def cypher(query: str, params: dict | None = None, columns: tuple[str, ...] = ("r",)) -> list[tuple]:
     """Run openCypher through AGE; params are passed as one agtype JSON parameter."""
     cols = ", ".join(f"{c} agtype" for c in columns)
-    sql = f"SELECT * FROM cypher('{GRAPH_NAME}', $$ {query} $$" + (", %s" if params is not None else "") + f") AS ({cols})"
+    sql = f"SELECT * FROM cypher('{graph_name()}', $$ {query} $$" + (", %s" if params is not None else "") + f") AS ({cols})"
     rows = conn().execute(sql, (json.dumps(params),) if params is not None else None,
                           prepare=params is not None).fetchall()
     return [tuple(_agtype(v) for v in row) for row in rows]
@@ -56,9 +56,9 @@ def _agtype(v):
 
 def reset_graph():
     c = conn()
-    if c.execute("SELECT count(*) FROM ag_graph WHERE name = %s", (GRAPH_NAME,)).fetchone()[0]:
-        c.execute("SELECT drop_graph(%s, true)", (GRAPH_NAME,))
-    c.execute("SELECT create_graph(%s)", (GRAPH_NAME,))
+    if c.execute("SELECT count(*) FROM ag_graph WHERE name = %s", (graph_name(),)).fetchone()[0]:
+        c.execute("SELECT drop_graph(%s, true)", (graph_name(),))
+    c.execute("SELECT create_graph(%s)", (graph_name(),))
     c.execute("""
         DROP TABLE IF EXISTS public.kg_entities, public.kg_entity_chunks, public.kg_communities, public.kg_chunks;
         CREATE TABLE public.kg_entities (id text PRIMARY KEY, name text, type text, description text,
@@ -88,12 +88,12 @@ def load(entities: list[dict], relations: list[dict], chunks: list[dict], batch:
         by_type.setdefault(e["type"], []).append(
             {"id": e["id"], "name": e["name"], "description": e["description"][:1500], "degree": e.get("degree", 0)})
     for typ, rows in by_type.items():
-        c.execute("SELECT create_vlabel(%s, %s)", (GRAPH_NAME, _label(typ)))
+        c.execute("SELECT create_vlabel(%s, %s)", (graph_name(), _label(typ)))
         for i in range(0, len(rows), batch):
             cypher(f"UNWIND $rows AS r CREATE (:{_label(typ)} {{id: r.id, name: r.name, description: r.description, "
                    f"degree: r.degree}})", {"rows": rows[i:i + batch]})
         # property index on id for this label (AGE stores properties as agtype)
-        c.execute(f'CREATE INDEX IF NOT EXISTS "{typ}_id" ON {GRAPH_NAME}."{_label(typ)}" '
+        c.execute(f'CREATE INDEX IF NOT EXISTS "{typ}_id" ON {graph_name()}."{_label(typ)}" '
                   f"(ag_catalog.agtype_access_operator(properties, '\"id\"'::agtype))")
 
     keep = [r for r in relations if r["type"] != "MENTIONS" and (r["type"] != "RELATED_TO" or r.get("count", 1) >= 2)]
@@ -109,7 +109,7 @@ def load(entities: list[dict], relations: list[dict], chunks: list[dict], batch:
     made = set()
     for (typ, la, lb), rows in groups.items():
         if typ not in made:
-            c.execute("SELECT create_elabel(%s, %s)", (GRAPH_NAME, typ))
+            c.execute("SELECT create_elabel(%s, %s)", (graph_name(), typ))
             made.add(typ)
         for i in range(0, len(rows), batch):
             if _t.perf_counter() - t0 > AGE_TIME_BUDGET_S:
@@ -146,7 +146,7 @@ def neighbourhood(seed_ids: list[str], limit: int = 200) -> list[dict]:
     if not seed_ids:
         return []
     c = conn()
-    g = GRAPH_NAME
+    g = graph_name()
     gid_rows = c.execute(
         f"SELECT id::text, properties::text FROM {g}._ag_label_vertex "
         f"WHERE ag_catalog.agtype_access_operator(properties, '\"id\"'::agtype) = ANY(%s::agtype[])",

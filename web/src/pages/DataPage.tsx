@@ -2,13 +2,15 @@ import { useRef, useState } from 'react'
 import { ago, api, fmtBytes } from '../api'
 import { Checks, type AccessData } from '../admin'
 import { Icon, Loading, Modal, askConfirm, useLoad, useToast } from '../ui'
+import Sources, { type SourceRow } from './Sources'
 
 interface File { name: string; size: number; modified: string; datasets: string[]; private_to: string[]; passages: number; status: 'ready' | 'new' | 'changed'; editable: boolean }
 interface DS { name: string; label: string; kind: string; team?: string; files: number }
 interface Data { files: File[]; datasets: DS[]; labels: Record<string, string>; upload_to: string[]; tables: { name: string; rows: number | null; columns: number; size: number; modified: string }[]
-  company_admin: boolean; pending: number; job: { label: string; status: string } | null }
+  company_admin: boolean; pending: number; job: { label: string; status: string } | null; sources?: SourceRow[] }
 
 const PRIVATE = '__private__'
+const SOURCES = '__sources__'
 
 /* Files, and who can see them. Left: data sets. Right: the files in the chosen one and who has access to it. */
 export default function DataPage() {
@@ -19,7 +21,7 @@ export default function DataPage() {
   if (!d.data) return <Loading />
   const x = d.data; const label = (n: string) => x.labels[n] || n
   const ql = q.trim().toLowerCase()
-  const files = x.files.filter((f) => (!sel || (sel === PRIVATE ? f.private_to.length > 0 : f.datasets.includes(sel))) && (!ql || f.name.toLowerCase().includes(ql)))
+  const files = sel === SOURCES ? [] : x.files.filter((f) => (!sel || (sel === PRIVATE ? f.private_to.length > 0 : f.datasets.includes(sel))) && (!ql || f.name.toLowerCase().includes(ql)))
   const ds = acc.data?.datasets.find((z) => z.name === sel)
   const prepare = async () => {
     try { await api('/data/prepare', { method: 'POST' }); toast('Preparing files for Claude. This takes a few minutes.'); setTimeout(d.reload, 1500) } catch (e: any) { toast(e.message, true) }
@@ -43,11 +45,13 @@ export default function DataPage() {
         <span>{z.label}</span><span className="muted">{z.files}</span></button>)}
       {privateCount > 0 && <button className={sel === PRIVATE ? 'on' : ''} onClick={() => setSel(PRIVATE)}><span>Personal files</span><span className="muted">{privateCount}</span></button>}
       {x.company_admin && <button className="addds" onClick={() => setNewDs(true)}><Icon name="plus" size={14} />New data set</button>}
+      {x.company_admin && <><div className="sidecap">Kept up to date</div>
+        <button className={sel === SOURCES ? 'on' : ''} onClick={() => setSel(SOURCES)}><span>Sources</span><span className="muted">{(x.sources || []).length}</span></button></>}
       <div className="tiny muted" style={{ padding: '8px 10px' }}>Each team gets a data set automatically (Teams tab).</div>
     </aside>
     <section style={{ minWidth: 0 }}>
       <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
-        <h1 style={{ margin: 0 }}>{!sel ? 'All files' : sel === PRIVATE ? 'Personal files' : label(sel)}</h1>
+        <h1 style={{ margin: 0 }}>{!sel ? 'All files' : sel === PRIVATE ? 'Personal files' : sel === SOURCES ? 'Sources' : label(sel)}</h1>
         <div className="row">{x.company_admin && cur?.kind === 'custom' && <button className="btn ghost sm" style={{ color: 'var(--bad)' }} onClick={() => delDs(cur.name)}>Delete data set</button>}
           <input type="search" placeholder="Find a file" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 190 }} aria-label="Find a file" />
           <button className="btn primary" onClick={() => setUpload(true)}><Icon name="upload" size={15} />Upload</button></div>
@@ -62,6 +66,7 @@ export default function DataPage() {
         <span>{x.job && x.job.status === 'running' ? `${x.job.label}…` : `${x.pending} ${x.pending === 1 ? 'file is' : 'files are'} not ready for Claude yet.`}</span>
         {!(x.job && x.job.status === 'running') ? <button className="btn sm primary" onClick={prepare}>Prepare now</button> : <button className="btn sm" onClick={d.reload}>Refresh</button>}</div>}
 
+      {sel === SOURCES ? <Sources datasets={x.datasets.map((z) => z.name)} labels={x.labels} onChanged={() => { d.reload(); acc.reload() }} /> :
       <div className="card"><table className="t plain">
         <thead><tr><th>File</th><th>Who can see it</th><th>Ready</th><th /></tr></thead>
         <tbody>{files.map((f) => <tr key={f.name}>
@@ -74,7 +79,7 @@ export default function DataPage() {
             <button className="btn ghost sm" onClick={() => del(f)} aria-label={`Delete ${f.name}`} title="Delete"><Icon name="x" size={14} /></button></>}</td>
         </tr>)}
           {!files.length && <tr><td colSpan={4} className="muted small" style={{ padding: 18 }}>No files here yet. Upload some to make them available to Claude.</td></tr>}
-        </tbody></table></div>
+        </tbody></table></div>}
 
       {x.company_admin && !sel && <Tables tables={x.tables} onDone={d.reload} />}
     </section>

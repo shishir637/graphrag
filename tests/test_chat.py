@@ -94,7 +94,7 @@ def test_key_is_checked_encrypted_and_never_returned(env):
     assert KEY not in r.text and r.json()["key"].startswith("sk-ant-")
     row = chat.db().execute("SELECT enc FROM chat_keys").fetchone()
     assert KEY not in row["enc"] and chat.decrypt(row["enc"]) == KEY
-    assert KEY not in (core.DATA_DIR / "app.db").read_bytes().decode("latin-1")
+    assert KEY not in __import__("tests.conftest", fromlist=["x"]).stored_text()
     # model only, key kept
     assert c.put("/api/v1/chat/key", headers=H, json={"model": "claude-opus-5-5"}).json()["model"] == "claude-opus-5-5"
     assert c.put("/api/v1/chat/key", headers=H, json={"api_key": "", "model": ""}).json()["key_set"] is False

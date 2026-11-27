@@ -113,8 +113,9 @@ def build_context(question: str, force_vector_search: bool = False) -> dict:
         qv = embed_dense([question])[0]
 
         def top(kind, k):
+            from rag.store import collection_name
             return [p.payload for p in client().query_points(
-                SEMANTIC_COLLECTION, query=qv, using="dense", limit=k, with_payload=True,
+                collection_name(SEMANTIC_COLLECTION), query=qv, using="dense", limit=k, with_payload=True,
                 query_filter=qm.Filter(must=[qm.FieldCondition(key="kind", match=qm.MatchValue(value=kind))])).points]
         picked = top("metric", 8) + top("dimension", 12)
         times = [i for i in catalog if "Time dimension" in i["text"] and i not in picked]
@@ -165,9 +166,10 @@ def _layer_version() -> str:
     import hashlib
     from . import defstore
     from .config import LAYER_DIR
+    from rag.wspath import workspace_key
     if defstore.enabled():
-        return hashlib.sha1(defstore.version().encode()).hexdigest()[:12]
-    h = hashlib.sha1()
+        return hashlib.sha1(f"{workspace_key()}|{defstore.version()}".encode()).hexdigest()[:12]
+    h = hashlib.sha1(workspace_key().encode())
     for f in sorted(LAYER_DIR.glob("*")):
         if f.is_file() and f.name != "eval_questions.yaml":
             h.update(f.read_bytes())

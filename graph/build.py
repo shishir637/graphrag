@@ -70,6 +70,10 @@ def collect(paths: list[str]):
                 if e.get("description") and e["description"] not in g["descriptions"]:
                     g["descriptions"].append(e["description"])
                 g["chunk_ids"].add(r["chunk_id"])
+                # per passage, so answers only show names and descriptions from passages the caller can see
+                g.setdefault("name_chunks", {}).setdefault(e["name"], set()).add(r["chunk_id"])
+                if e.get("description"):
+                    g.setdefault("desc_chunks", {}).setdefault(e["description"], set()).add(r["chunk_id"])
                 local[e["name"]] = k
             for x in r["relations"]:
                 s, t = local.get(_clean_name(x["source"])), local.get(_clean_name(x["target"]))
@@ -242,7 +246,18 @@ def resolve(groups: dict):
         name = max(names.items(), key=lambda kv: (kv[1], len(kv[0])))[0]
         eid = _eid(typ, norm(name))
         descs = list(dict.fromkeys(d for g in mem for d in g["descriptions"]))
+        name_chunks: dict[str, set] = {}
+        desc_chunks: dict[str, set] = {}
+        for g in mem:
+            for n, cs in (g.get("name_chunks") or {}).items():
+                name_chunks.setdefault(n, set()).update(cs)
+            for d, cs in (g.get("desc_chunks") or {}).items():
+                desc_chunks.setdefault(d, set()).update(cs)
+        # names / descriptions with no passage come from data tables (not restricted by document groups)
+        names_ev = [{"text": n, "chunk_ids": sorted(name_chunks.get(n, set()))} for n in names]
+        descs_ev = [{"text": d, "chunk_ids": sorted(desc_chunks.get(d, set()))} for d in descs[:20]]
         entities.append({"id": eid, "name": name, "type": typ, "aliases": sorted(set(names) - {name})[:20],
+                         "names_evidence": names_ev[:40], "description_evidence": descs_ev,
                          "description": " ".join(descs[:4]), "chunk_ids": sorted({c for g in mem for c in g["chunk_ids"]}),
                          "mentions": sum(names.values()),
                          "origin": sorted({g["origin"] for g in mem} | ({"table"} if any(g.get("tables") for g in mem) else set()))})
@@ -273,6 +288,10 @@ def aggregate(rels: list, key_to_id: dict) -> list[dict]:
         a["strength"] += r["strength"]
         if r["description"] and r["description"] not in a["descriptions"]:
             a["descriptions"].append(r["description"])
+        if r["description"]:                                    # the sentence behind the link, per passage
+            ev = a.setdefault("evidence", [])
+            if len(ev) < 20 and not any(e["text"] == r["description"] and e["chunk_id"] == r["chunk_id"] for e in ev):
+                ev.append({"chunk_id": r["chunk_id"], "text": r["description"]})
         if r["chunk_id"] and r["chunk_id"] not in a["chunk_ids"]:
             a["chunk_ids"].append(r["chunk_id"])
     out = []
@@ -337,7 +356,7 @@ def communities(entities: list[dict], relations: list[dict]) -> list[dict]:
 
 # ---------- 6. store ----------
 def build(paths: list[str], tables: bool = True, reuse: bool = False):
-    from . import store
+    store = None                                   # (Apache AGE is no longer used)
     from rag.utils import read_json
     t0 = time.perf_counter()
     cache = OUT_DIR / "_graph_build.json"          # merged graph before storage: lets a storage failure be retried fast
@@ -368,23 +387,11 @@ def build(paths: list[str], tables: bool = True, reuse: bool = False):
 
 def _store(store, read_json, entities, relations, comms, chunk_ids, t0):
     chunks = [c for c in read_json("2_chunks.json") if c["chunk_id"] in chunk_ids]
-    age = {"stored_in_age": False}
-    try:                                   # Apache AGE copy for Cypher queries; answering works without it
-        store.reset_graph()
-        loaded = store.load(entities, relations, chunks)
-        print(f"  graph database copy: {loaded['age_edges']} strongest links in {loaded['age_seconds']}s", flush=True)
-        c = store.conn()
-        with c.cursor() as cur:
-            cur.executemany("UPDATE public.kg_entities SET community_l0 = %s, community_l1 = %s WHERE id = %s",
-                            [(e.get("community_l0"), e.get("community_l1"), e["id"]) for e in entities])
-            cur.executemany("INSERT INTO public.kg_communities (id, level, parent, size, entity_ids, profile) "
-                            "VALUES (%s, %s, %s, %s, %s, %s)",
-                            [(x["id"], x["level"], x["parent"], len(x["entity_ids"]), x["entity_ids"], x["profile"])
-                             for x in comms])
-        age = store.stats() | loaded | {"stored_in_age": True}
-    except Exception as e:                                         # noqa: BLE001 - reported, not fatal
-        age["age_error"] = f"{type(e).__name__}: {str(e).splitlines()[0][:200]}"
-        print(f"  graph database not used ({age['age_error']}); answering reads the build file", flush=True)
+    from . import kg                       # the graph tables in Postgres (0.9; no Apache AGE), else the build file
+    if kg.in_db():
+        kg.save(entities, relations, comms, chunk_ids)
+        print(f"  stored in the graph tables (version {kg.version()[2]})", flush=True)
+    age = {"stored_in": "postgres" if kg.in_db() else "file"}
 
     deg = sorted(entities, key=lambda e: -e.get("degree", 0))
     report = age | {

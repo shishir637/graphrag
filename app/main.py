@@ -30,14 +30,50 @@ _mcp_asgi = None
 async def lifespan(app):
     # a fresh MCP app (and session manager) per server start: a manager can only be run once
     global _mcp_asgi
+    from . import vault
+    vault.check_startup()                            # CL_ENV=production: refuse to start without a master key
     _mcp_asgi = M.http_app()
     try:
         M.describe_org()
     except Exception as e:                           # noqa: BLE001 - generic wording stays
         print(f"Could not describe the organisation for Claude: {e}", flush=True)
     _warm_up()
-    async with M.mcp.session_manager.run():
-        yield
+    _landing_backfill()
+    import os
+    from . import jobqueue, scheduler
+    role = os.environ.get("CL_ROLE", "all")         # api: answers only; the worker container runs jobs and the schedule
+    if role in ("all", "worker"):
+        scheduler.start()
+        if jobs.db_mode():
+            jobqueue.start_workers()
+    try:
+        async with M.mcp.session_manager.run():
+            yield
+    finally:
+        scheduler.stop()
+        jobqueue.stop_workers()
+
+
+def _landing_backfill():
+    """CL_LANDING_BACKFILL=1 (Docker): tables kept as CSV/Excel by earlier versions become Parquet, per workspace."""
+    import os
+    import threading
+    if os.environ.get("CL_LANDING_BACKFILL") != "1":
+        return
+
+    def run():
+        from . import db as D
+        from . import landing
+        for t in ([x["id"] for x in core.list_tenants()] if D.postgres() else [None]):
+            try:
+                with core.tenant_scope(t):
+                    out = landing.backfill()
+                if out["converted"]:
+                    print(f"Tables moved to Parquet in {t or 'the first workspace'}: {out['converted']}", flush=True)
+            except Exception as e:                   # noqa: BLE001 - the CSV keeps working through its view
+                print(f"Parquet backfill skipped for {t}: {e}", flush=True)
+
+    threading.Thread(target=run, daemon=True, name="landing-backfill").start()
 
 
 def _warm_up():
@@ -49,6 +85,17 @@ def _warm_up():
         return
 
     def load():
+        try:
+            from rag import store
+            if store.server() and (engine.OUT_DIR / "3_embeddings.json").exists():
+                from qdrant_client import models as qm
+                flt = qm.Filter(must=[qm.FieldCondition(key="tenant", match=qm.MatchValue(value=store.tenant()))])
+                qc = store.client()
+                if not qc.collection_exists(store.COLLECTION) or qc.count(store.COLLECTION, count_filter=flt).count == 0:
+                    print("Moving the search index to the Qdrant server (from the prepared passages)...", flush=True)
+                    store.build_index()            # an install upgraded from the embedded index: no re-embedding
+        except Exception as e:                       # noqa: BLE001 - "Prepare files" does the same
+            print(f"Search index move skipped: {e}", flush=True)
         try:
             from rag.models import embed_dense, embed_sparse, rerank_scores
             from rag.store import active_collection
@@ -160,6 +207,44 @@ def setup(body: SetupIn, request: Request, response: Response):
     return {"user": u}
 
 
+@app.get("/api/v1/signup")
+def signup_state():
+    import os
+    return {"open": os.environ.get("CL_SIGNUP", "off") == "open"}
+
+
+@app.post("/api/v1/signup")
+def signup(body: SetupIn, request: Request, response: Response):
+    """A new company: its own workspace (separate people, keys, files, definitions and activity; row-level security
+    in Postgres) with the person signing up as its owner (company admin). On only with CL_SIGNUP=open."""
+    import os
+    from . import db as D
+    if os.environ.get("CL_SIGNUP", "off") != "open":
+        raise HTTPException(403, "Sign-up is closed on this server. Ask its owner for an invite.")
+    if not D.postgres():
+        raise HTTPException(409, "Separate workspaces need the Postgres database (CL_DATABASE_URL).")
+    _rate_limit(f"signup:{request.client.host if request.client else '?'}", limit=5, window=3600)
+    with core.system():
+        taken = core.db().execute("SELECT 1 FROM users WHERE email = ?", (body.email.strip().lower(),)).fetchone()
+    if taken:
+        raise HTTPException(400, "A user with this email already exists. Sign in instead.")
+    try:
+        core.validate_password(body.password)
+        tid = core.create_tenant(body.organisation or body.name)
+        with core.tenant_scope(tid):
+            u = core.create_user(body.email, body.name, body.password, "owner")
+            _, token = core.login(body.email, body.password)
+            audit(u, "signup", body.organisation)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    _set_session(response, token, request)
+    try:
+        M.describe_org()                     # with two workspaces the MCP description names no company
+    except Exception:                        # noqa: BLE001
+        pass
+    return {"user": u, "workspace": tid}
+
+
 @app.post("/api/v1/login")
 def login(body: LoginIn, request: Request, response: Response):
     _rate_limit(f"login:{request.client.host if request.client else '?'}")
@@ -169,7 +254,8 @@ def login(body: LoginIn, request: Request, response: Response):
         raise HTTPException(401, "Email or password is not correct.")
     u, token = res
     _set_session(response, token, request)
-    audit(u, "login")
+    with core.tenant_scope(u.get("tenant_id")):
+        audit(u, "login")
     return {"user": u}
 
 
@@ -330,7 +416,13 @@ def set_metric_status(name: str, body: MetricStatusIn, u: dict = Depends(ADMIN))
 
 @app.get("/api/v1/graph")
 def graph(q: str = "", u: dict = Depends(ANY)):
-    return {"overview": engine.graph_overview(), **engine.graph_explore(q.strip()[:100])}
+    """The graph explorer: company admins see everything; anyone else only what their data sets' passages support."""
+    groups = None
+    if u["role"] not in ("owner", "admin"):
+        from . import access
+        groups, _ = access.for_agent(u["email"], u["role"])
+        groups = sorted(set(groups or ["public"]) | {f"layer:user:{u['id']}"})
+    return {"overview": engine.graph_overview(), **engine.graph_explore(q.strip()[:100], groups=groups)}
 
 
 # ------------------------------------------------------------------ jobs
@@ -366,11 +458,15 @@ class AgentIn(BaseModel):
     description: str = ""
     groups: list[str] = Field(default_factory=lambda: ["public"])
     capabilities: list[str] = Field(default_factory=lambda: ["documents"])
+    scope: str = "agent"                         # agent | delegate (an app acting for its own end users)
+    expires_days: int | None = None
+    allowed_ips: list[str] = Field(default_factory=list)
 
 
 class AgentPatch(BaseModel):
     groups: list[str] | None = None
     capabilities: list[str] | None = None
+    allowed_ips: list[str] | None = None
 
 
 @app.get("/api/v1/agents")
@@ -383,24 +479,65 @@ def agents(u: dict = Depends(ANY)):
 def create_agent(body: AgentIn, u: dict = Depends(ADMIN)):
     try:
         groups = engine.clean_groups(body.groups)
-        a, token = core.create_agent(body.name, body.description, groups, body.capabilities, u["email"])
+        a, token = core.create_agent(body.name, body.description, groups, body.capabilities, u["email"],
+                                     body.scope, body.expires_days, body.allowed_ips)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    audit(u, "agents.create", a["name"], {"groups": a["groups"], "capabilities": a["capabilities"]})
-    return {"agent": a, "token": token}
+    out = {"agent": a, "token": token}
+    if a["scope"] == "delegate":                 # shown once: the app's backend signs each end user's identity
+        from . import delegate
+        out["signing_secret"] = delegate.new_signing_secret(a["id"])
+    audit(u, "agents.create", a["name"], {"groups": a["groups"], "capabilities": a["capabilities"], "scope": a["scope"],
+                                          "expires": a["expires"], "allowed_ips": a["allowed_ips"]})
+    return out
 
 
 @app.patch("/api/v1/agents/{aid}")
 def update_agent(aid: str, body: AgentPatch, u: dict = Depends(ADMIN)):
     try:
         groups = engine.clean_groups(body.groups) if body.groups is not None else None
-        a = core.update_agent(aid, groups, body.capabilities)
+        a = core.update_agent(aid, groups, body.capabilities, body.allowed_ips)
     except KeyError:
         raise HTTPException(404, "No such agent.")
     except ValueError as e:
         raise HTTPException(400, str(e))
     audit(u, "agents.update", a["name"], {"groups": a["groups"], "capabilities": a["capabilities"]})
     return {"agent": a}
+
+
+# ---- the end users of apps with delegate keys (app/delegate.py)
+
+class ExternalUserIn(BaseModel):
+    name: str = ""
+    datasets: list[str] = Field(default_factory=lambda: ["public"])
+    roles: list[str] = Field(default_factory=list)
+    disabled: bool = False
+
+
+@app.get("/api/v1/external-users")
+def external_users(u: dict = Depends(ADMIN)):
+    from . import delegate
+    return {"users": delegate.list_users()}
+
+
+@app.put("/api/v1/external-users/{uid}")
+def external_user_put(uid: str, body: ExternalUserIn, u: dict = Depends(ADMIN)):
+    from . import delegate
+    try:
+        r = delegate.put_user(uid, body.datasets, body.roles, body.name, body.disabled)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    audit(u, "external_users.put", uid, {"datasets": r["datasets"], "roles": r["roles"], "disabled": r["disabled"]})
+    return r
+
+
+@app.delete("/api/v1/external-users/{uid}")
+def external_user_delete(uid: str, u: dict = Depends(ADMIN)):
+    from . import delegate
+    if not delegate.delete_user(uid):
+        raise HTTPException(404, "No such app user.")
+    audit(u, "external_users.delete", uid)
+    return {"ok": True}
 
 
 @app.post("/api/v1/agents/{aid}/revoke")
@@ -439,6 +576,8 @@ def playground(body: PlaygroundIn, u: dict = Depends(ANY)):
         raise HTTPException(400, "Unknown mode.")
     t = core.timer()
     try:
+        from semantic.access import SCOPE
+        SCOPE.set(None if groups is None else {"groups": groups, "teams": [], "roles": []})   # row rules by data set
         out = engine.ask(body.question, groups, caps, mode)
     except (ValueError, PermissionError, RuntimeError) as e:
         core.log_event("user", u["email"], "playground.ask", body.question[:200], {"who": who, "error": str(e)}, False, t())
@@ -632,7 +771,36 @@ def events_csv(type: str | None = None, u: dict = Depends(ADMIN)):
 
 @app.get("/api/v1/quality")
 def quality(u: dict = Depends(ANY)):
-    return {"suites": engine.quality()}
+    """Scores after every build (deterministic, no AI model) with their trend; see app/quality.py."""
+    from . import quality as Q
+    return {"suites": Q.overview(), "after_build": Q.enabled(), "runs": Q.history(limit=40)}
+
+
+class QualityRunIn(BaseModel):
+    suites: list[str] = Field(default_factory=lambda: ["documents", "metrics", "graph"])
+
+
+@app.post("/api/v1/quality/run")
+def quality_run(body: QualityRunIn, u: dict = Depends(ADMIN)):
+    from . import quality as Q
+    bad = [s for s in body.suites if s not in Q.SUITES]
+    if bad or not body.suites:
+        raise HTTPException(400, f"Suites are {', '.join(Q.SUITES)}.")
+    job = jobs.enqueue("quality", "Scoring quality", lambda i: Q.run(i["suites"], i["trigger"]), u["email"],
+                       {"suites": body.suites, "trigger": "manual"})
+    audit(u, "quality.run", ", ".join(body.suites))
+    return {"job": job}
+
+
+class QualitySettingsIn(BaseModel):
+    after_build: bool
+
+
+@app.put("/api/v1/quality/settings")
+def quality_settings(body: QualitySettingsIn, u: dict = Depends(ADMIN)):
+    core.set_setting("quality_after_build", body.after_build)
+    audit(u, "quality.settings", "after_build", {"after_build": body.after_build})
+    return {"after_build": body.after_build}
 
 
 # ------------------------------------------------------------------ access: groups and team
@@ -1142,6 +1310,52 @@ def access_overview(request: Request, u: dict = Depends(ANY)):
             "can_give": access.manageable(a), "company_admin": company}
 
 
+# ---- row rules for numbers: metrics only count the rows a data set / team / role may see (semantic/access.py)
+
+class RowRuleIn(BaseModel):
+    entity: str
+    column: str
+    kind: str                              # dataset | team | role
+    audience: str
+    values: list[str]
+
+
+@app.get("/api/v1/access/row-rules")
+def row_rules(u: dict = Depends(ADMIN)):
+    from semantic import access as RA
+    from semantic.yamlio import load_model
+    try:
+        ents = [{"name": e.name, "label": e.label or e.name,
+                 "columns": [d.column for d in e.dimensions if d.type in ("category", "key", "text")]}
+                for e in load_model().entities]
+    except Exception:                                      # noqa: BLE001 - no data layer yet
+        ents = []
+    return {"rules": RA.rules(), "entities": ents, "kinds": list(RA.KINDS)}
+
+
+@app.put("/api/v1/access/row-rules")
+def row_rule_put(body: RowRuleIn, u: dict = Depends(ADMIN)):
+    from semantic import access as RA
+    try:
+        RA.put_rule(body.entity, body.column, body.kind, body.audience, body.values, "manual", u["email"])
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    engine.clear_ask_cache()
+    audit(u, "access.row_rule", f"{body.entity}.{body.column}", {"for": f"{body.kind}:{body.audience}",
+                                                                 "values": body.values[:20]})
+    return {"rules": RA.rules()}
+
+
+@app.delete("/api/v1/access/row-rules")
+def row_rule_delete(entity: str, column: str, kind: str, audience: str, u: dict = Depends(ADMIN)):
+    from semantic import access as RA
+    if not RA.delete_rule(entity, column, kind, audience):
+        raise HTTPException(404, "No such rule.")
+    engine.clear_ask_cache()
+    audit(u, "access.row_rule.delete", f"{entity}.{column}", {"for": f"{kind}:{audience}"})
+    return {"rules": RA.rules()}
+
+
 @app.post("/api/v1/access/datasets")
 def access_dataset_add(body: DatasetIn, u: dict = Depends(ANY)):
     from . import access
@@ -1291,7 +1505,16 @@ def data_overview(u: dict = Depends(ANY)):
     return {"files": files, "datasets": [{**d, "files": sum(1 for f in files if d["name"] in f["datasets"])} for d in ds],
             "labels": labels, "upload_to": sorted(allowed) if allowed is not None else [d["name"] for d in ds],
             "tables": engine.tables() if company else [], "company_admin": company,
-            "pending": sum(1 for f in files if f["status"] != "ready"), "job": run and jobs.public(run)}
+            "pending": sum(1 for f in files if f["status"] != "ready"), "job": run and jobs.public(run),
+            "sources": _sources_summary() if company else []}
+
+
+def _sources_summary() -> list[dict]:
+    try:
+        from sources import manage
+        return manage.list_all()
+    except Exception:                                      # noqa: BLE001 - the Data tab works without sources
+        return []
 
 
 @app.post("/api/v1/data/files")
@@ -1354,6 +1577,104 @@ def data_prepare(u: dict = Depends(ANY)):
         return {"job": jobs.start("documents", label, fn, u["email"])}
     except RuntimeError as e:
         raise HTTPException(409, str(e)) from e
+
+
+# ------------------------------------------------------------------ sources: GitHub, databases, S3 folders (company admins)
+# ("connectors" in this app means what Claude may use for a person; outside systems are "sources".)
+
+class SourceIn(BaseModel):
+    kind: str
+    name: str = ""
+    config: dict = Field(default_factory=dict)
+    secrets: dict[str, str] = Field(default_factory=dict)
+    dataset: str | None = None
+    every_minutes: int = 360
+
+
+class SourcePatch(BaseModel):
+    name: str | None = None
+    config: dict | None = None
+    secrets: dict[str, str] | None = None
+    dataset: str | None = None
+    every_minutes: int | None = None
+    status: str | None = None
+
+
+@app.get("/api/v1/sources")
+def sources_list(u: dict = Depends(ADMIN)):
+    from sources import manage
+    return {"sources": manage.list_all(), "kinds": manage.catalog()}
+
+
+@app.post("/api/v1/sources")
+def sources_create(body: SourceIn, u: dict = Depends(ADMIN)):
+    from sources import manage
+    try:
+        s = manage.create(body.kind, body.name, body.config, body.secrets, body.dataset, body.every_minutes, u["email"])
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    audit(u, "source.create", s["name"], {"kind": s["kind"], "dataset": s["dataset"]})
+    return s
+
+
+@app.patch("/api/v1/sources/{sid}")
+def sources_update(sid: str, body: SourcePatch, u: dict = Depends(ADMIN)):
+    from sources import manage
+    try:
+        s = manage.update(sid, body.config, body.secrets, body.dataset, body.every_minutes, body.status, body.name,
+                          by=u["email"])
+    except KeyError:
+        raise HTTPException(404, "No such source.")
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    audit(u, "source.update", s["name"], {"fields": [k for k, v in body.model_dump().items()
+                                                     if v is not None and k != "secrets"]
+                                          + (["secrets"] if body.secrets else [])})
+    return s
+
+
+@app.delete("/api/v1/sources/{sid}")
+def sources_delete(sid: str, u: dict = Depends(ADMIN)):
+    from sources import manage
+    try:
+        out = manage.delete(sid, u["email"])
+    except KeyError:
+        raise HTTPException(404, "No such source.")
+    audit(u, "source.delete", sid, out)
+    return out
+
+
+@app.post("/api/v1/sources/{sid}/test")
+def sources_test(sid: str, u: dict = Depends(ADMIN)):
+    from sources import manage
+    try:
+        return manage.test(sid)
+    except KeyError:
+        raise HTTPException(404, "No such source.")
+
+
+@app.post("/api/v1/sources/{sid}/sync")
+def sources_sync(sid: str, u: dict = Depends(ADMIN)):
+    from sources import manage
+    try:
+        job = manage.queue_sync(sid, u["email"])
+    except KeyError:
+        raise HTTPException(404, "No such source.")
+    audit(u, "source.sync", sid)
+    return {"job": job}
+
+
+@app.post("/hooks/{kind}/{sid}", include_in_schema=False)
+async def source_webhook(kind: str, sid: str, request: Request):
+    """Signed webhook from a source (GitHub: X-Hub-Signature-256). Queues a sync; the schedule is the fallback."""
+    from sources import manage
+    body = await request.body()
+    if len(body) > 5 * 2 ** 20:
+        raise HTTPException(413, "Too large.")
+    _rate_limit(f"hook:{sid}", limit=60, window=60)
+    code, msg = manage.webhook(kind, sid, body, request.headers.get("x-hub-signature-256", ""),
+                               request.headers.get("x-github-event", ""))
+    return JSONResponse({"detail": msg}, status_code=code)
 
 
 # ------------------------------------------------------------------ activity for admins (plain words)
@@ -1576,9 +1897,22 @@ def approvals_list(status: str = "waiting", u: dict = Depends(ANY)):
     a = _as_agent(u)
     if not teams.is_company_admin(a) and not teams.managed_teams(a):
         raise HTTPException(403, "Only admins approve changes.")
+    checks = []
+    if teams.is_company_admin(a):                        # metrics the nightly check took out (semantic/monitor.py)
+        from semantic import monitor
+        checks = monitor.taken_out()
     if status == "waiting":
-        return {"items": approvals.waiting_for(a)}
-    return {"items": approvals.history(a, status)}
+        return {"items": approvals.waiting_for(a), "metric_checks": checks}
+    return {"items": approvals.history(a, status), "metric_checks": checks}
+
+
+@app.post("/api/v1/metric-check/run")
+def metric_check_run(u: dict = Depends(ADMIN)):
+    """Run the nightly metric check now (e.g. after fixing a renamed column)."""
+    from semantic import monitor
+    job = jobs.enqueue("monitor", "Checking metric definitions", lambda info: monitor.run(u["email"]), u["email"], {})
+    audit(u, "metrics.check", "now")
+    return {"job": job}
 
 
 @app.post("/api/v1/approvals/file/{rid}")
@@ -2061,13 +2395,67 @@ def spa(path: str):
     return FileResponse(index, headers={"Cache-Control": "no-cache"})
 
 
+def _request_workspace(scope) -> tuple[str | None, bool]:
+    """(workspace id, look across workspaces?) of one request: the signed-in session's, the bearer token's, or the
+    one a webhook / upload link / invite link belongs to. OAuth sign-in pages work with credentials only and look
+    across workspaces. Anything else runs in the first workspace (and sees nothing without signing in)."""
+    from . import db as D
+    path = scope.get("path") or ""
+    if path.startswith(("/oauth/", "/.well-known/")):
+        return None, True
+    headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers", [])}
+    tok = M._bearer(headers)
+    if tok:
+        a = core.principal_for_token(tok)
+        return (a or {}).get("tenant_id"), False
+    m = re.match(r"^/hooks/[a-z0-9_]+/([A-Za-z0-9_]+)$", path)
+    if m:
+        from sources import manage
+        with D.system():
+            r = manage.db().execute("SELECT tenant_id FROM sources WHERE id = ?", (m.group(1),)).fetchone() \
+                if D.postgres() else None
+        return (r["tenant_id"] if r else None), False
+    m = re.match(r"^/(upload|invite)/([A-Za-z0-9_\-]+)$", path)
+    if m and D.postgres():
+        table = "upload_links" if m.group(1) == "upload" else "invites"
+        if table == "invites":
+            from . import directory
+            directory.db()
+        with D.system():
+            r = core.db().execute(f"SELECT tenant_id FROM {table} WHERE token_hash = ?",
+                                  (core.token_hash(m.group(2)),)).fetchone()
+        return (r["tenant_id"] if r else None), False
+    cookie = ""
+    for part in headers.get("cookie", "").split(";"):
+        k, _, v = part.strip().partition("=")
+        if k == COOKIE:
+            cookie = v
+    if cookie:
+        u = core.session_user(cookie)
+        return (u or {}).get("tenant_id"), False
+    return None, False
+
+
 class _Router:
-    """/mcp goes to the MCP server; everything else to the FastAPI app."""
+    """/mcp goes to the MCP server; everything else to the FastAPI app. Each request runs in its workspace."""
 
     def __init__(self, api):
         self.api = api
 
     async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self._route(scope, receive, send)
+        from starlette.concurrency import run_in_threadpool
+        from . import db as D
+        tid, bypass = await run_in_threadpool(_request_workspace, scope)
+        t1, t2 = D.TENANT.set(tid), D.BYPASS.set(bypass)
+        try:
+            return await self._route(scope, receive, send)
+        finally:
+            D.TENANT.reset(t1)
+            D.BYPASS.reset(t2)
+
+    async def _route(self, scope, receive, send):
         if scope["type"] == "http":
             from .public import allowed
             ok, status, msg = allowed(scope)

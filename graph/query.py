@@ -57,7 +57,8 @@ def link_entities(question: str, qv) -> list[dict]:
                 if not any(n.lower() in f["name"].lower() for f in found.values()):   # skip parts of longer matches
                     found[eid] = {"id": eid, "name": name, "type": typ, "how": "name", "degree": deg}
                 break
-    hits = client().query_points(ENTITY_COLLECTION, query=qv, using="dense", limit=SEED_ENTITIES * 2,
+    from rag.store import collection_name
+    hits = client().query_points(collection_name(ENTITY_COLLECTION), query=qv, using="dense", limit=SEED_ENTITIES * 2,
                                  with_payload=True).points
     for h in hits:
         if len(found) >= SEED_ENTITIES:
@@ -70,7 +71,7 @@ def link_entities(question: str, qv) -> list[dict]:
 
 # ---------- local search ----------
 # ---------- access groups (moved to graph/access.py) ----------
-from .access import _ACCESS, chunk_access, sees_everything, visible  # noqa: E402,F401
+from .access import chunk_access, sees_everything, visible  # noqa: E402,F401
 
 
 def _chunks(ids: list[str]) -> dict:
@@ -191,7 +192,8 @@ def global_search(question: str) -> dict:
     t0 = time.perf_counter()
     usage: dict = {}
     qv = embed_dense([question])[0]
-    hits = client().query_points(COMMUNITY_COLLECTION, query=qv, using="dense", limit=GLOBAL_COMMUNITIES).points
+    from rag.store import collection_name
+    hits = client().query_points(collection_name(COMMUNITY_COLLECTION), query=qv, using="dense", limit=GLOBAL_COMMUNITIES).points
     with ThreadPoolExecutor(4) as pool:
         summaries = list(pool.map(lambda h: community_summary(h.payload["id"], usage), hits))
     t1 = time.perf_counter()

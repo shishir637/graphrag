@@ -24,6 +24,64 @@ from .utils import timer, write_json
 GRAPH_CANDIDATES = 12
 RRF_K = 5                       # final ranking: reciprocal rank fusion of hybrid rank and re-ranker rank
 
+# Evidence quality. The re-ranker returns a logit; sigmoid(logit) is its probability that the passage answers
+# the question. Passages below MIN_RELEVANCE are dropped so an agent is never handed unrelated text as
+# "evidence" (the main cause of confident wrong answers); the rest are labelled so the agent can weigh them.
+import math  # noqa: E402
+import os  # noqa: E402
+
+MIN_RELEVANCE = float(os.environ.get("CL_MIN_RELEVANCE", "0.02"))
+STRONG, PARTIAL = 0.5, 0.15                 # relevance >= STRONG: answers it; >= PARTIAL: related/partial
+DUPLICATE_JACCARD = 0.8                     # 5-word-shingle overlap above which two passages are the same text
+
+
+def relevance(score: float | None) -> float | None:
+    if score is None:
+        return None
+    return round(1 / (1 + math.exp(-max(-30.0, min(30.0, float(score))))), 4)
+
+
+def label(rel: float | None) -> str:
+    if rel is None:
+        return "unscored"
+    return "strong" if rel >= STRONG else "partial" if rel >= PARTIAL else "weak"
+
+
+def evidence_strength(passages: list[dict]) -> str:
+    """strong | partial | weak | none | unscored - the best passage decides."""
+    if not passages:
+        return "none"
+    rels = [p.get("relevance") for p in passages if p.get("relevance") is not None]
+    return label(max(rels)) if rels else "unscored"
+
+
+def _shingles(text: str, n: int = 5) -> set:
+    w = re.findall(r"\w+", text.lower())
+    return {" ".join(w[i:i + n]) for i in range(max(1, len(w) - n + 1))}
+
+
+def drop_duplicates(hits: list[dict]) -> list[dict]:
+    """Keep the first (best-ranked) of near-identical passages, e.g. the same paragraph in two versions of a file."""
+    kept, sigs = [], []
+    for h in hits:
+        s = _shingles(h["text"])
+        if any(len(s & t) / max(1, len(s | t)) >= DUPLICATE_JACCARD for t in sigs):
+            continue
+        kept.append(h)
+        sigs.append(s)
+    return kept
+
+
+def screen(hits: list[dict]) -> list[dict]:
+    """Attach relevance/label, drop near-duplicates and passages the re-ranker judges unrelated."""
+    out = []
+    for h in drop_duplicates(hits):
+        rel = relevance(h.get("rerank_score"))
+        if rel is not None and rel < MIN_RELEVANCE:
+            continue
+        out.append(dict(h, relevance=rel, evidence=label(rel)))
+    return out
+
 
 def _fuse() -> bool:
     import os
@@ -33,7 +91,10 @@ _RERANK_CACHE: dict[tuple[str, str], float] = {}
 
 def build_filter(groups: list[str] | None, sources: list[str] | None,
                  headings: list[str] | None = None) -> models.Filter | None:
+    from .store import server, tenant
     must = []
+    if server():   # the shared server collection: only this workspace's passages
+        must.append(models.FieldCondition(key="tenant", match=models.MatchValue(value=tenant())))
     if headings:   # restrict to chunks under any of these headings (e.g. a set of regions)
         must.append(models.FieldCondition(key="headings", match=models.MatchAny(any=headings)))
     if groups:   # user may only see chunks whose "access" contains one of their groups
@@ -55,7 +116,9 @@ def _hits(points, score_key="score"):
 
 
 def point_id(chunk_id: str) -> str:
-    return str(uuid.uuid5(uuid.NAMESPACE_URL, chunk_id))
+    """Point ids include the workspace on a shared server (embedded stores keep the old ids)."""
+    from .store import server, tenant
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"{tenant()}/{chunk_id}" if server() else chunk_id))
 
 
 def fetch_chunks(chunk_ids: list[str], groups: list[str] | None, sources: list[str] | None = None) -> list[dict]:
@@ -63,8 +126,11 @@ def fetch_chunks(chunk_ids: list[str], groups: list[str] | None, sources: list[s
     if not chunk_ids:
         return []
     pts = client().retrieve(active_collection(), ids=[point_id(c) for c in chunk_ids], with_payload=True)
+    from .store import server, tenant
     out = []
     for p in pts:
+        if server() and p.payload.get("tenant") != tenant():
+            continue
         if groups and not set(p.payload.get("access") or []) & set(groups):
             continue
         if sources and p.payload["source"] not in sources:
@@ -164,6 +230,8 @@ def retrieve(question: str, groups: list[str] | None = None, sources: list[str] 
             first = {h["chunk_id"]: i for i, h in enumerate(fused_hits)}
             score = {h["chunk_id"]: 1 / (RRF_K + i) + 1 / (RRF_K + first[h["chunk_id"]]) for i, h in enumerate(ranked)}
             ranked = sorted(ranked, key=lambda h: -score[h["chunk_id"]])
+        if use_rerank and fused_hits:
+            ranked = screen(ranked)
     if coverage and entities:
         ents = [{"name": e["name"], "aliases": []} for e in entities]
         final = ensure_coverage(ranked, ents, top_k)
@@ -178,7 +246,55 @@ def retrieve(question: str, groups: list[str] | None = None, sources: list[str] 
                                      "top_k": top_k, "passages": final})
     stage_ids = {"rrf": [h["chunk_id"] for h in fused_hits[:FUSED_TOP_K]], "candidates": [h["chunk_id"] for h in fused_hits],
                  "reranked": [h["chunk_id"] for h in ranked], "final": [h["chunk_id"] for h in final]}
-    return {"passages": final, "timings_s": timings, "stage_ids": stage_ids, "graph": graph_info}
+    return {"passages": final, "timings_s": timings, "stage_ids": stage_ids, "graph": graph_info,
+            "evidence": evidence_strength(final)}
+
+
+# ---------- surrounding context ----------
+_CHUNK_INDEX = {"mtime": None, "by_id": {}, "by_source": {}}
+
+
+def _chunk_index() -> dict:
+    """chunk_id -> (source, position) from the chunks file, reloaded when it changes."""
+    import json
+    from . import config
+    p = config.OUT_DIR / "2_chunks.json"
+    try:
+        m = p.stat().st_mtime
+    except OSError:
+        return {"by_id": {}, "by_source": {}}
+    if _CHUNK_INDEX["mtime"] != (str(p), m):
+        by_id, by_source = {}, {}
+        for c in json.loads(p.read_text(encoding="utf-8")):
+            lst = by_source.setdefault(c["source"], [])
+            by_id[c["chunk_id"]] = (c["source"], len(lst))
+            lst.append(c)
+        _CHUNK_INDEX.update(mtime=(str(p), m), by_id=by_id, by_source=by_source)
+    return _CHUNK_INDEX
+
+
+def neighbours(chunk_id: str, groups: list[str] | None, max_chars: int = 800) -> dict:
+    """The passages just before and after this one when they belong to the same section and the caller may
+    see them: a fragment cut by the chunker gets its missing half back (e.g. a list split over two passages)."""
+    idx = _chunk_index()
+    loc = idx["by_id"].get(chunk_id)
+    if not loc:
+        return {}
+    source, pos = loc
+    chunks = idx["by_source"][source]
+    me = chunks[pos]
+    out = {}
+    for key, j in (("before", pos - 1), ("after", pos + 1)):
+        if not 0 <= j < len(chunks):
+            continue
+        c = chunks[j]
+        if (c.get("headings") or []) != (me.get("headings") or []):
+            continue                                            # a different section: not this passage's context
+        if groups is not None and not set(c.get("access") or ["public"]) & set(groups):
+            continue
+        t = c["text"]
+        out[key] = {"id": c["chunk_id"], "text": (t[-max_chars:] if key == "before" else t[:max_chars])}
+    return out
 
 
 _SENT = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9\"'(])")

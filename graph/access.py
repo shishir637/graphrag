@@ -5,7 +5,12 @@ A caller sees a passage when it shares at least one group with it; groups=None m
 (the owner's own tools and the command line)."""
 import json
 
-_ACCESS = {"mtime": None, "map": {}, "groups": set()}
+_BY_PATH: dict[str, dict] = {}            # one entry per workspace (path of its chunks file)
+
+
+def _entry() -> dict:
+    from rag.config import OUT_DIR as RAG_OUT
+    return _BY_PATH.setdefault(str(RAG_OUT / "2_chunks.json"), {"mtime": None, "map": {}, "groups": set()})
 
 
 def chunk_access() -> dict:
@@ -15,6 +20,7 @@ def chunk_access() -> dict:
     if not p.exists():
         return {}
     m = p.stat().st_mtime
+    _ACCESS = _entry()
     if _ACCESS["mtime"] != m:
         chunks = json.loads(p.read_text(encoding="utf-8"))
         _ACCESS.update(mtime=m, map={c["chunk_id"]: c.get("access", ["public"]) for c in chunks},
@@ -31,9 +37,9 @@ def visible(chunk_id: str, groups: list[str] | None) -> bool:
 
 def sees_everything(groups: list[str] | None) -> bool:
     chunk_access()
-    return groups is None or _ACCESS["groups"] <= set(groups)
+    return groups is None or _entry()["groups"] <= set(groups)
 
 
 def all_groups() -> set:
     chunk_access()
-    return set(_ACCESS["groups"])
+    return set(_entry()["groups"])

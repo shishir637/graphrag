@@ -22,7 +22,8 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PROPOSALS = ROOT / "outputs" / "ontology_proposals.json"
+from rag.config import OUT_DIR as _OUT  # noqa: E402 - per workspace
+PROPOSALS = _OUT / "ontology_proposals.json"
 SAMPLE = 30
 BATCH = 6
 MAX_TYPES = 18

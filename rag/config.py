@@ -1,10 +1,13 @@
 """Central settings for the small RAG system. Change values here, not in the step modules."""
 from pathlib import Path
 
+from .wspath import WorkspaceDir
+
 ROOT = Path(__file__).resolve().parent.parent
-DOCS_DIR = ROOT / "documents"          # drop your files here
-OUT_DIR = ROOT / "outputs"             # every step writes one file here
-QDRANT_PATH = ROOT / "qdrant_data"     # local, embedded Qdrant (no server needed)
+# per workspace (rag/wspath.py): the first workspace uses these folders, others <CL_FILES_DIR>/<id>/<name>
+DOCS_DIR = WorkspaceDir("documents", ROOT / "documents")       # drop your files here
+OUT_DIR = WorkspaceDir("outputs", ROOT / "outputs")            # every step writes one file here
+QDRANT_PATH = WorkspaceDir("qdrant_data", ROOT / "qdrant_data")   # local, embedded Qdrant (no server needed)
 
 # Files handled by Docling (layout-aware) vs. the plain-text splitter
 DOCLING_EXTS = {".pdf", ".docx", ".pptx", ".xlsx", ".csv", ".html", ".htm", ".md", ".png", ".jpg", ".jpeg", ".tiff"}

@@ -3,22 +3,35 @@
 #   2. docker compose up -d
 #   3. open http://localhost:8080 and create the owner account
 # Data lives in the named volumes below; `docker compose down` keeps it (add -v to delete everything).
-services:
-  app:
+x-context-layer: &context-layer
     build: .
-    image: context-layer:0.6.0
+    image: context-layer:0.9.0
     restart: unless-stopped
     depends_on:
       graphdb: { condition: service_healthy }
-    ports:
-      - "${CL_BIND:-127.0.0.1}:${CL_PORT:-8080}:8080"
-    environment:
+      qdrant: { condition: service_started }
+    environment: &cl-env
       CL_PUBLIC_HOSTS: ${CL_PUBLIC_HOSTS:-}
       CL_PUBLIC_URL: ${CL_PUBLIC_URL:-}
-      GRAPH_PG_DSN: host=graphdb port=5432 dbname=graphrag user=rag password=${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
       CL_GRAPH_MODE: ${CL_GRAPH_MODE:-}
-      # business definitions, layers, shares and their history (schema cl_defs in the same Postgres as the graph)
+      # business definitions, layers, shares and their history (schema cl_defs, one schema per workspace)
       CL_DEFS_DSN: host=graphdb port=5432 dbname=graphrag user=rag password=${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
+      # accounts, sessions, keys, activity, settings, access, teams, directory, approvals, sources, quality runs,
+      # the knowledge graph tables and the job queue (0.9; an existing var/app.db is copied in once at first start)
+      CL_DATABASE_URL: postgresql://rag@graphdb:5432/graphrag
+      CL_DB_PASSWORD: ${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
+      # separate workspaces per company (0.9): files of workspaces other than the first, and open sign-up
+      CL_FILES_DIR: /app/workspaces
+      CL_SIGNUP: ${CL_SIGNUP:-off}
+      CL_LANDING_BACKFILL: "1"           # tables kept as CSV by earlier versions become Parquet at start
+      # search index: Qdrant as its own server (0.9), shared by the workspaces (filtered per workspace)
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: ${CL_QDRANT_API_KEY:?set CL_QDRANT_API_KEY in .env}
+      # the master key of stored secrets (app/vault.py); with CL_ENV=production the app refuses to start without one
+      CL_SECRET_KEY: ${CL_SECRET_KEY:-}
+      CL_SECRET_KEY_FILE: ${CL_SECRET_KEY_FILE:-}
+      CL_SECRET_KEY_PROVIDER: ${CL_SECRET_KEY_PROVIDER:-}
+      CL_ENV: ${CL_ENV:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"    # lets optional AI extraction reach a local model (Ollama) on this machine
     volumes:
@@ -28,17 +41,46 @@ services:
       - search_index:/app/qdrant_data
       - metric_store:/app/sl_store
       - app_data:/app/var
+      - workspaces:/app/workspaces
       - semantic_layer:/app/semantic_layer     # reviewed definitions; approvals in the app persist here
       - models:/models
 
-  graphdb:                      # PostgreSQL 17 + Apache AGE: the knowledge graph. Not published outside Docker.
-    image: apache/age:release_PG17_1.7.0
+services:
+  app:                          # the web app, its API and /mcp: answers only (CL_ROLE=api)
+    <<: *context-layer
+    ports:
+      - "${CL_BIND:-127.0.0.1}:${CL_PORT:-8080}:8080"
+    environment:
+      <<: *cl-env
+      CL_ROLE: api
+
+  worker:                       # builds, source syncs, quality runs and the nightly checks (the job queue in Postgres)
+    <<: *context-layer
+    command: ["python", "-m", "app.worker"]
+    environment:
+      <<: *cl-env
+      CL_ROLE: worker
+    healthcheck:
+      disable: true
+
+  qdrant:                       # the search index (0.9). Not published outside Docker; every request needs the key.
+    image: qdrant/qdrant:v1.19.1
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__API_KEY: ${CL_QDRANT_API_KEY:?set CL_QDRANT_API_KEY in .env}
+    volumes:
+      - qdrant_storage:/qdrant/storage
+
+  graphdb:                      # PostgreSQL 17: accounts, access, workspaces, definitions and the knowledge graph
+    # tables (0.9: the official image; Apache AGE is no longer used, see "python -m app.upgrade drop-age").
+    # Not published outside Docker.
+    image: postgres:17
     restart: unless-stopped
     environment:
       POSTGRES_USER: rag
       POSTGRES_PASSWORD: ${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
       POSTGRES_DB: graphrag
-    command: ["postgres", "-c", "shared_preload_libraries=age", "-c", "work_mem=64MB", "-c", "maintenance_work_mem=256MB"]
+    command: ["postgres", "-c", "work_mem=64MB", "-c", "maintenance_work_mem=256MB"]
     volumes:
       - graph_data:/var/lib/postgresql/data
     healthcheck:
@@ -84,6 +126,8 @@ services:
       OLLAMA_KEEP_ALIVE: 10m
 
 volumes:
+  qdrant_storage:
+  workspaces:
   ollama_models:
   documents:
   tables:

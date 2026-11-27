@@ -1,5 +1,6 @@
-"""Context Layer app: storage for users, sessions, agents, audit and settings (SQLite, stdlib only),
-plus password hashing and tokens. Everything lives in DATA_DIR (env CL_DATA_DIR, default ./var).
+"""Context Layer app: storage for users, sessions, agents, audit and settings, plus password hashing and tokens.
+The tables live in Postgres when CL_DATABASE_URL is set, else in SQLite at DATA_DIR/app.db (see app/db.py). Files
+(secrets.json, backups) live in DATA_DIR (env CL_DATA_DIR, default ./var).
 """
 import hashlib
 import hmac
@@ -17,7 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.environ.get("CL_DATA_DIR", ROOT / "var"))
 DB_PATH = DATA_DIR / "app.db"
 SECRETS_FILE = DATA_DIR / "secrets.json"
-VERSION = "0.8.0"
+VERSION = "0.9.0"
 SESSION_DAYS = 1                       # absolute lifetime of a web session (cookie max-age too)
 SESSION_IDLE_MIN = int(os.environ.get("CL_SESSION_IDLE_MIN", "120"))   # signed out after this long without use
 SCRYPT_N = int(os.environ.get("CL_SCRYPT_N", str(2 ** 17)))           # OWASP: scrypt N=2^17, r=8, p=1
@@ -33,83 +34,247 @@ _init_lock = threading.Lock()
 _initialised = False
 
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS tenants (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, created TEXT NOT NULL, disabled INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY, email TEXT UNIQUE NOT NULL, name TEXT NOT NULL, pw_hash TEXT NOT NULL,
-  role TEXT NOT NULL, created TEXT NOT NULL, last_login TEXT, disabled INTEGER NOT NULL DEFAULT 0);
+  id {serial}, email TEXT UNIQUE NOT NULL, name TEXT NOT NULL, pw_hash TEXT NOT NULL,
+  role TEXT NOT NULL, created TEXT NOT NULL, last_login TEXT, disabled INTEGER NOT NULL DEFAULT 0,
+  groups TEXT NOT NULL DEFAULT '["public"]', must_change INTEGER NOT NULL DEFAULT 0{tenant});
 CREATE TABLE IF NOT EXISTS sessions (
-  token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), created TEXT NOT NULL,
-  expires TEXT NOT NULL);
+  token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, created TEXT NOT NULL,
+  expires TEXT NOT NULL, last_seen TEXT);
 CREATE TABLE IF NOT EXISTS agents (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', groups TEXT NOT NULL,
   capabilities TEXT NOT NULL, token_hash TEXT UNIQUE NOT NULL, prefix TEXT NOT NULL, created TEXT NOT NULL,
-  created_by TEXT NOT NULL, last_used TEXT, calls INTEGER NOT NULL DEFAULT 0, revoked TEXT);
+  created_by TEXT NOT NULL, last_used TEXT, calls INTEGER NOT NULL DEFAULT 0, revoked TEXT,
+  scope TEXT NOT NULL DEFAULT 'agent', expires TEXT, allowed_ips TEXT NOT NULL DEFAULT '[]'{tenant});
 CREATE TABLE IF NOT EXISTS events (
-  id INTEGER PRIMARY KEY, time TEXT NOT NULL, actor_type TEXT NOT NULL, actor TEXT NOT NULL,
+  id {serial}, time TEXT NOT NULL, actor_type TEXT NOT NULL, actor TEXT NOT NULL,
   action TEXT NOT NULL, target TEXT NOT NULL DEFAULT '', detail TEXT NOT NULL DEFAULT '{}',
-  ok INTEGER NOT NULL DEFAULT 1, seconds REAL);
+  ok INTEGER NOT NULL DEFAULT 1, seconds {real}{tenant});
 CREATE INDEX IF NOT EXISTS events_time ON events(time);
 CREATE INDEX IF NOT EXISTS events_actor ON events(actor_type, actor);
-CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS kv (key TEXT NOT NULL, value TEXT NOT NULL{tenant}, PRIMARY KEY ({tk}key));
 CREATE TABLE IF NOT EXISTS oauth_clients (
   client_id TEXT PRIMARY KEY, secret_hash TEXT, name TEXT NOT NULL, redirect_uris TEXT NOT NULL,
   kind TEXT NOT NULL, created TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS oauth_codes (
-  code_hash TEXT PRIMARY KEY, client_id TEXT NOT NULL, user_id INTEGER NOT NULL REFERENCES users(id),
+  code_hash TEXT PRIMARY KEY, client_id TEXT NOT NULL, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   redirect_uri TEXT NOT NULL, challenge TEXT NOT NULL, scope TEXT NOT NULL, resource TEXT, expires TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS oauth_tokens (
   token_hash TEXT PRIMARY KEY, kind TEXT NOT NULL, family TEXT NOT NULL, client_id TEXT NOT NULL,
-  client_name TEXT NOT NULL, user_id INTEGER NOT NULL REFERENCES users(id), scope TEXT NOT NULL, resource TEXT,
-  created TEXT NOT NULL, expires TEXT NOT NULL, revoked TEXT, last_used TEXT);
+  client_name TEXT NOT NULL, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, scope TEXT NOT NULL,
+  resource TEXT, created TEXT NOT NULL, expires TEXT NOT NULL, revoked TEXT, last_used TEXT);
 CREATE INDEX IF NOT EXISTS oauth_tokens_family ON oauth_tokens(family);
 CREATE TABLE IF NOT EXISTS upload_links (
   token_hash TEXT PRIMARY KEY, principal TEXT NOT NULL, groups TEXT NOT NULL, created TEXT NOT NULL,
-  expires TEXT NOT NULL, files INTEGER NOT NULL DEFAULT 0);
+  expires TEXT NOT NULL, files INTEGER NOT NULL DEFAULT 0{tenant});
 """
 
-MIGRATIONS = [
+MIGRATIONS = [                       # columns added after 0.5 to SQLite files made by older versions
     "ALTER TABLE users ADD COLUMN groups TEXT NOT NULL DEFAULT '[\"public\"]'",
     "ALTER TABLE users ADD COLUMN must_change INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE sessions ADD COLUMN last_seen TEXT",
+    "ALTER TABLE agents ADD COLUMN scope TEXT NOT NULL DEFAULT 'agent'",
+    "ALTER TABLE agents ADD COLUMN expires TEXT",
+    "ALTER TABLE agents ADD COLUMN allowed_ips TEXT NOT NULL DEFAULT '[]'",
 ]
+PG_MIGRATIONS = [                    # columns added in 0.9 to tables an earlier 0.9 build created
+    "ALTER TABLE agents ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'agent'",
+    "ALTER TABLE agents ADD COLUMN IF NOT EXISTS expires TEXT",
+    "ALTER TABLE agents ADD COLUMN IF NOT EXISTS allowed_ips TEXT NOT NULL DEFAULT '[]'",
+]
+KEY_SCOPES = ("agent", "delegate")   # delegate: an app's backend acting for its own end users (app/delegate.py)
 
 
 def now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def db() -> sqlite3.Connection:
-    """One connection per thread; schema created on first use."""
-    global _initialised
+def db_key() -> str:
+    """Which database the app is on (schemas are created once per database)."""
+    from . import db as D
+    return "pg:" + D.url() if D.postgres() else str(DB_PATH)
+
+
+_schemas: dict[str, set] = {}
+
+
+def ensure(schema: str):
+    """Create a module's tables (CREATE ... IF NOT EXISTS) once per database."""
+    from . import db as D
+    key = db_key()
+    done = _schemas.setdefault(key, set())
+    if schema in done:
+        return
+    with _init_lock:
+        if schema in done:
+            return
+        if D.postgres():
+            with D.ddl_tx() as c:
+                c.execute("SELECT pg_advisory_xact_lock(727002)")      # several processes start at once
+                c.executescript(D.ddl(schema))
+                c.execute(D.RLS)
+                D.ensure_role(c)
+        else:
+            _sqlite().executescript(D.ddl(schema))
+        done.add(schema)
+
+
+def _sqlite() -> sqlite3.Connection:
     c = getattr(_local, "conn", None)
+    if c is not None and getattr(_local, "path", None) != DB_PATH:   # the data folder moved (tests): reconnect
+        c = None
     if c is None:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         c = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None)
         c.row_factory = sqlite3.Row
         c.execute("PRAGMA journal_mode=WAL")
         c.execute("PRAGMA foreign_keys=ON")
-        _local.conn = c
-    if not _initialised:
+        _local.conn, _local.path = c, DB_PATH
+    return c
+
+
+def db():
+    """The database: a Postgres pool (each execute is its own transaction) or this thread's SQLite connection.
+    The core tables are created on first use."""
+    global _initialised
+    from . import db as D
+    key = db_key()
+    if _initialised != key:
         with _init_lock:
-            c.executescript(SCHEMA)
-            for m in MIGRATIONS:
-                try:
-                    c.execute(m)
-                except sqlite3.OperationalError:          # already applied
-                    pass
-            _initialised = True
+            if _initialised != key:
+                if D.postgres():
+                    with D.ddl_tx() as c:
+                        c.execute("SELECT pg_advisory_xact_lock(727002)")
+                        c.executescript(D.ddl(SCHEMA))
+                        for m in PG_MIGRATIONS:
+                            c.execute(m)
+                        c.execute(D.RLS)
+                        D.ensure_role(c)
+                        c.execute("INSERT INTO tenants (id, name, created) VALUES (?, ?, ?) ON CONFLICT (id) DO NOTHING",
+                                  (D.DEFAULT, "First workspace", now()))
+                else:
+                    c = _sqlite()
+                    c.executescript(D.ddl(SCHEMA))
+                    c.execute("INSERT INTO tenants (id, name, created) VALUES (?, ?, ?) ON CONFLICT (id) DO NOTHING",
+                              (D.DEFAULT, "First workspace", now()))
+                    for m in MIGRATIONS:
+                        try:
+                            c.execute(m)
+                        except sqlite3.OperationalError:          # already applied
+                            pass
+                _initialised = key
+    if D.postgres():
+        try:
+            from .migrate_local import migrate_once
+            migrate_once()
+        except Exception as e:                                    # noqa: BLE001 - reported, the app still starts
+            print(f"Copying var/app.db into Postgres failed: {e}", flush=True)
+    return D.PgAuto() if D.postgres() else _sqlite()
+
+
+_generation = 0
+
+
+def db_generation() -> str:
+    """Changes whenever the database is replaced or emptied (seed rows are written again)."""
+    return f"{db_key()}#{_generation}"
+
+
+# ------------------------------------------------------------------ workspaces
+
+def current_tenant() -> str:
+    from . import db as D
+    return D.current_tenant()
+
+
+def tenant_scope(tenant_id: str | None):
+    from . import db as D
+    return D.tenant_scope(tenant_id)
+
+
+def system():
+    from . import db as D
+    return D.system()
+
+
+def create_tenant(name: str) -> str:
+    """A new workspace (a company). Returns its id. Its owner is created by the caller inside tenant_scope(id)."""
+    import re as _re
+    name = " ".join((name or "").split())[:80]
+    if not name:
+        raise ValueError("Give the organisation a name.")
+    base = _re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:24] or "ws"
+    tid = f"{base}-{secrets.token_hex(3)}"
+    with system():
+        db().execute("INSERT INTO tenants (id, name, created) VALUES (?, ?, ?)", (tid, name, now()))
+    with tenant_scope(tid):
+        set_setting("organisation", name)
+        try:
+            from rag.wspath import seed_workspace
+            seed_workspace(tid)
+        except ImportError:
+            pass
+    return tid
+
+
+def tenant_of_user(user_id: int) -> str:
+    with system():
+        r = db().execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    return _tenant(r)
+
+
+def _tenant(row) -> str:
+    from . import db as D
+    try:
+        return row["tenant_id"] or D.DEFAULT
+    except (IndexError, KeyError, TypeError):
+        return D.DEFAULT
+
+
+def list_tenants() -> list[dict]:
+    with system():
+        return [dict(r) for r in db().execute("SELECT * FROM tenants ORDER BY created")]
+
+
+def db_with(schema: str):
+    """db() with a module's own tables created first."""
+    c = db()
+    ensure(schema)
     return c
 
 
 def reset_for_tests(path: Path):
-    """Point the app at a fresh data folder (tests only)."""
-    global DATA_DIR, DB_PATH, SECRETS_FILE, _initialised
+    """Point the app at a fresh data folder and an empty database (tests only)."""
+    global DATA_DIR, DB_PATH, SECRETS_FILE, _initialised, _generation
     DATA_DIR, DB_PATH, SECRETS_FILE = path, path / "app.db", path / "secrets.json"
     _local.conn = None
     _initialised = False
+    _generation += 1
+    from . import db as D
+    if D.postgres():
+        from . import migrate_local
+        _schemas.pop(db_key(), None)
+        migrate_local._done.add(db_key() + "|" + str(DATA_DIR))     # no copy before the tables are emptied
+        db()
+        D.truncate_all()
+        with system():
+            db().execute("INSERT INTO tenants (id, name, created) VALUES (?, ?, ?)", (D.DEFAULT, "First workspace", now()))
+        migrate_local._done.clear()
+    else:
+        _schemas.clear()
 
 
 @contextmanager
 def tx():
+    """One transaction (Postgres: a pooled connection; SQLite: BEGIN IMMEDIATE on this thread's connection)."""
+    from . import db as D
+    if D.postgres():
+        db()
+        with D.pg_tx() as c:
+            yield c
+        return
     c = db()
     c.execute("BEGIN IMMEDIATE")
     try:
@@ -173,7 +338,7 @@ def user_count() -> int:
 
 def public_user(row) -> dict:
     return {k: row[k] for k in ("id", "email", "name", "role", "created", "last_login")} | \
-           {"disabled": bool(row["disabled"]), "groups": json.loads(row["groups"] or '["public"]'),
+           {"disabled": bool(row["disabled"]), "groups": json.loads(row["groups"] or '["public"]'), "tenant_id": _tenant(row),
             "must_change": bool(row["must_change"]) if "must_change" in row.keys() else False}
 
 
@@ -210,15 +375,22 @@ def create_user(email: str, name: str, password: str, role: str) -> dict:
     if role not in ROLES:
         raise ValueError(f"Role must be one of {', '.join(ROLES)}.")
     validate_password(password)
+    with system():
+        taken = db().execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone()
+    if taken:
+        raise ValueError("A user with this email already exists.")
     with tx() as c:
-        if c.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
-            raise ValueError("A user with this email already exists.")
-        cur = c.execute("INSERT INTO users (email, name, pw_hash, role, created) VALUES (?, ?, ?, ?, ?)",
-                        (email, name.strip()[:80] or email, hash_password(password), role, now()))
-        return public_user(c.execute("SELECT * FROM users WHERE id = ?", (cur.lastrowid,)).fetchone())
+        uid = c.execute("INSERT INTO users (email, name, pw_hash, role, created) VALUES (?, ?, ?, ?, ?) RETURNING id",
+                        (email, name.strip()[:80] or email, hash_password(password), role, now())).fetchone()[0]
+        return public_user(c.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone())
 
 
 def login(email: str, password: str) -> tuple[dict, str] | None:
+    with system():
+        return _login(email, password)
+
+
+def _login(email: str, password: str) -> tuple[dict, str] | None:
     row = db().execute("SELECT * FROM users WHERE email = ?", (email.strip().lower(),)).fetchone()
     if row is None:
         check_password(password, _dummy_hash())                       # same cost whether or not the user exists
@@ -240,6 +412,11 @@ def login(email: str, password: str) -> tuple[dict, str] | None:
 def session_user(token: str | None) -> dict | None:
     if not token:
         return None
+    with system():
+        return _session_user(token)
+
+
+def _session_user(token: str) -> dict | None:
     th = token_hash(token)
     idle = (datetime.now(timezone.utc) - timedelta(minutes=SESSION_IDLE_MIN)).isoformat(timespec="seconds")
     row = db().execute("SELECT u.*, s.last_seen AS s_seen FROM sessions s JOIN users u ON u.id = s.user_id "
@@ -264,7 +441,8 @@ def logout_everywhere(user_id: int, apps: bool = False) -> dict:
 
 def logout(token: str | None):
     if token:
-        db().execute("DELETE FROM sessions WHERE token_hash = ?", (token_hash(token),))
+        with system():
+            db().execute("DELETE FROM sessions WHERE token_hash = ?", (token_hash(token),))
 
 
 def list_users() -> list[dict]:
@@ -309,13 +487,44 @@ def change_password(user_id: int, old: str, new: str):
 # ------------------------------------------------------------------ agents (MCP keys)
 
 def public_agent(row) -> dict:
+    keys = set(row.keys())
     return {"id": row["id"], "name": row["name"], "description": row["description"],
             "groups": json.loads(row["groups"]), "capabilities": json.loads(row["capabilities"]),
             "prefix": row["prefix"], "created": row["created"], "created_by": row["created_by"],
-            "last_used": row["last_used"], "calls": row["calls"], "revoked": row["revoked"]}
+            "last_used": row["last_used"], "calls": row["calls"], "revoked": row["revoked"],
+            "scope": row["scope"] if "scope" in keys else "agent",
+            "expires": row["expires"] if "expires" in keys else None,
+            "allowed_ips": json.loads(row["allowed_ips"] or "[]") if "allowed_ips" in keys else []}
 
 
-def create_agent(name: str, description: str, groups: list[str], capabilities: list[str], by: str) -> tuple[dict, str]:
+def _clean_ips(ips) -> list[str]:
+    import ipaddress
+    out = []
+    for x in ips or []:
+        x = str(x).strip()
+        if not x:
+            continue
+        try:
+            out.append(str(ipaddress.ip_network(x, strict=False)))
+        except ValueError:
+            raise ValueError(f"{x} is not an IP address or range (e.g. 10.0.0.0/8 or 203.0.113.7).") from None
+    return sorted(set(out))
+
+
+def ip_allowed(agent: dict, ip: str | None) -> bool:
+    import ipaddress
+    nets = agent.get("allowed_ips") or []
+    if not nets:
+        return True
+    try:
+        a = ipaddress.ip_address((ip or "").strip())
+    except ValueError:
+        return False
+    return any(a in ipaddress.ip_network(n, strict=False) for n in nets)
+
+
+def create_agent(name: str, description: str, groups: list[str], capabilities: list[str], by: str,
+                 scope: str = "agent", expires_days: int | None = None, allowed_ips: list[str] | None = None) -> tuple[dict, str]:
     name = " ".join(name.split())[:60]
     if not name:
         raise ValueError("Give the agent a name, for example the app or team that will use it.")
@@ -325,13 +534,21 @@ def create_agent(name: str, description: str, groups: list[str], capabilities: l
         raise ValueError("Pick at least one thing the agent may use: documents, data or the knowledge graph.")
     if ("documents" in caps or "graph" in caps) and not groups:
         raise ValueError("Pick at least one access group for documents.")
+    if scope not in KEY_SCOPES:
+        raise ValueError(f"A key is for an agent or a delegate (an app acting for its own users).")
+    ips = _clean_ips(allowed_ips)
+    expires = None
+    if expires_days:
+        if int(expires_days) < 1 or int(expires_days) > 3650:
+            raise ValueError("A key expires after 1 to 3650 days.")
+        expires = (datetime.now(timezone.utc) + timedelta(days=int(expires_days))).isoformat(timespec="seconds")
     token = new_token("clk_")
     aid = secrets.token_hex(5)
     with tx() as c:
         c.execute("INSERT INTO agents (id, name, description, groups, capabilities, token_hash, prefix, created, "
-                  "created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                  "created_by, scope, expires, allowed_ips) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                   (aid, name, description.strip()[:300], json.dumps(groups), json.dumps(caps), token_hash(token),
-                   token[:8], now(), by))
+                   token[:8], now(), by, scope, expires, json.dumps(ips)))
         return public_agent(c.execute("SELECT * FROM agents WHERE id = ?", (aid,)).fetchone()), token
 
 
@@ -344,7 +561,8 @@ def get_agent(aid: str) -> dict | None:
     return public_agent(r) if r else None
 
 
-def update_agent(aid: str, groups: list[str] | None, capabilities: list[str] | None) -> dict:
+def update_agent(aid: str, groups: list[str] | None, capabilities: list[str] | None,
+                 allowed_ips: list[str] | None = None) -> dict:
     with tx() as c:
         r = c.execute("SELECT * FROM agents WHERE id = ?", (aid,)).fetchone()
         if r is None:
@@ -356,6 +574,8 @@ def update_agent(aid: str, groups: list[str] | None, capabilities: list[str] | N
         if not caps:
             raise ValueError("Pick at least one capability.")
         c.execute("UPDATE agents SET groups = ?, capabilities = ? WHERE id = ?", (json.dumps(g), json.dumps(caps), aid))
+        if allowed_ips is not None:
+            c.execute("UPDATE agents SET allowed_ips = ? WHERE id = ?", (json.dumps(_clean_ips(allowed_ips)), aid))
         return public_agent(c.execute("SELECT * FROM agents WHERE id = ?", (aid,)).fetchone())
 
 
@@ -370,19 +590,27 @@ def revoke_agent(aid: str) -> dict:
 def agent_for_token(token: str | None) -> dict | None:
     if not token:
         return None
-    r = db().execute("SELECT * FROM agents WHERE token_hash = ? AND revoked IS NULL", (token_hash(token),)).fetchone()
-    return public_agent(r) if r else None
+    with system():
+        r = db().execute("SELECT * FROM agents WHERE token_hash = ? AND revoked IS NULL", (token_hash(token),)).fetchone()
+    if r is None:
+        return None
+    a = public_agent(r) | {"tenant_id": _tenant(r)}
+    if a["expires"] and a["expires"] <= now():
+        return None                                   # an expired key works nowhere
+    return a
 
 
 def touch_agent(aid: str):
     if aid.startswith("user:"):
         return
-    db().execute("UPDATE agents SET calls = calls + 1, last_used = ? WHERE id = ?", (now(), aid))
+    with system():
+        db().execute("UPDATE agents SET calls = calls + 1, last_used = ? WHERE id = ?", (now(), aid))
 
 
 # ------------------------------------------------------------------ who is calling /mcp
 
-def principal_for_token(token: str | None, resource: str | None = None) -> dict | None:
+def principal_for_token(token: str | None, resource: str | None = None, ip: str | None = None,
+                        headers: dict | None = None, identify: bool = False) -> dict | None:
     """An agent key (clk_...) or a token from "sign in to Context Layer" in Claude / ChatGPT (cla_...).
 
     Signed-in users act as themselves: their access groups (owners and admins: every group), all read
@@ -391,12 +619,23 @@ def principal_for_token(token: str | None, resource: str | None = None) -> dict 
         return None
     if not token.startswith("cla_"):
         a = agent_for_token(token)
-        return a | {"kind": "key"} if a else None
-    r = db().execute("SELECT t.client_name, t.client_id, t.resource, u.* FROM oauth_tokens t JOIN users u "
+        if a is None:
+            return None
+        if ip is not None and not ip_allowed(a, ip):
+            raise PermissionError("This key may not be used from this address.")
+        a = a | {"kind": "key"}
+        if a["scope"] == "delegate" and identify:     # acts for one of the app's end users, proven per request
+            from .delegate import act_for
+            with tenant_scope(a["tenant_id"]):
+                a = act_for(a, headers or {})
+        return a
+    with system():
+        r = db().execute("SELECT t.client_name, t.client_id, t.resource, u.* FROM oauth_tokens t JOIN users u "
                      "ON u.id = t.user_id WHERE t.token_hash = ? AND t.kind = 'access' AND t.revoked IS NULL "
-                     "AND t.expires > ? AND u.disabled = 0", (token_hash(token), now())).fetchone()
+                         "AND t.expires > ? AND u.disabled = 0", (token_hash(token), now())).fetchone()
     if r is None:
         return None
+    tid = _tenant(r)
     if resource and r["resource"] and r["resource"].rstrip("/").lower() != resource.rstrip("/").lower():
         return None
     admin = r["role"] in ("owner", "admin")
@@ -404,10 +643,11 @@ def principal_for_token(token: str | None, resource: str | None = None) -> dict 
     caps = list(READ_CAPABILITIES) + ["upload"]
     try:                                          # data sets and connectors: Everyone + teams + roles + own grants
         from .access import for_agent
-        groups, caps = for_agent(r["email"], r["role"])
+        with tenant_scope(tid):
+            groups, caps = for_agent(r["email"], r["role"])
     except Exception:                             # noqa: BLE001 - access tables not reachable: old behaviour
         pass
-    return {"id": f"user:{r['id']}", "kind": "user", "user_id": r["id"], "email": r["email"], "role": r["role"],
+    return {"id": f"user:{r['id']}", "kind": "user", "tenant_id": tid, "user_id": r["id"], "email": r["email"], "role": r["role"],
             "name": f"{r['name']} via {r['client_name']}", "client": r["client_name"],
             "groups": groups or ["public"], "all_groups": admin, "capabilities": caps}
 
@@ -425,6 +665,11 @@ def set_password(user_id: int, password: str, must_change: bool = False):
 
 
 def touch_token(token: str):
+    with system():
+        _touch_token(token)
+
+
+def _touch_token(token: str):
     db().execute("UPDATE oauth_tokens SET last_used = ? WHERE token_hash = ?", (now(), token_hash(token)))
 
 
@@ -448,7 +693,7 @@ def list_events(actor_type: str | None = None, actor: str | None = None, q: str 
     if since:
         sql += " AND time >= ?"; args.append(since)
     if q:
-        sql += " AND (action LIKE ? OR target LIKE ? OR detail LIKE ?)"; args += [f"%{q}%"] * 3
+        sql += " AND (lower(action) LIKE ? OR lower(target) LIKE ? OR lower(detail) LIKE ?)"; args += [f"%{q.lower()}%"] * 3
     sql += " ORDER BY id DESC LIMIT ?"; args.append(max(1, min(limit, 5000)))
     return [dict(r) | {"detail": json.loads(r["detail"]), "ok": bool(r["ok"])} for r in db().execute(sql, args)]
 
@@ -472,7 +717,8 @@ def get_setting(key: str, default=None):
 
 
 def set_setting(key: str, value):
-    db().execute("INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    from . import db as D
+    db().execute(f"INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT {D.ck('key')} DO UPDATE SET value = excluded.value",
                  (key, json.dumps(value)))
 
 

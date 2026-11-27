@@ -97,8 +97,8 @@ def main():
         _run(args)
     finally:
         store = sys.modules.get("rag.store")    # only if this command opened Qdrant
-        if store is not None and store._client is not None:
-            store._client.close()               # close Qdrant cleanly (avoids a noisy error at exit)
+        for c in list(getattr(store, "_clients", {}).values()) if store is not None else []:
+            c.close()                           # close Qdrant cleanly (avoids a noisy error at exit)
 
 
 def _run(args):

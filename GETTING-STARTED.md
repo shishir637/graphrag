@@ -22,14 +22,15 @@ cd context-layer
 cp .env.example .env        # Windows: copy .env.example .env
 ```
 
-Open `.env` and set `CL_DB_PASSWORD` to a long random value. Then:
+Open `.env` and set `CL_DB_PASSWORD`, `CL_QDRANT_API_KEY` and `CL_SECRET_KEY` (the key that encrypts stored
+tokens; the comment in `.env.example` shows how to make one). Then:
 
 ```bash
 docker compose up -d --build
 ```
 
 The first build and start take 10-20 minutes while the models download. Check progress with
-`docker compose logs -f app`. When `http://localhost:8080/api/v1/health` shows `"ok": true`, it's running.
+`docker compose logs -f app` (builds run in the `worker` service: `docker compose logs -f worker`). When `http://localhost:8080/api/v1/health` shows `"ok": true`, it's running.
 
 ## 3. Set it up in the browser
 

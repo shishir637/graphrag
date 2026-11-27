@@ -22,10 +22,12 @@ from pathlib import Path
 from rapidfuzz import fuzz, process
 
 ROOT = Path(__file__).resolve().parent.parent
-BUILD = ROOT / "outputs" / "_graph_build.json"
+from rag.config import OUT_DIR as _OUT  # noqa: E402 - per workspace
+BUILD = _OUT / "_graph_build.json"
 STOP = set("the a an of in on at to for and or is are was were be by with from as that this which what who whom "
            "how when where why do does did has have had it its their there than then into about between".split())
-_G: dict = {"mtime": None}
+_GS: dict[str, dict] = {}                 # one loaded graph per workspace (path of its build file)
+_G: dict = {"mtime": None}                # (older callers reset this; the cache is _GS)
 
 
 def _st(w: str) -> str:
@@ -46,15 +48,28 @@ def _norm(s: str) -> str:
 
 
 def ready() -> bool:
+    from . import kg
+    if kg.in_db():                                  # the graph tables (0.9); an older build file is moved in once
+        if kg.version() is None and BUILD.exists():
+            kg.backfill()
+        return kg.version() is not None or BUILD.exists()
     return BUILD.exists()
 
 
 def graph() -> dict:
-    m = BUILD.stat().st_mtime if BUILD.exists() else None
-    if m is None:
-        raise FileNotFoundError("The knowledge graph has not been built yet.")
+    """The workspace's graph, loaded once per workspace and build version (the in-memory cache)."""
+    from . import kg
+    v = kg.version() if kg.in_db() else None
+    if v is not None:                               # the graph tables; else the build file (no table graph yet)
+        key, m, read = f"db:{v[1]}", v, kg.load
+    else:
+        m = BUILD.stat().st_mtime if BUILD.exists() else None
+        if m is None:
+            raise FileNotFoundError("The knowledge graph has not been built yet.")
+        key, read = str(BUILD), (lambda: json.loads(BUILD.read_text(encoding="utf-8")))
+    _G = _GS.setdefault(key, {"mtime": None})
     if _G["mtime"] != m:
-        data = json.loads(BUILD.read_text(encoding="utf-8"))
+        data = read()
         ents = {e["id"]: e for e in data["entities"]}
         names: dict[str, set] = defaultdict(set)
         for e in ents.values():
@@ -72,7 +87,7 @@ def graph() -> dict:
                 chunk_ents[c].add(e["id"])
         df = Counter(len(e.get("chunk_ids") or []) for e in ents.values())
         texts, wdf = {}, Counter()
-        cpath = ROOT / "outputs" / "2_chunks.json"
+        cpath = _OUT / "2_chunks.json"
         if cpath.exists():
             for c in json.loads(cpath.read_text(encoding="utf-8")):
                 ws = _words(c["text"])
@@ -85,6 +100,31 @@ def graph() -> dict:
 
 def _visible_chunks(ids, groups, visible):
     return [c for c in ids or [] if visible(c, groups)]
+
+
+def _seen(chunk_ids, groups, visible) -> bool:
+    """Evidence from data tables (no passage) is shown; evidence from passages only when one is visible."""
+    return not chunk_ids or any(visible(c, groups) for c in chunk_ids)
+
+
+def rel_evidence(r: dict, groups, visible, limit: int = 300) -> str:
+    """The sentences behind a link, only from passages the caller can see (older builds: the merged text)."""
+    ev = r.get("evidence")
+    if ev is None:
+        return (r.get("description") or "")[:limit]
+    texts = list(dict.fromkeys(e["text"] for e in ev if _seen([e["chunk_id"]] if e["chunk_id"] else [], groups, visible)))
+    return " ".join(texts[:3])[:limit]
+
+
+def ent_view(e: dict, groups, visible) -> dict:
+    """An entity's name, aliases and description built only from what the caller may see."""
+    ne, de = e.get("names_evidence"), e.get("description_evidence")
+    if ne is None:
+        return {"name": e["name"], "aliases": e.get("aliases") or [], "description": e.get("description") or ""}
+    names = [x["text"] for x in ne if _seen(x["chunk_ids"], groups, visible)]
+    name = e["name"] if e["name"] in names else (names[0] if names else e["name"])
+    desc = " ".join(list(dict.fromkeys(x["text"] for x in de or [] if _seen(x["chunk_ids"], groups, visible)))[:4])
+    return {"name": name, "aliases": [n for n in names if n != name][:20], "description": desc}
 
 
 # ---------------------------------------------------------------- linking
@@ -211,11 +251,12 @@ def local(question: str, groups=None, visible=lambda c, g: True, max_relations: 
                 score[c] += 0.5 + overlap(c)
     ranked = sorted(score.items(), key=lambda kv: -kv[1])[:max_passages]
     E = G["ents"]
+    V = lambda eid: ent_view(E[eid], groups, visible)                    # noqa: E731
     return {
-        "entities": [{k: s[k] for k in ("id", "name", "type", "how")} for s in seeds],
-        "bridges": [{"id": b, "name": E[b]["name"], "type": E[b]["type"]} for b in list(bridges)[:10]],
-        "relations": [{"source": E[r["source_id"]]["name"], "type": r["type"], "target": E[r["target_id"]]["name"],
-                       "weight": r.get("weight", 1), "evidence": (r.get("description") or "")[:300],
+        "entities": [{k: s[k] for k in ("id", "type", "how")} | {"name": V(s["id"])["name"]} for s in seeds],
+        "bridges": [{"id": b, "name": V(b)["name"], "type": E[b]["type"]} for b in list(bridges)[:10]],
+        "relations": [{"source": V(r["source_id"])["name"], "type": r["type"], "target": V(r["target_id"])["name"],
+                       "weight": r.get("weight", 1), "evidence": rel_evidence(r, groups, visible),
                        "passages": ch[:3], **({"hop": 2} if r.get("hop") == 2 else {})} for r, ch in chosen],
         "passage_ids": [c for c, _ in ranked],
         "passage_scores": {c: round(v, 3) for c, v in ranked},
@@ -257,11 +298,12 @@ def overview(question: str, groups=None, visible=lambda c, g: True, top: int = 5
         for m in vis[:30]:
             for ch in _visible_chunks(m.get("chunk_ids"), groups, visible):
                 pas[ch] += 1
-        out.append({"community": c["id"], "title": ", ".join(m["name"] for m in vis[:3]), "size": len(vis),
+        V = lambda e: ent_view(e, groups, visible)["name"]                  # noqa: E731
+        out.append({"community": c["id"], "title": ", ".join(V(m) for m in vis[:3]), "size": len(vis),
                     "score": round(s, 2),
-                    "main_entities": [{"name": m["name"], "type": m["type"], "links": m.get("degree", 0)} for m in vis[:12]],
-                    "key_links": [{"source": E[r["source_id"]]["name"], "type": r["type"], "target": E[r["target_id"]]["name"],
-                                   "evidence": (r.get("description") or "")[:200]} for r in links],
+                    "main_entities": [{"name": V(m), "type": m["type"], "links": m.get("degree", 0)} for m in vis[:12]],
+                    "key_links": [{"source": V(E[r["source_id"]]), "type": r["type"], "target": V(E[r["target_id"]]),
+                                   "evidence": rel_evidence(r, groups, visible, 200)} for r in links],
                     "passage_ids": [p for p, _ in pas.most_common(4)]})
     return {"communities": out}
 
@@ -286,11 +328,13 @@ def entity(name: str, groups=None, visible=lambda c, g: True, limit: int = 25) -
         ch = _visible_chunks(r.get("chunk_ids"), groups, visible)
         if r.get("chunk_ids") and not ch:
             continue
-        links.append({"entity": G["ents"][other]["name"], "type": r["type"],
+        links.append({"entity": ent_view(G["ents"][other], groups, visible)["name"], "type": r["type"],
                       "direction": "out" if r["source_id"] == eid else "in", "weight": r.get("weight", 1),
-                      "evidence": (r.get("description") or "")[:300], "passages": ch[:3]})
+                      "evidence": rel_evidence(r, groups, visible), "passages": ch[:3]})
         if len(links) >= limit:
             break
-    return {"id": eid, "name": e["name"], "type": e["type"], "aliases": e.get("aliases", [])[:10],
+    me = ent_view(e, groups, visible)
+    return {"id": eid, "name": me["name"], "type": e["type"], "aliases": me["aliases"][:10],
+            "description": me["description"][:400],
             "passages": _visible_chunks(e.get("chunk_ids"), groups, visible)[:20], "links": links,
             "community": e.get("community_l0")}

@@ -8,7 +8,7 @@ from .config import OUT_DIR
 
 
 def write_json(name: str, data) -> Path:
-    OUT_DIR.mkdir(exist_ok=True)
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
     path = OUT_DIR / name
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")

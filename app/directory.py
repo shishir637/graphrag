@@ -17,24 +17,20 @@ from datetime import datetime, timedelta, timezone
 from . import core
 
 SCHEMA = """
-CREATE TABLE IF NOT EXISTS teams (name TEXT PRIMARY KEY, lead_email TEXT, parent TEXT, description TEXT NOT NULL DEFAULT '');
-CREATE TABLE IF NOT EXISTS people (email TEXT PRIMARY KEY, name TEXT NOT NULL, title TEXT NOT NULL DEFAULT '',
+CREATE TABLE IF NOT EXISTS teams (name TEXT NOT NULL, lead_email TEXT, parent TEXT, description TEXT NOT NULL DEFAULT ''{tenant},
+  PRIMARY KEY ({tk}name));
+CREATE TABLE IF NOT EXISTS people (email TEXT NOT NULL, name TEXT NOT NULL, title TEXT NOT NULL DEFAULT '',
   team TEXT, manager_email TEXT, location TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'active',
-  updated TEXT NOT NULL);
+  updated TEXT NOT NULL{tenant}, PRIMARY KEY ({tk}email));
 CREATE TABLE IF NOT EXISTS invites (token_hash TEXT PRIMARY KEY, email TEXT NOT NULL, invited_by TEXT, created TEXT NOT NULL,
-  expires TEXT NOT NULL, used TEXT);
+  expires TEXT NOT NULL, used TEXT{tenant});
 """
 _ready: str | None = None
 FIELDS = ("email", "name", "title", "team", "manager_email", "location", "status")
 
 
 def db():
-    global _ready
-    c = core.db()
-    if _ready != str(core.DB_PATH):
-        c.executescript(SCHEMA)
-        _ready = str(core.DB_PATH)
-    return c
+    return core.db_with(SCHEMA)
 
 
 def _clean_team(name: str) -> str:
@@ -65,7 +61,8 @@ def save_team(name: str, lead_email: str | None = None, parent: str | None = Non
         parent = _clean_team(parent)
         if parent == name:
             raise ValueError("A team cannot be its own parent.")
-    db().execute("INSERT INTO teams VALUES (?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET lead_email = excluded.lead_email, "
+    from . import db as D
+    db().execute(f"INSERT INTO teams VALUES (?, ?, ?, ?) ON CONFLICT {D.ck('name')} DO UPDATE SET lead_email = excluded.lead_email, "
                  "parent = excluded.parent, description = excluded.description",
                  (name, (lead_email or "").lower() or None, parent or None, description or ""))
     return {"name": name}
@@ -111,7 +108,8 @@ def save_person(p: dict, by: str = "") -> dict:
     if status not in ("active", "left"):
         raise ValueError("status is active or left")
     old = db().execute("SELECT status FROM people WHERE email = ?", (email,)).fetchone()
-    db().execute("INSERT INTO people VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET name = excluded.name, "
+    from . import db as D
+    db().execute(f"INSERT INTO people VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT {D.ck('email')} DO UPDATE SET name = excluded.name, "
                  "title = excluded.title, team = excluded.team, manager_email = excluded.manager_email, "
                  "location = excluded.location, status = excluded.status, updated = excluded.updated",
                  (email, name, (p.get("title") or "").strip(), team, (p.get("manager_email") or "").strip().lower() or None,

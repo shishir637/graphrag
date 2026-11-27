@@ -26,9 +26,14 @@ background and answers from them once `build_status` says ready.
 ## Install (self-hosted, Docker)
 
 ```bash
-cp .env.example .env          # set CL_DB_PASSWORD (long random)
-docker compose up -d          # app + graph database; the first run downloads ~5 GB of local models
+cp .env.example .env          # set CL_DB_PASSWORD, CL_QDRANT_API_KEY and CL_SECRET_KEY (long random values)
+docker compose up -d          # app (API), worker, Postgres, Qdrant; the first run downloads ~5 GB of local models
 ```
+
+Services (0.9): `app` answers (web app, API, `/mcp`; `CL_ROLE=api`), `worker` runs builds, source syncs, quality
+runs and the nightly metric check, `graphdb` (Postgres 17: accounts, access, workspaces, definitions, the knowledge
+graph, the job queue; row-level security per workspace) and `qdrant` (the search index, with an API key). See
+[ARCHITECTURE.md](ARCHITECTURE.md).
 
 Open http://localhost:8080, create the owner account, then follow the checklist on the Overview page:
 upload and prepare documents, optionally add data tables (CSV, Excel, JSON, JSON Lines, Parquet) and build
@@ -37,7 +42,10 @@ the knowledge graph, then connect your first agent. Agents connect to `http://<s
 - To serve other machines: put HTTPS in front (Caddy, nginx, your load balancer), set `CL_BIND=0.0.0.0`
   and `CL_PUBLIC_HOSTS=contextlayer.yourcompany.com` in `.env`.
 - Everything stays in the Docker volumes; there is no outbound traffic except model downloads on first use.
-- Backups: the volumes `app_data` (users, agents, audit), `documents`, `tables` and `graph_data`.
+- Backups: the volumes `graph_data` (Postgres: users, keys, audit, access, definitions, graph), `qdrant_storage`,
+  `documents`, `tables`, `workspaces` (other companies' files) and `app_data`.
+- More companies on one server: `CL_SIGNUP=open` (each gets a separate workspace). Sources (GitHub, databases,
+  S3 folders) are added on the Data tab; keys for apps under Settings.
 
 ## Run without Docker (development, Windows/macOS/Linux)
 

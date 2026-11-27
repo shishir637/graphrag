@@ -14,6 +14,7 @@
 import json
 
 from . import core, directory, teams
+from . import db as D
 
 CONNECTORS = {"documents": "Documents", "data": "Metrics and tables", "graph": "Knowledge graph",
               "upload": "Add files from chat"}
@@ -21,28 +22,29 @@ EVERYONE = "Everyone"
 PUBLIC = "public"
 
 SCHEMA = """
-CREATE TABLE IF NOT EXISTS ac_datasets (name TEXT PRIMARY KEY, description TEXT NOT NULL DEFAULT '', created TEXT,
-  by_user TEXT);
-CREATE TABLE IF NOT EXISTS ac_roles (name TEXT PRIMARY KEY, description TEXT NOT NULL DEFAULT '',
-  datasets TEXT NOT NULL DEFAULT '[]', connectors TEXT NOT NULL DEFAULT '[]', created TEXT, by_user TEXT);
-CREATE TABLE IF NOT EXISTS ac_team (team TEXT PRIMARY KEY, datasets TEXT NOT NULL DEFAULT '[]',
-  connectors TEXT NOT NULL DEFAULT '[]', roles TEXT NOT NULL DEFAULT '[]', updated TEXT, by_user TEXT);
-CREATE TABLE IF NOT EXISTS ac_user (email TEXT PRIMARY KEY, datasets TEXT NOT NULL DEFAULT '[]',
-  connectors TEXT NOT NULL DEFAULT '[]', roles TEXT NOT NULL DEFAULT '[]', updated TEXT, by_user TEXT);
+CREATE TABLE IF NOT EXISTS ac_datasets (name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', created TEXT,
+  by_user TEXT{tenant}, PRIMARY KEY ({tk}name));
+CREATE TABLE IF NOT EXISTS ac_roles (name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
+  datasets TEXT NOT NULL DEFAULT '[]', connectors TEXT NOT NULL DEFAULT '[]', created TEXT, by_user TEXT{tenant},
+  PRIMARY KEY ({tk}name));
+CREATE TABLE IF NOT EXISTS ac_team (team TEXT NOT NULL, datasets TEXT NOT NULL DEFAULT '[]',
+  connectors TEXT NOT NULL DEFAULT '[]', roles TEXT NOT NULL DEFAULT '[]', updated TEXT, by_user TEXT{tenant},
+  PRIMARY KEY ({tk}team));
+CREATE TABLE IF NOT EXISTS ac_user (email TEXT NOT NULL, datasets TEXT NOT NULL DEFAULT '[]',
+  connectors TEXT NOT NULL DEFAULT '[]', roles TEXT NOT NULL DEFAULT '[]', updated TEXT, by_user TEXT{tenant},
+  PRIMARY KEY ({tk}email));
 """
 _ready: str | None = None
 
 
 def db():
     global _ready
-    c = core.db()
-    if _ready != str(core.DB_PATH):
-        c.executescript(SCHEMA)
-        if not c.execute("SELECT 1 FROM ac_roles WHERE name = ?", (EVERYONE,)).fetchone():
-            c.execute("INSERT INTO ac_roles VALUES (?, ?, ?, ?, ?, ?)",
-                      (EVERYONE, "Every account gets this.", json.dumps([PUBLIC]), json.dumps(list(CONNECTORS)),
-                       core.now(), "system"))
-        _ready = str(core.DB_PATH)
+    c = core.db_with(SCHEMA)
+    if _ready != core.db_generation():
+        c.execute(f"INSERT INTO ac_roles VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT {D.ck('name')} DO NOTHING",
+                  (EVERYONE, "Every account gets this.", json.dumps([PUBLIC]), json.dumps(list(CONNECTORS)),
+                   core.now(), "system"))
+        _ready = core.db_generation()
     return c
 
 
@@ -146,7 +148,7 @@ def save_role(name: str, description: str, ds: list[str], cons: list[str], by: s
                               (json.dumps([name if x == old else x for x in rs]), r["k"]))
     elif not old and c.execute("SELECT 1 FROM ac_roles WHERE name = ?", (name,)).fetchone():
         raise ValueError(f"There is already a role called {name}.")
-    c.execute("INSERT INTO ac_roles VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET "
+    c.execute(f"INSERT INTO ac_roles VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT {D.ck('name')} DO UPDATE SET "
               "description = excluded.description, datasets = excluded.datasets, connectors = excluded.connectors",
               (name, description.strip()[:200], json.dumps(ds), json.dumps(cons), core.now(), by))
     return next(r for r in roles() if r["name"] == name)
@@ -187,7 +189,7 @@ def _save(tbl: str, key: str, val: str, ds: list[str], cons: list[str], rs: list
     if bad:
         raise ValueError(f"Unknown role: {', '.join(bad)}")
     db().execute(f"INSERT INTO {tbl} ({key}, datasets, connectors, roles, updated, by_user) VALUES (?, ?, ?, ?, ?, ?) "
-                 f"ON CONFLICT({key}) DO UPDATE SET datasets = excluded.datasets, connectors = excluded.connectors, "
+                 f"ON CONFLICT {D.ck(key)} DO UPDATE SET datasets = excluded.datasets, connectors = excluded.connectors, "
                  "roles = excluded.roles, updated = excluded.updated, by_user = excluded.by_user",
                  (val, json.dumps(ds), json.dumps(cons), json.dumps(sorted(set(rs) - {EVERYONE})), core.now(), by))
 

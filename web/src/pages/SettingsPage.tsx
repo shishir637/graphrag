@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api'
 import { Copy, Loading, useLoad, useToast } from '../ui'
+import AppKeys from './AppKeys'
 
 interface S { organisation: string; link: string; session_idle_minutes: number; session_hours: number; min_password: number; version: string; apps: number; users: number }
 
@@ -26,5 +27,6 @@ export default function SettingsPage() {
         <div className="row" style={{ flexWrap: 'nowrap' }}><button className="btn sm" onClick={() => job('documents', 'Files')}>Files</button><button className="btn sm" onClick={() => job('data', 'Tables')}>Tables</button><button className="btn sm" onClick={() => job('graph', 'Graph')}>Graph</button></div></div>
       <div className="li"><div><b className="small">Version</b></div><span className="small muted">{x.version} · {x.users} accounts · {x.apps} connected apps</span></div>
     </div></div>
+    <AppKeys />
   </div>
 }

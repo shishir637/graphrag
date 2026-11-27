@@ -1,0 +1,29 @@
+# Kestrel Labs: gold questions for the Quality tab (scored like semantic_layer/eval_questions.yaml: the planner's
+# request and the gold request are both run and their rows compared; no AI model). Used when the Kestrel demo is the
+# company layer (every metric named here exists).
+as_of: 2026-11-24
+questions:
+  - {id: k01, kind: simple, question: "How many production deploys did we do in 2025?",
+     gold: {metrics: [deployment_count], start_date: 2025-01-01, end_date: 2025-12-31}}
+  - {id: k02, kind: simple, question: "What was the change failure rate in 2025?",
+     gold: {metrics: [change_failure_rate], start_date: 2025-01-01, end_date: 2025-12-31}}
+  - {id: k03, kind: simple, question: "How many Sev1 incidents were there in 2025?",
+     gold: {metrics: [sev1_incidents], start_date: 2025-01-01, end_date: 2025-12-31}}
+  - {id: k04, kind: simple, question: "Average lead time for changes in 2025",
+     gold: {metrics: [lead_time_for_changes], start_date: 2025-01-01, end_date: 2025-12-31}}
+  - {id: k05, kind: breakdown, question: "Deployments by service in 2025",
+     gold: {metrics: [deployment_count], dimensions: [deployments.service], start_date: 2025-01-01, end_date: 2025-12-31}}
+  - {id: k06, kind: breakdown, question: "Incidents by severity",
+     gold: {metrics: [incident_count], dimensions: [incidents.severity]}}
+  - {id: k07, kind: breakdown, question: "Failed deployments by service",
+     gold: {metrics: [failed_deployments], dimensions: [deployments.service]}}
+  - {id: k08, kind: top_n, question: "Top 3 services by number of incidents",
+     gold: {metrics: [incident_count], dimensions: [incidents.service], order_by: [-incident_count], limit: 3}}
+  - {id: k09, kind: synonym, question: "What is our MRR?", gold: {metrics: [mrr]}}
+  - {id: k10, kind: simple, question: "What is the current headcount?", gold: {metrics: [headcount]}}
+  - {id: k11, kind: simple, question: "How many support tickets were opened in 2025?",
+     gold: {metrics: [support_ticket_count], start_date: 2025-01-01, end_date: 2025-12-31}}
+  - {id: k12, kind: simple, question: "Total cloud cost in 2025",
+     gold: {metrics: [cloud_cost], start_date: 2025-01-01, end_date: 2025-12-31}}
+  - {id: k13, kind: unanswerable, question: "What is our profit margin?"}
+  - {id: k14, kind: unanswerable, question: "How many patents do we hold?"}

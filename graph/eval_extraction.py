@@ -105,7 +105,8 @@ def main(paths):
     for p in paths:
         method, recs = load(Path(p))
         results[method] = score(recs, gold)
-    (ROOT / "outputs" / "gr_extract_eval.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
+    from rag.config import OUT_DIR
+    (OUT_DIR / "gr_extract_eval.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
     cols = ["entities", "entities_typed", "relations_strict", "relations_loose"]
     print(f"{'method':<10}" + "".join(f"{c:>26}" for c in cols) + f"{'s/chunk':>10}")
     for m, r in results.items():
