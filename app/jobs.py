@@ -90,6 +90,11 @@ def _launch(job: dict, fn):
                 job["finished"] = core.now()
                 core.log_event("user", job["by"], f"job.{job['kind']}", job["label"],
                                {"job": job["id"], "error": job["error"]}, ok=job["status"] == "done", seconds=t())
+        try:                                               # answers may change: drop cached evidence
+            from . import engine
+            engine.clear_ask_cache()
+        except Exception:                                  # noqa: BLE001
+            pass
         if job["status"] == "done":
             try:                                           # scores after every build (Quality tab)
                 from . import quality

@@ -507,15 +507,43 @@ def graph_ready() -> bool:
 
 
 GUIDANCE = ("Context Layer returns evidence, not a written answer: answer from these passages, facts and numbers, "
-            "cite passage ids, and say so if they do not contain the answer.")
+            "cite passage ids, and say so if they do not contain the answer. Each passage has an 'evidence' label "
+            "(strong = answers the question, partial = related, weak = barely related): do not state a fact that only "
+            "weak passages support. 'evidence' at the top level is the best passage's label; 'none' means nothing "
+            "relevant was found, so say the sources do not cover it. When passages disagree, prefer the most "
+            "recently updated source (source_updated) and mention the conflict.")
+CONTEXT_FOR_TOP = 3                     # passages that get their neighbouring text from the same section
 
 
-def _passage_out(p: dict, question: str) -> dict:
-    from rag.retrieve import highlights
-    return {"id": p["chunk_id"], "source": p["source"], "pages": p.get("pages") or [],
-            "section": " > ".join(p.get("headings") or []), "text": p["text"][:2000],
-            "score": p.get("rerank_score"), "highlights": highlights(question, p["text"]),
-            **({"included_for": p["coverage_for"]} if p.get("coverage_for") else {})}
+def _passage_out(p: dict, question: str, groups: list[str] | None = None, with_context: bool = False) -> dict:
+    from rag.retrieve import highlights, neighbours
+    out = {"id": p["chunk_id"], "source": p["source"], "pages": p.get("pages") or [],
+           "section": " > ".join(p.get("headings") or []), "text": p["text"][:2000],
+           "score": p.get("rerank_score"), "relevance": p.get("relevance"), "evidence": p.get("evidence", "unscored"),
+           "highlights": highlights(question, p["text"]),
+           **({"included_for": p["coverage_for"]} if p.get("coverage_for") else {})}
+    updated = iso(_mtime(DOCS_DIR / p["source"]))
+    if updated:
+        out["source_updated"] = updated
+    if with_context:
+        ctx = neighbours(p["chunk_id"], groups)
+        if ctx:
+            out["context"] = ctx
+    return out
+
+
+def _passages_out(passages: list[dict], question: str, groups: list[str] | None) -> list[dict]:
+    shown = {p["chunk_id"] for p in passages}
+    out = []
+    for i, p in enumerate(passages):
+        o = _passage_out(p, question, groups, with_context=i < CONTEXT_FOR_TOP)
+        for side in ("before", "after"):              # never repeat a passage that is already in the list
+            if o.get("context", {}).get(side, {}).get("id") in shown:
+                o["context"].pop(side)
+        if o.get("context") == {}:
+            o.pop("context")
+        out.append(o)
+    return out
 
 
 def search(query: str, groups: list[str], top_k: int = 5, files: list[str] | None = None,
@@ -523,7 +551,7 @@ def search(query: str, groups: list[str], top_k: int = 5, files: list[str] | Non
     from rag.retrieve import retrieve
     ret = retrieve(query, groups, files or None, save=False, top_k=max(1, min(top_k, 10)), use_graph=use_graph)
     g = ret.get("graph") or {}
-    return {"passages": [_passage_out(p, query) for p in ret["passages"]],
+    return {"passages": _passages_out(ret["passages"], query, groups), "evidence": ret.get("evidence", "none"),
             "entities": [e["name"] for e in g.get("entities", [])], "timings_s": ret["timings_s"]}
 
 
@@ -579,9 +607,63 @@ def metric_query(request: dict | None = None, question: str | None = None) -> di
             "timings_s": {"total": round(time.perf_counter() - t0, 3)}}
 
 
+# Repeat questions: the same question from callers with the same data sets, connectors and layers, against the
+# same built sources, returns the stored evidence instead of searching again. Exact match only (after normalising
+# case and spacing): "revenue in 2024" and "revenue in 2025" are near-identical as vectors, so a similarity cache
+# would hand back the wrong evidence. Any rebuild, access change, definition change or new day invalidates entries.
+ASK_CACHE_SIZE = 512
+ASK_CACHE_TTL_S = 600
+_ASK_CACHE: "dict[tuple, tuple[float, dict]]" = {}
+
+
+def _sources_version() -> tuple:
+    from semantic import config as S
+    from semantic import defstore
+    paths = [OUT_DIR / "2_chunks.json", OUT_DIR / "4_index.json", OUT_DIR / "_graph_build.json", ACCESS_FILE,
+             S.OUT_DIR / "sl_1_profile.json", S.STORE_DB]
+    if S.DATA_DIR.exists():
+        paths += sorted(p for p in S.DATA_DIR.iterdir() if p.suffix.lower() in S.TABLE_EXTS)
+    if defstore.enabled():
+        layers = (defstore.STACK.get(), defstore.version())
+    else:
+        layers = tuple(_mtime(p) for p in [*sorted(S.LAYER_DIR.glob("*.yaml")), S.INSTRUCTIONS_FILE])
+    return (tuple(_mtime(p) for p in paths), layers)
+
+
+def _ask_key(question: str, groups, capabilities, mode: str) -> tuple:
+    from datetime import date
+    norm = re.sub(r"\s+", " ", question.strip().lower()).rstrip(" ?.!")
+    return (norm, None if groups is None else tuple(sorted(groups)), tuple(sorted(capabilities)), mode,
+            date.today().isoformat(), _sources_version())
+
+
+def clear_ask_cache():
+    _ASK_CACHE.clear()
+
+
 def ask(question: str, groups: list[str] | None, capabilities: list[str], mode: str = "auto") -> dict:
-    """Gather the evidence for a question as a caller with these groups and capabilities.
+    """Gather the evidence for a question as a caller with these groups and capabilities (cached, see above).
     mode: auto | documents | metrics | graph. groups=None means unrestricted (owner tools only)."""
+    import copy
+    try:
+        key = _ask_key(question, groups, capabilities, mode)
+    except Exception:                                      # noqa: BLE001 - no cache when the version is unknown
+        key = None
+    hit = _ASK_CACHE.get(key) if key else None
+    if hit and time.time() - hit[0] < ASK_CACHE_TTL_S:
+        out = copy.deepcopy(hit[1])
+        out["cached"] = True
+        out["timings_s"] = {"total": 0.0, "original_total": hit[1]["timings_s"].get("total")}
+        return out
+    out = _ask(question, groups, capabilities, mode)
+    if key:
+        if len(_ASK_CACHE) >= ASK_CACHE_SIZE:
+            _ASK_CACHE.pop(min(_ASK_CACHE, key=lambda k: _ASK_CACHE[k][0]))
+        _ASK_CACHE[key] = (time.time(), copy.deepcopy(out))
+    return out
+
+
+def _ask(question: str, groups: list[str] | None, capabilities: list[str], mode: str = "auto") -> dict:
     from app.router import route as pick_route
     from graph import search as GS
     from graph.access import sees_everything, visible
@@ -619,23 +701,27 @@ def ask(question: str, groups: list[str] | None, capabilities: list[str], mode: 
                                             "row_count", "not_answerable", "metrics", "planned_by") if r.get(k) is not None}
         if not r.get("found") and r.get("not_answerable") and "documents" in caps:
             notes.append("No metric matches; the documents were searched as well.")
-            out["passages"] = search(question, g)["passages"]
+            s = search(question, g)
+            out["passages"], out["evidence"] = s["passages"], s["evidence"]
     else:
         use_graph = "graph" in caps and graph_ready()
         if "documents" in caps:
             s = search(question, g, 5, use_graph=use_graph)
-            out["passages"] = s["passages"]
+            out["passages"], out["evidence"] = s["passages"], s["evidence"]
         if chosen == "connections" and use_graph:
             loc = GS.local(question, groups, visible)
             out["graph"] = {"entities": loc["entities"], "bridges": loc["bridges"], "relations": loc["relations"][:25]}
             if "documents" not in caps:            # graph-only key: passages behind the graph facts
-                from rag.retrieve import fetch_chunks, rerank
-                hits = rerank(question, fetch_chunks(loc["passage_ids"][:12], g))
-                out["passages"] = [_passage_out(p, question) for p in hits[:5]]
+                from rag.retrieve import evidence_strength, fetch_chunks, rerank, screen
+                hits = screen(rerank(question, fetch_chunks(loc["passage_ids"][:12], g)))[:5]
+                out["passages"], out["evidence"] = _passages_out(hits, question, g), evidence_strength(hits)
         if chosen == "overview" and use_graph:
             ov = GS.overview(question, groups, visible)
             out["overview"] = ov["communities"]
     out["timings_s"] = {"total": round(time.perf_counter() - t0, 3)}
+    if (out.get("data") or {}).get("found"):
+        out["evidence"] = "exact"                  # computed from the governed metric definitions
+    out.setdefault("evidence", "none")
     out["found"] = bool(out["passages"] or (out.get("data") or {}).get("found"))
     return out
 
