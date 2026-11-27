@@ -663,7 +663,53 @@ def ask(question: str, groups: list[str] | None, capabilities: list[str], mode: 
     return out
 
 
-def _ask(question: str, groups: list[str] | None, capabilities: list[str], mode: str = "auto") -> dict:
+def _ask(question: str, groups: list[str] | None, capabilities: list[str], mode: str = "auto",
+         split: bool = True) -> dict:
+    """In auto mode the question is first checked (app/answerable.py, rule-based): not answerable from what this
+    install knows -> found false with the reason and clarifying questions (nothing guessed); a mixed question is
+    answered part by part. Routing itself is app/router.py."""
+    import os
+    if mode == "auto" and os.environ.get("CL_ANSWERABLE", "1") != "0" and question.strip():
+        from app.answerable import check
+        chk = check(question, capabilities)
+        if not chk["answerable"]:
+            return {"question": question.strip(), "route": "not_answerable", "route_reason": chk["reason"],
+                    "answer": None, "passages": [], "evidence": "none", "found": False,
+                    "not_answerable": chk["reason"], "clarifying_questions": chk["clarify"],
+                    "notes": [chk["reason"] + " Ask the user to clarify rather than answering from general knowledge."],
+                    "guidance": GUIDANCE, "timings_s": {"total": 0.0}}
+        if split and chk["parts"]:
+            return _ask_parts(question, chk["parts"], groups, capabilities)
+    return _ask_one(question, groups, capabilities, mode)
+
+
+def _ask_parts(question: str, parts: list[str], groups, capabilities) -> dict:
+    """A mixed question: each part gathered with its own route; passages merged, numbers kept per part."""
+    t0 = time.perf_counter()
+    subs = []
+    for p in parts:
+        try:
+            subs.append(_ask(p, groups, capabilities, "auto", split=False))
+        except PermissionError as e:              # e.g. a documents part for a data-only key: that part is refused
+            subs.append({"route": "refused", "route_reason": str(e), "evidence": "none", "found": False, "passages": []})
+    seen, passages = set(), []
+    for s in subs:
+        for p in s.get("passages") or []:
+            if p["id"] not in seen:
+                seen.add(p["id"])
+                passages.append(p)
+    order = ["exact", "strong", "partial", "unscored", "weak", "none"]
+    best = min((s.get("evidence", "none") for s in subs), key=lambda e: order.index(e) if e in order else len(order))
+    return {"question": question.strip(), "route": "mixed", "route_reason": f"{len(parts)} parts answered separately",
+            "answer": None, "passages": passages, "evidence": best, "found": any(s.get("found") for s in subs),
+            "parts": [{"question": p, **{k: s.get(k) for k in ("route", "route_reason", "evidence", "found", "data",
+                                                               "graph", "not_answerable", "clarifying_questions")
+                                       if s.get(k) is not None},
+                       "passage_ids": [x["id"] for x in s.get("passages") or []]} for p, s in zip(parts, subs)],
+            "notes": [], "guidance": GUIDANCE, "timings_s": {"total": round(time.perf_counter() - t0, 3)}}
+
+
+def _ask_one(question: str, groups: list[str] | None, capabilities: list[str], mode: str = "auto") -> dict:
     from app.router import route as pick_route
     from graph import search as GS
     from graph.access import sees_everything, visible

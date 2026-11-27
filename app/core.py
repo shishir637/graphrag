@@ -81,13 +81,15 @@ def db() -> sqlite3.Connection:
     """One connection per thread; schema created on first use."""
     global _initialised
     c = getattr(_local, "conn", None)
+    if c is not None and getattr(_local, "path", None) != DB_PATH:   # the data folder moved (tests): reconnect
+        c = None
     if c is None:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         c = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None)
         c.row_factory = sqlite3.Row
         c.execute("PRAGMA journal_mode=WAL")
         c.execute("PRAGMA foreign_keys=ON")
-        _local.conn = c
+        _local.conn, _local.path = c, DB_PATH
     if not _initialised:
         with _init_lock:
             c.executescript(SCHEMA)
