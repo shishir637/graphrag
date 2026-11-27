@@ -52,7 +52,11 @@ def now() -> str:
 def dsn() -> str | None:
     if os.environ.get("CL_DEFS", "").lower() == "yaml":
         return None
-    return os.environ.get("CL_DEFS_DSN") or None
+    try:                                     # CL_DEFS_DSN, or the file named by CL_DEFS_DSN_FILE (Docker secrets)
+        from app.envfile import env
+        return env("CL_DEFS_DSN") or None
+    except ImportError:
+        return os.environ.get("CL_DEFS_DSN") or None
 
 
 def enabled() -> bool:

@@ -27,6 +27,11 @@ x-context-layer: &context-layer
       # search index: Qdrant as its own server (0.9), shared by the workspaces (filtered per workspace)
       QDRANT_URL: http://qdrant:6333
       QDRANT_API_KEY: ${CL_QDRANT_API_KEY:?set CL_QDRANT_API_KEY in .env}
+      # the master key of stored secrets (app/vault.py); with CL_ENV=production the app refuses to start without one
+      CL_SECRET_KEY: ${CL_SECRET_KEY:-}
+      CL_SECRET_KEY_FILE: ${CL_SECRET_KEY_FILE:-}
+      CL_SECRET_KEY_PROVIDER: ${CL_SECRET_KEY_PROVIDER:-}
+      CL_ENV: ${CL_ENV:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"    # lets optional AI extraction reach a local model (Ollama) on this machine
     volumes:

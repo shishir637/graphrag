@@ -17,6 +17,8 @@ def main():
     if not D.postgres():
         raise SystemExit("The worker needs the Postgres app database (CL_DATABASE_URL); with SQLite the app runs jobs itself.")
     os.environ.setdefault("CL_ROLE", "worker")
+    from . import vault
+    vault.check_startup()                                     # CL_ENV=production: a master key must be configured
     core.load_secrets()
     core.db()                                                 # tables, the first workspace, a one-time copy of app.db
     stop = {"now": False}

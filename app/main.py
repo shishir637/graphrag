@@ -30,6 +30,8 @@ _mcp_asgi = None
 async def lifespan(app):
     # a fresh MCP app (and session manager) per server start: a manager can only be run once
     global _mcp_asgi
+    from . import vault
+    vault.check_startup()                            # CL_ENV=production: refuse to start without a master key
     _mcp_asgi = M.http_app()
     try:
         M.describe_org()
