@@ -6,7 +6,7 @@
 services:
   app:
     build: .
-    image: context-layer:0.6.0
+    image: context-layer:0.9.0
     restart: unless-stopped
     depends_on:
       graphdb: { condition: service_healthy }
@@ -19,6 +19,10 @@ services:
       CL_GRAPH_MODE: ${CL_GRAPH_MODE:-}
       # business definitions, layers, shares and their history (schema cl_defs in the same Postgres as the graph)
       CL_DEFS_DSN: host=graphdb port=5432 dbname=graphrag user=rag password=${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
+      # accounts, sessions, keys, activity, settings, access, teams, directory, approvals, sources, quality runs
+      # (0.9; an existing var/app.db is copied in once on the first start)
+      CL_DATABASE_URL: postgresql://rag@graphdb:5432/graphrag
+      CL_DB_PASSWORD: ${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
     extra_hosts:
       - "host.docker.internal:host-gateway"    # lets optional AI extraction reach a local model (Ollama) on this machine
     volumes:

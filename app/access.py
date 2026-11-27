@@ -35,14 +35,12 @@ _ready: str | None = None
 
 def db():
     global _ready
-    c = core.db()
-    if _ready != str(core.DB_PATH):
-        c.executescript(SCHEMA)
-        if not c.execute("SELECT 1 FROM ac_roles WHERE name = ?", (EVERYONE,)).fetchone():
-            c.execute("INSERT INTO ac_roles VALUES (?, ?, ?, ?, ?, ?)",
-                      (EVERYONE, "Every account gets this.", json.dumps([PUBLIC]), json.dumps(list(CONNECTORS)),
-                       core.now(), "system"))
-        _ready = str(core.DB_PATH)
+    c = core.db_with(SCHEMA)
+    if _ready != core.db_generation():
+        c.execute("INSERT INTO ac_roles VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (name) DO NOTHING",
+                  (EVERYONE, "Every account gets this.", json.dumps([PUBLIC]), json.dumps(list(CONNECTORS)),
+                   core.now(), "system"))
+        _ready = core.db_generation()
     return c
 
 

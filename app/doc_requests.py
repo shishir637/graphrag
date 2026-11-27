@@ -13,7 +13,7 @@ import time
 
 from . import core, engine, teams
 
-SCHEMA = """CREATE TABLE IF NOT EXISTS doc_requests (id INTEGER PRIMARY KEY, file TEXT NOT NULL, dataset TEXT NOT NULL,
+SCHEMA = """CREATE TABLE IF NOT EXISTS doc_requests (id {serial}, file TEXT NOT NULL, dataset TEXT NOT NULL,
   team TEXT, asked_by TEXT NOT NULL, app TEXT NOT NULL DEFAULT '', created TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'waiting',
   decided_by TEXT, decided TEXT, reason TEXT NOT NULL DEFAULT '')"""
 _ready: str | None = None
@@ -21,12 +21,7 @@ _holds: dict[str, dict] = {}          # confirm code -> the move waiting for the
 
 
 def db():
-    global _ready
-    c = core.db()
-    if _ready != str(core.DB_PATH):
-        c.execute(SCHEMA)
-        _ready = str(core.DB_PATH)
-    return c
+    return core.db_with(SCHEMA)
 
 
 class Refused(Exception):
@@ -104,9 +99,10 @@ def _request(agent: dict, h: dict) -> dict:
     if db().execute("SELECT 1 FROM doc_requests WHERE file = ? AND dataset = ? AND status = 'waiting'",
                     (h["file"], h["dataset"])).fetchone():
         raise Refused("That request is already waiting for approval.")
-    cur = db().execute("INSERT INTO doc_requests (file, dataset, team, asked_by, app, created) VALUES (?, ?, ?, ?, ?, ?)",
+    cur = db().execute("INSERT INTO doc_requests (file, dataset, team, asked_by, app, created) VALUES (?, ?, ?, ?, ?, ?) "
+                       "RETURNING id",
                        (h["file"], h["dataset"], h["team"], h["who"], h["app"], core.now()))
-    return {"saved": False, "requested": True, "request_id": f"file:{cur.lastrowid}", "file": h["file"],
+    return {"saved": False, "requested": True, "request_id": f"file:{cur.fetchone()[0]}", "file": h["file"],
             "to": h["label"], "note": f"Sent to {'the company admins' if h['team'] is None else 'the admins of ' + h['team']} "
                                       "for approval. Nothing changes until they approve; my_changes shows the answer."}
 

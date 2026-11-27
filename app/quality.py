@@ -34,17 +34,12 @@ SUITES = {
 KESTREL_GOLD = ROOT / "demo" / "kestrel" / "semantic_layer" / "eval_questions.yaml"
 SCHEMA = """CREATE TABLE IF NOT EXISTS quality_runs (
   id TEXT PRIMARY KEY, time TEXT NOT NULL, suite TEXT NOT NULL, trigger TEXT NOT NULL DEFAULT '', ok INTEGER NOT NULL,
-  scores TEXT NOT NULL DEFAULT '{}', detail TEXT NOT NULL DEFAULT '{}', seconds REAL)"""
+  scores TEXT NOT NULL DEFAULT '{}', detail TEXT NOT NULL DEFAULT '{}', seconds {real})"""
 _ready: str | None = None
 
 
 def db():
-    global _ready
-    c = core.db()
-    if _ready != str(core.DB_PATH):
-        c.execute(SCHEMA)
-        _ready = str(core.DB_PATH)
-    return c
+    return core.db_with(SCHEMA)
 
 
 # ------------------------------------------------------------------ the suites

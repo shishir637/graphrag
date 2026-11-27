@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS chats (
   updated TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS chats_user ON chats(user_id, updated);
 CREATE TABLE IF NOT EXISTS chat_messages (
-  id INTEGER PRIMARY KEY, chat_id TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE, role TEXT NOT NULL,
+  id {serial}, chat_id TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE, role TEXT NOT NULL,
   content TEXT NOT NULL, meta TEXT NOT NULL DEFAULT '{}', created TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS chat_messages_chat ON chat_messages(chat_id, id);
 """
@@ -64,12 +64,7 @@ _ready_for: str | None = None
 
 
 def db():
-    global _ready_for
-    c = core.db()
-    if _ready_for != str(core.DB_PATH):
-        c.executescript(SCHEMA)
-        _ready_for = str(core.DB_PATH)
-    return c
+    return core.db_with(SCHEMA)
 
 
 class ChatError(RuntimeError):
@@ -249,8 +244,8 @@ def guest_user(token: str | None) -> tuple[dict, str | None]:
     r = core.db().execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
     if r is None:
         with core.tx() as c:
-            c.execute("INSERT OR IGNORE INTO users (email, name, pw_hash, role, created, disabled, groups) "
-                      "VALUES (?, ?, ?, 'viewer', ?, 1, '[\"public\"]')",
+            c.execute("INSERT INTO users (email, name, pw_hash, role, created, disabled, groups) "
+                      "VALUES (?, ?, ?, 'viewer', ?, 1, '[\"public\"]') ON CONFLICT (email) DO NOTHING",
                       (email, "Guest", "disabled$" + secrets.token_hex(16), core.now()))
         r = core.db().execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
     return core.public_user(r), new
@@ -313,11 +308,12 @@ def _rows(chat_id: str) -> list:
 
 
 def _add(chat_id: str, role: str, content: list, meta: dict | None = None) -> int:
-    cur = db().execute("INSERT INTO chat_messages (chat_id, role, content, meta, created) VALUES (?, ?, ?, ?, ?)",
+    cur = db().execute("INSERT INTO chat_messages (chat_id, role, content, meta, created) VALUES (?, ?, ?, ?, ?) "
+                       "RETURNING id",
                        (chat_id, role, json.dumps(content, ensure_ascii=False), json.dumps(meta or {}, ensure_ascii=False),
                         core.now()))
     db().execute("UPDATE chats SET updated = ? WHERE id = ?", (core.now(), chat_id))
-    return cur.lastrowid
+    return cur.fetchone()[0]
 
 
 def history(chat_id: str, user_id: int) -> dict:
@@ -653,5 +649,7 @@ def _undo_turn(chat_id: str, user_row: int, error: str = ""):
     """A failed turn: keep the person's message (shown with the error) but drop half-finished tool calls, so the
     next turn starts from a clean history."""
     db().execute("DELETE FROM chat_messages WHERE chat_id = ? AND id > ?", (chat_id, user_row))
-    db().execute("UPDATE chat_messages SET meta = json_set(meta, '$.error_turn', 1, '$.error', ?) WHERE id = ?",
-                 (error, user_row))
+    r = db().execute("SELECT meta FROM chat_messages WHERE id = ?", (user_row,)).fetchone()
+    meta = json.loads(r["meta"] or "{}") if r else {}
+    meta.update(error_turn=1, error=error)
+    db().execute("UPDATE chat_messages SET meta = ? WHERE id = ?", (json.dumps(meta, ensure_ascii=False), user_row))

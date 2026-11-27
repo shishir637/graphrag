@@ -25,4 +25,6 @@ try:
 except Exception as e:                                       # noqa: BLE001
     print("apps: ?", e)
 print("\nall tool calls by anyone, last 7 days:", core.db().execute(
-    "SELECT count(*) FROM events WHERE action LIKE 'tool.%' AND time > datetime('now', '-7 days')").fetchone()[0])
+    "SELECT count(*) FROM events WHERE action LIKE 'tool.%' AND time > ?",
+    ((__import__("datetime").datetime.now(__import__("datetime").timezone.utc)
+      - __import__("datetime").timedelta(days=7)).isoformat(timespec="seconds"),)).fetchone()[0])

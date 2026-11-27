@@ -21,12 +21,8 @@ _ready: str | None = None
 
 
 def db():
-    global _ready
-    c = directory.db()
-    if _ready != str(core.DB_PATH):
-        c.executescript(SCHEMA)
-        _ready = str(core.DB_PATH)
-    return c
+    directory.db()
+    return core.db_with(SCHEMA)
 
 
 def slug(team: str) -> str:

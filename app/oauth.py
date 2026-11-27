@@ -202,7 +202,9 @@ def get_client(client_id: str) -> dict | None:
         doc = _fetch_cimd(client_id)
         if doc is None:
             return None
-        core.db().execute("INSERT OR REPLACE INTO oauth_clients VALUES (?, NULL, ?, ?, 'cimd', ?)",
+        core.db().execute("INSERT INTO oauth_clients VALUES (?, NULL, ?, ?, 'cimd', ?) ON CONFLICT (client_id) DO UPDATE "
+                          "SET secret_hash = NULL, name = excluded.name, redirect_uris = excluded.redirect_uris, "
+                          "kind = 'cimd', created = excluded.created",
                           (client_id, doc["name"], json.dumps(doc["redirect_uris"]), core.now()))
         r = core.db().execute("SELECT * FROM oauth_clients WHERE client_id = ?", (client_id,)).fetchone()
     if r is None:
@@ -539,7 +541,8 @@ def grants(user_id: int | None = None) -> list[dict]:
     if user_id is not None:
         q += " AND t.user_id = ?"
         args.append(user_id)
-    rows = core.db().execute(q + " GROUP BY t.family ORDER BY since DESC", args).fetchall()
+    rows = core.db().execute(q + " GROUP BY t.family, t.client_name, t.client_id, t.user_id, u.email ORDER BY since DESC",
+                             args).fetchall()
     used = {r["family"]: r["lu"] for r in core.db().execute(
         "SELECT family, max(last_used) AS lu FROM oauth_tokens GROUP BY family")}
     return [{"id": r["family"], "app": r["client_name"], "user": r["email"], "user_id": r["user_id"],

@@ -18,12 +18,7 @@ _ready: str | None = None
 
 
 def _db():
-    global _ready
-    c = core.db()
-    if _ready != str(core.DB_PATH):
-        c.execute(SCHEMA)
-        _ready = str(core.DB_PATH)
-    return c
+    return core.db_with(SCHEMA)
 
 
 def _keys() -> list[bytes]:

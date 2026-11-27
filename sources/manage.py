@@ -45,14 +45,7 @@ _ready: str | None = None
 
 
 def db():
-    global _ready
-    c = core.db()
-    if _ready != str(core.DB_PATH):
-        for stmt in SCHEMA.split(";"):
-            if stmt.strip():
-                c.execute(stmt)
-        _ready = str(core.DB_PATH)
-    return c
+    return core.db_with(SCHEMA)
 
 
 def _secret_name(sid: str, field: str) -> str:

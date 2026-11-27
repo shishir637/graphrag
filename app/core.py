@@ -1,5 +1,6 @@
-"""Context Layer app: storage for users, sessions, agents, audit and settings (SQLite, stdlib only),
-plus password hashing and tokens. Everything lives in DATA_DIR (env CL_DATA_DIR, default ./var).
+"""Context Layer app: storage for users, sessions, agents, audit and settings, plus password hashing and tokens.
+The tables live in Postgres when CL_DATABASE_URL is set, else in SQLite at DATA_DIR/app.db (see app/db.py). Files
+(secrets.json, backups) live in DATA_DIR (env CL_DATA_DIR, default ./var).
 """
 import hashlib
 import hmac
@@ -34,19 +35,20 @@ _initialised = False
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY, email TEXT UNIQUE NOT NULL, name TEXT NOT NULL, pw_hash TEXT NOT NULL,
-  role TEXT NOT NULL, created TEXT NOT NULL, last_login TEXT, disabled INTEGER NOT NULL DEFAULT 0);
+  id {serial}, email TEXT UNIQUE NOT NULL, name TEXT NOT NULL, pw_hash TEXT NOT NULL,
+  role TEXT NOT NULL, created TEXT NOT NULL, last_login TEXT, disabled INTEGER NOT NULL DEFAULT 0,
+  groups TEXT NOT NULL DEFAULT '["public"]', must_change INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS sessions (
-  token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), created TEXT NOT NULL,
-  expires TEXT NOT NULL);
+  token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, created TEXT NOT NULL,
+  expires TEXT NOT NULL, last_seen TEXT);
 CREATE TABLE IF NOT EXISTS agents (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', groups TEXT NOT NULL,
   capabilities TEXT NOT NULL, token_hash TEXT UNIQUE NOT NULL, prefix TEXT NOT NULL, created TEXT NOT NULL,
   created_by TEXT NOT NULL, last_used TEXT, calls INTEGER NOT NULL DEFAULT 0, revoked TEXT);
 CREATE TABLE IF NOT EXISTS events (
-  id INTEGER PRIMARY KEY, time TEXT NOT NULL, actor_type TEXT NOT NULL, actor TEXT NOT NULL,
+  id {serial}, time TEXT NOT NULL, actor_type TEXT NOT NULL, actor TEXT NOT NULL,
   action TEXT NOT NULL, target TEXT NOT NULL DEFAULT '', detail TEXT NOT NULL DEFAULT '{}',
-  ok INTEGER NOT NULL DEFAULT 1, seconds REAL);
+  ok INTEGER NOT NULL DEFAULT 1, seconds {real});
 CREATE INDEX IF NOT EXISTS events_time ON events(time);
 CREATE INDEX IF NOT EXISTS events_actor ON events(actor_type, actor);
 CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -54,19 +56,19 @@ CREATE TABLE IF NOT EXISTS oauth_clients (
   client_id TEXT PRIMARY KEY, secret_hash TEXT, name TEXT NOT NULL, redirect_uris TEXT NOT NULL,
   kind TEXT NOT NULL, created TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS oauth_codes (
-  code_hash TEXT PRIMARY KEY, client_id TEXT NOT NULL, user_id INTEGER NOT NULL REFERENCES users(id),
+  code_hash TEXT PRIMARY KEY, client_id TEXT NOT NULL, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   redirect_uri TEXT NOT NULL, challenge TEXT NOT NULL, scope TEXT NOT NULL, resource TEXT, expires TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS oauth_tokens (
   token_hash TEXT PRIMARY KEY, kind TEXT NOT NULL, family TEXT NOT NULL, client_id TEXT NOT NULL,
-  client_name TEXT NOT NULL, user_id INTEGER NOT NULL REFERENCES users(id), scope TEXT NOT NULL, resource TEXT,
-  created TEXT NOT NULL, expires TEXT NOT NULL, revoked TEXT, last_used TEXT);
+  client_name TEXT NOT NULL, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, scope TEXT NOT NULL,
+  resource TEXT, created TEXT NOT NULL, expires TEXT NOT NULL, revoked TEXT, last_used TEXT);
 CREATE INDEX IF NOT EXISTS oauth_tokens_family ON oauth_tokens(family);
 CREATE TABLE IF NOT EXISTS upload_links (
   token_hash TEXT PRIMARY KEY, principal TEXT NOT NULL, groups TEXT NOT NULL, created TEXT NOT NULL,
   expires TEXT NOT NULL, files INTEGER NOT NULL DEFAULT 0);
 """
 
-MIGRATIONS = [
+MIGRATIONS = [                       # columns added after 0.5 to SQLite files made by older versions
     "ALTER TABLE users ADD COLUMN groups TEXT NOT NULL DEFAULT '[\"public\"]'",
     "ALTER TABLE users ADD COLUMN must_change INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE sessions ADD COLUMN last_seen TEXT",
@@ -77,9 +79,35 @@ def now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def db() -> sqlite3.Connection:
-    """One connection per thread; schema created on first use."""
-    global _initialised
+def db_key() -> str:
+    """Which database the app is on (schemas are created once per database)."""
+    from . import db as D
+    return "pg:" + D.url() if D.postgres() else str(DB_PATH)
+
+
+_schemas: dict[str, set] = {}
+
+
+def ensure(schema: str):
+    """Create a module's tables (CREATE ... IF NOT EXISTS) once per database."""
+    from . import db as D
+    key = db_key()
+    done = _schemas.setdefault(key, set())
+    if schema in done:
+        return
+    with _init_lock:
+        if schema in done:
+            return
+        if D.postgres():
+            with D.pg_tx() as c:
+                c.execute("SELECT pg_advisory_xact_lock(727002)")      # several processes start at once
+                c.executescript(D.ddl(schema))
+        else:
+            _sqlite().executescript(D.ddl(schema))
+        done.add(schema)
+
+
+def _sqlite() -> sqlite3.Connection:
     c = getattr(_local, "conn", None)
     if c is not None and getattr(_local, "path", None) != DB_PATH:   # the data folder moved (tests): reconnect
         c = None
@@ -90,28 +118,83 @@ def db() -> sqlite3.Connection:
         c.execute("PRAGMA journal_mode=WAL")
         c.execute("PRAGMA foreign_keys=ON")
         _local.conn, _local.path = c, DB_PATH
-    if not _initialised:
+    return c
+
+
+def db():
+    """The database: a Postgres pool (each execute is its own transaction) or this thread's SQLite connection.
+    The core tables are created on first use."""
+    global _initialised
+    from . import db as D
+    key = db_key()
+    if _initialised != key:
         with _init_lock:
-            c.executescript(SCHEMA)
-            for m in MIGRATIONS:
-                try:
-                    c.execute(m)
-                except sqlite3.OperationalError:          # already applied
-                    pass
-            _initialised = True
+            if _initialised != key:
+                if D.postgres():
+                    with D.pg_tx() as c:
+                        c.execute("SELECT pg_advisory_xact_lock(727002)")
+                        c.executescript(D.ddl(SCHEMA))
+                else:
+                    c = _sqlite()
+                    c.executescript(D.ddl(SCHEMA))
+                    for m in MIGRATIONS:
+                        try:
+                            c.execute(m)
+                        except sqlite3.OperationalError:          # already applied
+                            pass
+                _initialised = key
+    if D.postgres():
+        try:
+            from .migrate_local import migrate_once
+            migrate_once()
+        except Exception as e:                                    # noqa: BLE001 - reported, the app still starts
+            print(f"Copying var/app.db into Postgres failed: {e}", flush=True)
+    return D.PgAuto() if D.postgres() else _sqlite()
+
+
+_generation = 0
+
+
+def db_generation() -> str:
+    """Changes whenever the database is replaced or emptied (seed rows are written again)."""
+    return f"{db_key()}#{_generation}"
+
+
+def db_with(schema: str):
+    """db() with a module's own tables created first."""
+    c = db()
+    ensure(schema)
     return c
 
 
 def reset_for_tests(path: Path):
-    """Point the app at a fresh data folder (tests only)."""
-    global DATA_DIR, DB_PATH, SECRETS_FILE, _initialised
+    """Point the app at a fresh data folder and an empty database (tests only)."""
+    global DATA_DIR, DB_PATH, SECRETS_FILE, _initialised, _generation
     DATA_DIR, DB_PATH, SECRETS_FILE = path, path / "app.db", path / "secrets.json"
     _local.conn = None
     _initialised = False
+    _generation += 1
+    from . import db as D
+    if D.postgres():
+        from . import migrate_local
+        _schemas.pop(db_key(), None)
+        migrate_local._done.add(db_key() + "|" + str(DATA_DIR))     # no copy before the tables are emptied
+        db()
+        D.truncate_all()
+        migrate_local._done.clear()
+    else:
+        _schemas.clear()
 
 
 @contextmanager
 def tx():
+    """One transaction (Postgres: a pooled connection; SQLite: BEGIN IMMEDIATE on this thread's connection)."""
+    from . import db as D
+    if D.postgres():
+        db()
+        with D.pg_tx() as c:
+            yield c
+        return
     c = db()
     c.execute("BEGIN IMMEDIATE")
     try:
@@ -215,9 +298,9 @@ def create_user(email: str, name: str, password: str, role: str) -> dict:
     with tx() as c:
         if c.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
             raise ValueError("A user with this email already exists.")
-        cur = c.execute("INSERT INTO users (email, name, pw_hash, role, created) VALUES (?, ?, ?, ?, ?)",
-                        (email, name.strip()[:80] or email, hash_password(password), role, now()))
-        return public_user(c.execute("SELECT * FROM users WHERE id = ?", (cur.lastrowid,)).fetchone())
+        uid = c.execute("INSERT INTO users (email, name, pw_hash, role, created) VALUES (?, ?, ?, ?, ?) RETURNING id",
+                        (email, name.strip()[:80] or email, hash_password(password), role, now())).fetchone()[0]
+        return public_user(c.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone())
 
 
 def login(email: str, password: str) -> tuple[dict, str] | None:
@@ -450,7 +533,7 @@ def list_events(actor_type: str | None = None, actor: str | None = None, q: str 
     if since:
         sql += " AND time >= ?"; args.append(since)
     if q:
-        sql += " AND (action LIKE ? OR target LIKE ? OR detail LIKE ?)"; args += [f"%{q}%"] * 3
+        sql += " AND (lower(action) LIKE ? OR lower(target) LIKE ? OR lower(detail) LIKE ?)"; args += [f"%{q.lower()}%"] * 3
     sql += " ORDER BY id DESC LIMIT ?"; args.append(max(1, min(limit, 5000)))
     return [dict(r) | {"detail": json.loads(r["detail"]), "ok": bool(r["ok"])} for r in db().execute(sql, args)]
 

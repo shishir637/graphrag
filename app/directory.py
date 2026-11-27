@@ -29,12 +29,7 @@ FIELDS = ("email", "name", "title", "team", "manager_email", "location", "status
 
 
 def db():
-    global _ready
-    c = core.db()
-    if _ready != str(core.DB_PATH):
-        c.executescript(SCHEMA)
-        _ready = str(core.DB_PATH)
-    return c
+    return core.db_with(SCHEMA)
 
 
 def _clean_team(name: str) -> str:
