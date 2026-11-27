@@ -416,11 +416,15 @@ class AgentIn(BaseModel):
     description: str = ""
     groups: list[str] = Field(default_factory=lambda: ["public"])
     capabilities: list[str] = Field(default_factory=lambda: ["documents"])
+    scope: str = "agent"                         # agent | delegate (an app acting for its own end users)
+    expires_days: int | None = None
+    allowed_ips: list[str] = Field(default_factory=list)
 
 
 class AgentPatch(BaseModel):
     groups: list[str] | None = None
     capabilities: list[str] | None = None
+    allowed_ips: list[str] | None = None
 
 
 @app.get("/api/v1/agents")
@@ -433,24 +437,65 @@ def agents(u: dict = Depends(ANY)):
 def create_agent(body: AgentIn, u: dict = Depends(ADMIN)):
     try:
         groups = engine.clean_groups(body.groups)
-        a, token = core.create_agent(body.name, body.description, groups, body.capabilities, u["email"])
+        a, token = core.create_agent(body.name, body.description, groups, body.capabilities, u["email"],
+                                     body.scope, body.expires_days, body.allowed_ips)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    audit(u, "agents.create", a["name"], {"groups": a["groups"], "capabilities": a["capabilities"]})
-    return {"agent": a, "token": token}
+    out = {"agent": a, "token": token}
+    if a["scope"] == "delegate":                 # shown once: the app's backend signs each end user's identity
+        from . import delegate
+        out["signing_secret"] = delegate.new_signing_secret(a["id"])
+    audit(u, "agents.create", a["name"], {"groups": a["groups"], "capabilities": a["capabilities"], "scope": a["scope"],
+                                          "expires": a["expires"], "allowed_ips": a["allowed_ips"]})
+    return out
 
 
 @app.patch("/api/v1/agents/{aid}")
 def update_agent(aid: str, body: AgentPatch, u: dict = Depends(ADMIN)):
     try:
         groups = engine.clean_groups(body.groups) if body.groups is not None else None
-        a = core.update_agent(aid, groups, body.capabilities)
+        a = core.update_agent(aid, groups, body.capabilities, body.allowed_ips)
     except KeyError:
         raise HTTPException(404, "No such agent.")
     except ValueError as e:
         raise HTTPException(400, str(e))
     audit(u, "agents.update", a["name"], {"groups": a["groups"], "capabilities": a["capabilities"]})
     return {"agent": a}
+
+
+# ---- the end users of apps with delegate keys (app/delegate.py)
+
+class ExternalUserIn(BaseModel):
+    name: str = ""
+    datasets: list[str] = Field(default_factory=lambda: ["public"])
+    roles: list[str] = Field(default_factory=list)
+    disabled: bool = False
+
+
+@app.get("/api/v1/external-users")
+def external_users(u: dict = Depends(ADMIN)):
+    from . import delegate
+    return {"users": delegate.list_users()}
+
+
+@app.put("/api/v1/external-users/{uid}")
+def external_user_put(uid: str, body: ExternalUserIn, u: dict = Depends(ADMIN)):
+    from . import delegate
+    try:
+        r = delegate.put_user(uid, body.datasets, body.roles, body.name, body.disabled)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    audit(u, "external_users.put", uid, {"datasets": r["datasets"], "roles": r["roles"], "disabled": r["disabled"]})
+    return r
+
+
+@app.delete("/api/v1/external-users/{uid}")
+def external_user_delete(uid: str, u: dict = Depends(ADMIN)):
+    from . import delegate
+    if not delegate.delete_user(uid):
+        raise HTTPException(404, "No such app user.")
+    audit(u, "external_users.delete", uid)
+    return {"ok": True}
 
 
 @app.post("/api/v1/agents/{aid}/revoke")

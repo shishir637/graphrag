@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE TABLE IF NOT EXISTS agents (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', groups TEXT NOT NULL,
   capabilities TEXT NOT NULL, token_hash TEXT UNIQUE NOT NULL, prefix TEXT NOT NULL, created TEXT NOT NULL,
-  created_by TEXT NOT NULL, last_used TEXT, calls INTEGER NOT NULL DEFAULT 0, revoked TEXT{tenant});
+  created_by TEXT NOT NULL, last_used TEXT, calls INTEGER NOT NULL DEFAULT 0, revoked TEXT,
+  scope TEXT NOT NULL DEFAULT 'agent', expires TEXT, allowed_ips TEXT NOT NULL DEFAULT '[]'{tenant});
 CREATE TABLE IF NOT EXISTS events (
   id {serial}, time TEXT NOT NULL, actor_type TEXT NOT NULL, actor TEXT NOT NULL,
   action TEXT NOT NULL, target TEXT NOT NULL DEFAULT '', detail TEXT NOT NULL DEFAULT '{}',
@@ -74,7 +75,16 @@ MIGRATIONS = [                       # columns added after 0.5 to SQLite files m
     "ALTER TABLE users ADD COLUMN groups TEXT NOT NULL DEFAULT '[\"public\"]'",
     "ALTER TABLE users ADD COLUMN must_change INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE sessions ADD COLUMN last_seen TEXT",
+    "ALTER TABLE agents ADD COLUMN scope TEXT NOT NULL DEFAULT 'agent'",
+    "ALTER TABLE agents ADD COLUMN expires TEXT",
+    "ALTER TABLE agents ADD COLUMN allowed_ips TEXT NOT NULL DEFAULT '[]'",
 ]
+PG_MIGRATIONS = [                    # columns added in 0.9 to tables an earlier 0.9 build created
+    "ALTER TABLE agents ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'agent'",
+    "ALTER TABLE agents ADD COLUMN IF NOT EXISTS expires TEXT",
+    "ALTER TABLE agents ADD COLUMN IF NOT EXISTS allowed_ips TEXT NOT NULL DEFAULT '[]'",
+]
+KEY_SCOPES = ("agent", "delegate")   # delegate: an app's backend acting for its own end users (app/delegate.py)
 
 
 def now() -> str:
@@ -138,6 +148,8 @@ def db():
                     with D.ddl_tx() as c:
                         c.execute("SELECT pg_advisory_xact_lock(727002)")
                         c.executescript(D.ddl(SCHEMA))
+                        for m in PG_MIGRATIONS:
+                            c.execute(m)
                         c.execute(D.RLS)
                         D.ensure_role(c)
                         c.execute("INSERT INTO tenants (id, name, created) VALUES (?, ?, ?) ON CONFLICT (id) DO NOTHING",
@@ -475,13 +487,44 @@ def change_password(user_id: int, old: str, new: str):
 # ------------------------------------------------------------------ agents (MCP keys)
 
 def public_agent(row) -> dict:
+    keys = set(row.keys())
     return {"id": row["id"], "name": row["name"], "description": row["description"],
             "groups": json.loads(row["groups"]), "capabilities": json.loads(row["capabilities"]),
             "prefix": row["prefix"], "created": row["created"], "created_by": row["created_by"],
-            "last_used": row["last_used"], "calls": row["calls"], "revoked": row["revoked"]}
+            "last_used": row["last_used"], "calls": row["calls"], "revoked": row["revoked"],
+            "scope": row["scope"] if "scope" in keys else "agent",
+            "expires": row["expires"] if "expires" in keys else None,
+            "allowed_ips": json.loads(row["allowed_ips"] or "[]") if "allowed_ips" in keys else []}
 
 
-def create_agent(name: str, description: str, groups: list[str], capabilities: list[str], by: str) -> tuple[dict, str]:
+def _clean_ips(ips) -> list[str]:
+    import ipaddress
+    out = []
+    for x in ips or []:
+        x = str(x).strip()
+        if not x:
+            continue
+        try:
+            out.append(str(ipaddress.ip_network(x, strict=False)))
+        except ValueError:
+            raise ValueError(f"{x} is not an IP address or range (e.g. 10.0.0.0/8 or 203.0.113.7).") from None
+    return sorted(set(out))
+
+
+def ip_allowed(agent: dict, ip: str | None) -> bool:
+    import ipaddress
+    nets = agent.get("allowed_ips") or []
+    if not nets:
+        return True
+    try:
+        a = ipaddress.ip_address((ip or "").strip())
+    except ValueError:
+        return False
+    return any(a in ipaddress.ip_network(n, strict=False) for n in nets)
+
+
+def create_agent(name: str, description: str, groups: list[str], capabilities: list[str], by: str,
+                 scope: str = "agent", expires_days: int | None = None, allowed_ips: list[str] | None = None) -> tuple[dict, str]:
     name = " ".join(name.split())[:60]
     if not name:
         raise ValueError("Give the agent a name, for example the app or team that will use it.")
@@ -491,13 +534,21 @@ def create_agent(name: str, description: str, groups: list[str], capabilities: l
         raise ValueError("Pick at least one thing the agent may use: documents, data or the knowledge graph.")
     if ("documents" in caps or "graph" in caps) and not groups:
         raise ValueError("Pick at least one access group for documents.")
+    if scope not in KEY_SCOPES:
+        raise ValueError(f"A key is for an agent or a delegate (an app acting for its own users).")
+    ips = _clean_ips(allowed_ips)
+    expires = None
+    if expires_days:
+        if int(expires_days) < 1 or int(expires_days) > 3650:
+            raise ValueError("A key expires after 1 to 3650 days.")
+        expires = (datetime.now(timezone.utc) + timedelta(days=int(expires_days))).isoformat(timespec="seconds")
     token = new_token("clk_")
     aid = secrets.token_hex(5)
     with tx() as c:
         c.execute("INSERT INTO agents (id, name, description, groups, capabilities, token_hash, prefix, created, "
-                  "created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                  "created_by, scope, expires, allowed_ips) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                   (aid, name, description.strip()[:300], json.dumps(groups), json.dumps(caps), token_hash(token),
-                   token[:8], now(), by))
+                   token[:8], now(), by, scope, expires, json.dumps(ips)))
         return public_agent(c.execute("SELECT * FROM agents WHERE id = ?", (aid,)).fetchone()), token
 
 
@@ -510,7 +561,8 @@ def get_agent(aid: str) -> dict | None:
     return public_agent(r) if r else None
 
 
-def update_agent(aid: str, groups: list[str] | None, capabilities: list[str] | None) -> dict:
+def update_agent(aid: str, groups: list[str] | None, capabilities: list[str] | None,
+                 allowed_ips: list[str] | None = None) -> dict:
     with tx() as c:
         r = c.execute("SELECT * FROM agents WHERE id = ?", (aid,)).fetchone()
         if r is None:
@@ -522,6 +574,8 @@ def update_agent(aid: str, groups: list[str] | None, capabilities: list[str] | N
         if not caps:
             raise ValueError("Pick at least one capability.")
         c.execute("UPDATE agents SET groups = ?, capabilities = ? WHERE id = ?", (json.dumps(g), json.dumps(caps), aid))
+        if allowed_ips is not None:
+            c.execute("UPDATE agents SET allowed_ips = ? WHERE id = ?", (json.dumps(_clean_ips(allowed_ips)), aid))
         return public_agent(c.execute("SELECT * FROM agents WHERE id = ?", (aid,)).fetchone())
 
 
@@ -538,7 +592,12 @@ def agent_for_token(token: str | None) -> dict | None:
         return None
     with system():
         r = db().execute("SELECT * FROM agents WHERE token_hash = ? AND revoked IS NULL", (token_hash(token),)).fetchone()
-    return public_agent(r) | {"tenant_id": _tenant(r)} if r else None
+    if r is None:
+        return None
+    a = public_agent(r) | {"tenant_id": _tenant(r)}
+    if a["expires"] and a["expires"] <= now():
+        return None                                   # an expired key works nowhere
+    return a
 
 
 def touch_agent(aid: str):
@@ -550,7 +609,8 @@ def touch_agent(aid: str):
 
 # ------------------------------------------------------------------ who is calling /mcp
 
-def principal_for_token(token: str | None, resource: str | None = None) -> dict | None:
+def principal_for_token(token: str | None, resource: str | None = None, ip: str | None = None,
+                        headers: dict | None = None, identify: bool = False) -> dict | None:
     """An agent key (clk_...) or a token from "sign in to Context Layer" in Claude / ChatGPT (cla_...).
 
     Signed-in users act as themselves: their access groups (owners and admins: every group), all read
@@ -559,7 +619,16 @@ def principal_for_token(token: str | None, resource: str | None = None) -> dict 
         return None
     if not token.startswith("cla_"):
         a = agent_for_token(token)
-        return a | {"kind": "key"} if a else None
+        if a is None:
+            return None
+        if ip is not None and not ip_allowed(a, ip):
+            raise PermissionError("This key may not be used from this address.")
+        a = a | {"kind": "key"}
+        if a["scope"] == "delegate" and identify:     # acts for one of the app's end users, proven per request
+            from .delegate import act_for
+            with tenant_scope(a["tenant_id"]):
+                a = act_for(a, headers or {})
+        return a
     with system():
         r = db().execute("SELECT t.client_name, t.client_id, t.resource, u.* FROM oauth_tokens t JOIN users u "
                      "ON u.id = t.user_id WHERE t.token_hash = ? AND t.kind = 'access' AND t.revoked IS NULL "

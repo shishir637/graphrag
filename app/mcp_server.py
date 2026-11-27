@@ -109,9 +109,24 @@ def _bearer(headers) -> str | None:
     return h[7:].strip() if h[:7].lower() == "bearer " else None
 
 
-def resolve(token: str | None, resource: str | None = None, layer_link: str | None = None) -> dict | None:
-    """The caller behind a token, with their effective groups and the layers they read."""
-    a = core.principal_for_token(token, resource)
+def client_ip(scope) -> str:
+    """The caller's address; behind a trusted proxy (CL_TRUST_PROXY=1) the first X-Forwarded-For address."""
+    import os
+    if os.environ.get("CL_TRUST_PROXY") == "1":
+        for k, v in scope.get("headers", []):
+            if k.decode().lower() == "x-forwarded-for":
+                return v.decode().split(",")[0].strip()
+    c = scope.get("client")
+    return c[0] if c else ""
+
+
+def resolve(token: str | None, resource: str | None = None, layer_link: str | None = None,
+            principal: dict | None = None) -> dict | None:
+    """The caller behind a token, with their effective groups and the layers they read. principal: already checked
+    by the gate for this request (a delegate key's end user is proven once per request)."""
+    a = dict(principal) if principal else core.principal_for_token(token, resource)
+    if a and a.get("scope") == "delegate" and not a.get("external_user"):     # never the key's own access
+        a = dict(a, groups=["__none__"], denied="This key acts for end users: send the signed user identity.")
     if a:                                   # the rest of this call runs in the caller's workspace (one call = one context)
         from . import db as D
         D.TENANT.set(a.get("tenant_id"))
@@ -147,7 +162,8 @@ def _scope(ctx: Context) -> dict:
 
 
 def _agent(ctx: Context) -> dict:
-    a = resolve(_bearer(ctx.headers), layer_link=_scope(ctx).get("cl_layer_link"))
+    sc = _scope(ctx)
+    a = resolve(_bearer(ctx.headers), layer_link=sc.get("cl_layer_link"), principal=sc.get("cl_principal"))
     if a is None:
         raise ToolError("Invalid, expired or revoked sign-in. Reconnect Context Layer.")
     if a.get("denied"):
@@ -189,7 +205,8 @@ def run(agent: dict, tool: str, args: dict, fn, wait: bool = True) -> dict:
         summary = out.get("route") or (f"{len(out['passages'])} passages" if "passages" in out else
                                        f"{out['row_count']} rows" if "row_count" in out else "ok")
         core.log_event("agent", agent["name"], f"tool.{tool}", args.get("question") or args.get("query") or
-                       args.get("passage_id") or "", {"args": args, "summary": summary, "agent_id": agent["id"]},
+                       args.get("passage_id") or "", {"args": args, "summary": summary, "agent_id": agent["id"],
+                        **({"end_user": agent["external_user"]} if agent.get("external_user") else {})},
                        True, t())
         return out
     except ToolError as e:
@@ -783,9 +800,18 @@ class KeyGate:
         if scope["type"] == "http":
             from . import oauth
             from .public import base_url
-            tok = _bearer({k.decode().lower(): v.decode() for k, v in scope.get("headers", [])})
-            if core.principal_for_token(tok, base_url(scope) + scope.get("cl_resource_path", "/mcp")) is None:
-                body = json.dumps({"error": "invalid_token", "error_description":
+            hdrs = {k.decode().lower(): v.decode() for k, v in scope.get("headers", [])}
+            tok = _bearer(hdrs)
+            why = None
+            try:                                  # key expiry, IP allow-list and a delegate key's end user, once
+                caller = core.principal_for_token(tok, base_url(scope) + scope.get("cl_resource_path", "/mcp"),
+                                                  client_ip(scope), hdrs, identify=True)
+            except PermissionError as e:
+                caller, why = None, str(e)
+            if caller is not None:
+                scope["cl_principal"] = caller
+            if caller is None:
+                body = json.dumps({"error": "invalid_token", "error_description": why or
                                    "Sign in to Context Layer from your AI app, or send 'Authorization: Bearer <key>' "
                                    "(keys are made under Agents in Context Layer)."}).encode()
                 www = oauth.www_authenticate(scope, bool(tok)) if oauth.enabled() else b'Bearer error="invalid_token"'
