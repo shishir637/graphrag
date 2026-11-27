@@ -16,7 +16,7 @@ def chunk_access() -> dict:
 def _entry() -> dict:
     from rag import passages
     from rag.config import OUT_DIR as RAG_OUT
-    e = _ACCESS.entry(RAG_OUT / "2_chunks.json")              # cache key per workspace
+    e = _ACCESS.entry(RAG_OUT / "_passage_access")            # cache key per workspace (no file)
     m = passages.stamp()
     if m is None:
         return {"mtime": None, "map": {}, "groups": set()}

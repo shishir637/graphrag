@@ -120,6 +120,8 @@ def test_product_never_imports_age():
     root = pathlib.Path(__file__).resolve().parent.parent
     for folder in ("app", "graph", "rag", "semantic", "facts", "connectors"):
         for p in (root / folder).glob("*.py"):
+            if p.name == "upgrade.py":                       # the cleanup tool that removes AGE's leftovers
+                continue
             src = p.read_text(encoding="utf-8")
             assert not re.search(r"graph\.store|from graph import store|experiments\.graph_age|ag_catalog|cypher\(", src), p
             if folder == "graph":

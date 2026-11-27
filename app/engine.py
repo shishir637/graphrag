@@ -660,11 +660,11 @@ def _sources_version() -> tuple:
     from semantic import config as S
     from rag import passages
     from graph import kg
-    paths = [OUT_DIR / "2_chunks.json", OUT_DIR / "4_index.json", OUT_DIR / "_graph_build.json", ACCESS_FILE]
-    if _in_workspace():
+    if _in_workspace():                     # everything is versioned in Postgres; the index report is the only file
         from semantic import repo
         from .db import current_tenant
-        return (current_tenant(), repo.layer_version(), passages.stamp(), kg.version(), *(_mtime(p) for p in paths))
+        return (current_tenant(), repo.layer_version(), passages.stamp(), kg.version(), _mtime(OUT_DIR / "4_index.json"))
+    paths = [OUT_DIR / "2_chunks.json", OUT_DIR / "4_index.json", OUT_DIR / "_graph_build.json", ACCESS_FILE]
     paths += [*sorted(S.LAYER_DIR.glob("*.yaml")), S.INSTRUCTIONS_FILE]
     return tuple(_mtime(p) for p in paths)
 

@@ -135,7 +135,7 @@ def vocabulary() -> set[str]:
     """Words of the workspace's passages, metric names and labels, synonyms and known values (cached per build)."""
     from rag import passages
     from rag.config import OUT_DIR
-    path = OUT_DIR / "2_chunks.json"                     # cache key per workspace
+    path = OUT_DIR / "_vocabulary"                       # cache key per workspace (no file)
     m = passages.stamp()
     from semantic.answer import _layer_version
     try:
@@ -210,7 +210,7 @@ def check(question: str, caps: list[str] | None = None, _mp=_NO_PLAN) -> dict:
     except Exception:                                      # noqa: BLE001 - no facts
         pass
     vocab = vocabulary()
-    sv = _VOCAB.entry(__import__("rag.config", fromlist=["OUT_DIR"]).OUT_DIR / "2_chunks.json").get("sorted") or sorted(vocab)
+    sv = _VOCAB.entry(__import__("rag.config", fromlist=["OUT_DIR"]).OUT_DIR / "_vocabulary").get("sorted") or sorted(vocab)
     words = _words(q)
     if words and vocab:
         known = [w for w in words if _known(w, vocab, sv)]

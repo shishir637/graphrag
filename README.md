@@ -6,9 +6,13 @@ evidence - passages with sources, numbers computed from reviewed definitions, kn
 the agent writes the answer. **No AI model runs inside Context Layer and no API key is needed**: search,
 re-ranking, entity extraction and metric planning all run locally on CPU.
 One server hosts many **workspaces** (companies, teams, products). Each workspace connects its sources once
-(uploads, GitHub, a Postgres database) and they are then **picked up on their own**: synced on a schedule or a
-webhook, indexed incrementally, metrics drafted and checked every night. Workspaces never see each other's data
-(Postgres row-level security, a workspace filter on every search).
+(uploads, GitHub, S3-compatible folders, Postgres or MySQL databases) and they are then **picked up on their own**:
+synced on a schedule or a webhook, indexed incrementally, metrics drafted and checked every night. Workspaces never
+see each other's data (Postgres row-level security, a workspace filter on every search).
+
+Every piece of data has one home (0.7, see [ARCHITECTURE.md](ARCHITECTURE.md)): raw files in a **landing zone**
+(tables as Parquet, original documents), everything the system knows and decides in **Postgres**, and **derived
+engines** (DuckDB views, the in-memory graph, the Qdrant index) that can always be rebuilt from the first two.
 
 **New here? Follow [GETTING-STARTED.md](GETTING-STARTED.md).** Who it is for: [PRODUCT.md](PRODUCT.md). What changed: [CHANGES.md](CHANGES.md).
 
@@ -32,7 +36,7 @@ background and answers from them once `build_status` says ready.
 
 ```bash
 cp .env.example .env          # set CL_DB_PASSWORD (long random) and CL_SECRET_KEY (see the file)
-docker compose up -d          # app + Postgres + Qdrant; the first run downloads ~5 GB of local models
+docker compose up -d          # app + worker + Postgres + Qdrant; the first run downloads ~5 GB of local models
 ```
 
 Open http://localhost:8080, create the owner account, then follow the checklist on the Overview page:
@@ -45,10 +49,14 @@ the knowledge graph, then connect your first agent. Agents connect to `http://<s
   scheduler; `CL_ROLE=worker`). One container with `CL_ROLE=all` (the default outside Compose) also works.
 - Everything stays in the Docker volumes; there is no outbound traffic except model downloads on first use.
 - Backups: the volumes `db_data` (Postgres: workspaces, people, keys, audit, semantic layer, ontology, document
-  groups, facts and document cards, passages, jobs, connectors, encrypted secrets, graph copy) and `app_data` (each
-  workspace's landing zone: documents, data tables as Parquet, and build outputs such as embeddings and the graph
-  build `_graph_build.json`); keep `CL_SECRET_KEY` with them.
+  groups, passages, the knowledge graph, facts and document cards, the landing manifest, jobs, connectors,
+  encrypted secrets) and `app_data` (each workspace's landing zone: documents and data tables as Parquet, plus
+  build outputs such as embeddings); keep `CL_SECRET_KEY` with them.
   `qdrant_data` can be rebuilt from them ("Prepare documents").
+- Coming from 0.6: pull, then `docker compose up -d --build`. The database now runs on the official `postgres:17`
+  image and existing workspaces are upgraded at the first start (tables to Parquet, passages and the graph into
+  Postgres; nothing is deleted). Afterwards the old Apache AGE copies can be removed:
+  `docker compose exec app python -m app.upgrade drop-age`. The `metric_store` volume is no longer used.
 - Coming from 0.4 (one workspace, SQLite): `docker compose run --rm app python -m app.migrate_local var/app.db`.
 
 ## Run without Docker (development, Windows/macOS/Linux)
@@ -70,7 +78,7 @@ forwards the API to 8080), then `npm run build`.
 |---|---|
 | Web app (React + TypeScript) | `web/src` (pages in `web/src/pages`) |
 | API, sign-in, workspaces, roles, agents, audit | `app/main.py`, `app/core.py`, `app/db.py` (Postgres, row-level security; schema in `migrations/`) |
-| Where things are stored | Postgres: everything people define or decide (workspaces, keys, semantic layer, ontology, document groups, facts, cards, inbox decisions, jobs, audit). Workspace folder (`CL_FILES_DIR/<workspace>/`): files and build outputs (passages, embeddings, graph build). Qdrant: search vectors. |
+| Where things are stored | See [ARCHITECTURE.md](ARCHITECTURE.md). Postgres: everything the system knows and decides (workspaces, keys, semantic layer, ontology, passages, the knowledge graph, facts, cards, inbox decisions, the landing manifest, jobs, audit). Landing zone (`CL_FILES_DIR/<workspace>/`, through `app/storage.py`): original documents and tables as Parquet. Derived: DuckDB views, the in-memory graph, Qdrant. |
 | Facts, cards, inbox, grounding | `facts/` (kinds, extraction, checks, matching to database rows, inbox), `app/planner.py` (answerable?, route, split, secondary sources), `app/grounding.py` |
 | Background jobs, scheduler | `app/jobs.py` (queue in Postgres), `app/scheduler.py`, `semantic/monitor.py`, `semantic/learn.py` |
 | Connectors | `connectors/`: SQL family on `sql_base.py` (Postgres, MySQL: snapshot/live), file family on `files_base.py` (GitHub with an engineering semantic layer, S3-compatible folders); secrets in `app/vault.py` |

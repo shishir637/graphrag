@@ -279,7 +279,7 @@ def _chunk_index() -> dict:
     mtime = passages.stamp()
     if mtime is None:
         return {"by_id": {}, "by_source": {}}
-    e = _CHUNK_INDEX.entry(OUT_DIR / "2_chunks.json")
+    e = _CHUNK_INDEX.entry(OUT_DIR / "_passage_index")       # cache key per workspace (no file)
     if e["mtime"] != mtime:
         by_id, by_source = {}, {}
         for c in passages.all():

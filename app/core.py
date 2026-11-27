@@ -19,7 +19,7 @@ from .db import current_tenant, db, system, tenant_scope, tx   # noqa: F401  (re
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.environ.get("CL_DATA_DIR", ROOT / "var"))
 SECRETS_FILE = DATA_DIR / "secrets.json"
-VERSION = "0.6.0"
+VERSION = "0.7.0"
 SESSION_DAYS = 14
 ROLES = ("owner", "admin", "viewer")
 CAPABILITIES = ("documents", "data", "graph", "upload")

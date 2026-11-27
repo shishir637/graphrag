@@ -5,9 +5,14 @@ folder, and does nothing when there is nothing left to do, so running it twice c
   landing    CSV tables -> Parquet, a manifest row for every landed file          (app/landing.py)
   passages   outputs/2_chunks.json -> Postgres table passages                     (rag/passages.py)
   graph      outputs/_graph_build.json -> Postgres graph tables                    (graph/kg.py)
-Steps added by later phases are listed in STEPS. One process at a time runs it (a Postgres advisory lock), so an
-API and a worker container starting together never race.
+One process at a time runs it (a Postgres advisory lock), so an API and a worker container starting together never
+race.
+
+python -m app.upgrade drop-age removes what Apache AGE left in a database created before 0.7 (the per-workspace graph
+copies and the extension). It refuses while any workspace still has a _graph_build.json to move into the graph
+tables, and it needs the database owner (it runs with CL_DATABASE_URL's user, like the migrations).
 """
+import sys
 import traceback
 
 LOCK_ID = 727002
@@ -35,6 +40,36 @@ def run_workspace(tenant_id: str) -> dict:
     return out
 
 
+def drop_age() -> dict:
+    """Drop the Apache AGE graph copies and the extension (the product no longer uses them). Idempotent."""
+    import psycopg
+    from rag.wspath import files_root
+    left = sorted(str(p) for p in files_root().glob("*/outputs/_graph_build.json"))
+    if left:
+        raise SystemExit("Some workspaces still have a graph build file to move into the graph tables; start the app "
+                         "once (it moves them) and run this again: " + ", ".join(left[:5]))
+    from .db import url
+    out = {"schemas": [], "extension": False}
+    with psycopg.connect(url(), autocommit=True) as c:
+        has_catalog = c.execute("SELECT 1 FROM pg_namespace WHERE nspname = 'ag_catalog'").fetchone()
+        if has_catalog:
+            for (name,) in c.execute("SELECT name::text FROM ag_catalog.ag_graph").fetchall():
+                try:                                   # AGE still installed: let it drop its own graph
+                    c.execute("LOAD 'age'")
+                    c.execute("SELECT ag_catalog.drop_graph(%s, true)", (name,))
+                except psycopg.Error:                  # the official image (no AGE library): drop the schema
+                    c.execute(f'DROP SCHEMA IF EXISTS "{name}" CASCADE')
+                out["schemas"].append(name)
+        for (name,) in c.execute("SELECT nspname FROM pg_namespace WHERE nspname LIKE 'kg\\_t\\_%'").fetchall():
+            c.execute(f'DROP SCHEMA IF EXISTS "{name}" CASCADE')            # the kg_* side tables of each copy
+            out["schemas"].append(name)
+        if c.execute("SELECT 1 FROM pg_extension WHERE extname = 'age'").fetchone():
+            c.execute("DROP EXTENSION age CASCADE")
+            out["extension"] = True
+        c.execute("DROP SCHEMA IF EXISTS ag_catalog CASCADE")
+    return out
+
+
 def run() -> dict:
     """Upgrade every workspace. Returns {workspace: {step: result}} for the workspaces that changed."""
     import psycopg
@@ -59,3 +94,10 @@ def run() -> dict:
             return done
         finally:
             lock.execute("SELECT pg_advisory_unlock(%s)", (LOCK_ID,))
+if __name__ == "__main__":
+    if sys.argv[1:] == ["drop-age"]:
+        print(f"removed: {drop_age()}")
+    elif sys.argv[1:] in ([], ["run"]):
+        print(f"upgraded: {run() or 'nothing to do'}")
+    else:
+        raise SystemExit("usage: python -m app.upgrade [run | drop-age]")

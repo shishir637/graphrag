@@ -1,7 +1,9 @@
 # Context Layer: product brief (v0.1, self-hosted)
 
 > 0.5: one server hosts many workspaces (sign-up or invite); each connects sources once (uploads, GitHub, Postgres)
-> that are then kept up to date on their own. See CHANGES.md.
+> that are then kept up to date on their own. 0.7: one home for every piece of data (landing zone, Postgres,
+> rebuildable engines; ARCHITECTURE.md), MySQL and S3-compatible folders, separate API and worker containers.
+> See CHANGES.md.
 
 ## Who it is for
 
@@ -55,7 +57,7 @@ can get `finance` documents plus metrics.
 
 ## Packaging
 
-- One `docker compose up` brings up the app and its Postgres + Apache AGE; models are downloaded on
+- One `docker compose up` brings up the app, a worker, Postgres (the official image) and Qdrant; models are downloaded on
   first use and cached in a volume. Windows Application Control does not apply inside the container.
 - All data stays in the customer's volumes. Outbound traffic only to the AI provider they configure
   (none with a local model).

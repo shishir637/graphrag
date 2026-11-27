@@ -12,7 +12,7 @@
 #   worker  the same image running the job workers and the scheduler (CL_ROLE=worker, python -m app.worker);
 #           it shares the app's volumes. One container with CL_ROLE=all (the default) also still works.
 x-context-layer: &context-layer
-  image: context-layer:0.6.0
+  image: context-layer:0.7.0
   restart: unless-stopped
   depends_on:
     db: { condition: service_healthy }
@@ -31,7 +31,6 @@ x-context-layer-env: &context-layer-env
       CL_PUBLIC_HOSTS: ${CL_PUBLIC_HOSTS:-}
       CL_PUBLIC_URL: ${CL_PUBLIC_URL:-}
       CL_DATABASE_URL: postgresql://rag:${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}@db:5432/contextlayer
-      GRAPH_PG_DSN: host=db port=5432 dbname=contextlayer user=rag password=${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
       QDRANT_URL: http://qdrant:6333
       QDRANT_API_KEY: ${CL_QDRANT_API_KEY:?set CL_QDRANT_API_KEY in .env}
       CL_SECRET_KEY: ${CL_SECRET_KEY:-}
@@ -65,15 +64,14 @@ services:
       timeout: 5s
       start_period: 120s
 
-  db:                           # PostgreSQL 17 + Apache AGE + pgvector. Not published outside Docker.
-    build: ./db
-    image: context-layer-db:17
+  db:                           # the official PostgreSQL 17 image (0.7: no Apache AGE, no pgvector). Not published.
+    image: postgres:17
     restart: unless-stopped
     environment:
       POSTGRES_USER: rag
       POSTGRES_PASSWORD: ${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
       POSTGRES_DB: contextlayer
-    command: ["postgres", "-c", "shared_preload_libraries=age", "-c", "work_mem=64MB", "-c", "maintenance_work_mem=256MB"]
+    command: ["postgres", "-c", "work_mem=64MB", "-c", "maintenance_work_mem=256MB"]
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:

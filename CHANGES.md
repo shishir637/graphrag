@@ -110,6 +110,20 @@ runs no AI model. Existing workspaces are upgraded automatically at start (`app/
 - Optional, off by default (`CL_EVENTS_ARCHIVE=1` or the workspace setting `events_archive`): audit events older
   than the retention period are copied to `<workspace>/archive/events-YYYY-MM.parquet` before they are deleted.
 
+**Cleanup**
+- The database runs on the official `postgres:17` image (no Apache AGE, no pgvector); `db/Dockerfile` is gone and
+  `docker-compose.graph.yml` moved to `experiments/` with the AGE research code.
+- Inside a workspace nothing reads or writes `2_chunks.json`, `_graph_build.json` or `enrichment.duckdb` any more
+  (the command line keeps its files). New `ARCHITECTURE.md`: the three layers, where identity and secrets are
+  stored, and how to switch the landing zone to an S3-compatible store.
+
+**Upgrading from 0.6**: `docker compose up -d --build`. Old database volumes start on the official image (AGE was
+only preloaded by the old image's command line). At the first start every workspace is upgraded automatically and
+idempotently (`app/upgrade.py`, also `python -m app.upgrade`): CSV tables to Parquet, manifest rows for existing
+files, `2_chunks.json` and `_graph_build.json` into Postgres (the files are kept with a `.pre-0.7` suffix). When that
+has run, `python -m app.upgrade drop-age` removes the unused AGE graph copies and extension (it refuses while a
+workspace still has a graph build file to move). The `metric_store` volume is no longer used.
+
 ## 0.6.0: accuracy: facts, checks, an inbox, "answerable?" and a grounding check
 
 No AI model is added: everything below is rules, regular expressions, RapidFuzz and the local models already used.
