@@ -36,12 +36,10 @@ def _words(text: str) -> list[str]:
 
 def vocabulary() -> set[str]:
     """Words of the workspace's passages, metric names and labels, synonyms and known values (cached per build)."""
+    from rag import passages
     from rag.config import OUT_DIR
-    path = OUT_DIR / "2_chunks.json"
-    try:
-        m = path.stat().st_mtime
-    except OSError:
-        m = None
+    path = OUT_DIR / "2_chunks.json"                     # cache key per workspace
+    m = passages.stamp()
     from semantic.answer import _layer_version
     try:
         lv = _layer_version()
@@ -52,7 +50,7 @@ def vocabulary() -> set[str]:
         return e["words"]
     words: set[str] = set()
     if m is not None:
-        for c in json.loads(path.read_text(encoding="utf-8")):
+        for c in passages.all():
             words.update(_words(c["text"] + " " + " ".join(c.get("headings") or [])))
     try:
         from semantic.enrich import load_store

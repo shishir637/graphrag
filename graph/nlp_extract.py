@@ -33,7 +33,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_FILE = ROOT / "graph_layer" / "schema.yaml"
 from .config import OUT_DIR  # noqa: E402
 
-CHUNKS = OUT_DIR / "2_chunks.json"              # per workspace
+CHUNKS = OUT_DIR / "2_chunks.json"              # command line only; the app reads rag/passages.py
 SPACY_MODEL = "en_core_web_lg"
 GLINER_MODEL = "urchade/gliner_medium-v2.1"          # Apache-2.0
 GLINER2_MODEL = "fastino/gliner2-base-v1"            # Apache-2.0
@@ -239,7 +239,9 @@ def _th(chunk: dict) -> str:
 
 def extract_all(out: Path, mode: str = "accurate", relations: str = "cooc", ids: list[str] | None = None,
                 resume: bool = True) -> Path:
-    chunks = json.loads(CHUNKS.read_text(encoding="utf-8"))
+    from rag import passages
+    from rag.wspath import current_workspace
+    chunks = passages.all() if current_workspace() else json.loads(CHUNKS.read_text(encoding="utf-8"))
     if ids:
         keep = set(ids)
         chunks = [c for c in chunks if c["chunk_id"] in keep]

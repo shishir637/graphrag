@@ -43,9 +43,9 @@ the knowledge graph, then connect your first agent. Agents connect to `http://<s
   and `CL_PUBLIC_HOSTS=contextlayer.yourcompany.com` in `.env`.
 - Everything stays in the Docker volumes; there is no outbound traffic except model downloads on first use.
 - Backups: the volumes `db_data` (Postgres: workspaces, people, keys, audit, semantic layer, ontology, document
-  groups, facts and document cards, jobs, connectors, encrypted secrets, graph copy) and `app_data` (each workspace's
-  folder: documents, data tables, and the build outputs: passages `2_chunks.json`, embeddings, the graph build
-  `_graph_build.json`); keep `CL_SECRET_KEY` with them.
+  groups, facts and document cards, passages, jobs, connectors, encrypted secrets, graph copy) and `app_data` (each
+  workspace's landing zone: documents, data tables as Parquet, and build outputs such as embeddings and the graph
+  build `_graph_build.json`); keep `CL_SECRET_KEY` with them.
   `qdrant_data` can be rebuilt from them ("Prepare documents").
 - Coming from 0.4 (one workspace, SQLite): `docker compose run --rm app python -m app.migrate_local var/app.db`.
 
@@ -113,7 +113,7 @@ eval_questions.json   test set for RAGAS
 | # | Layer | Tool | Output file |
 |---|-------|------|-------------|
 | 1 | Parsing | Docling (headings, tables, pages, OCR) | `outputs/1_parsed.json` |
-| 2 | Chunking | Docling HybridChunker (BGE-M3 tokenizer, 512 tok) / RecursiveCharacterTextSplitter for .txt | `outputs/2_chunks.json` |
+| 2 | Chunking | Docling HybridChunker (BGE-M3 tokenizer, 512 tok) / RecursiveCharacterTextSplitter for .txt | Postgres `passages` (app) / `outputs/2_chunks.json` (command line) |
 | 3 | Embedding | BGE-M3 dense (1024-d) + BM25 sparse | `outputs/3_embeddings.json` |
 | 4 | Vector store | Qdrant (HNSW dense + IDF sparse, payload indexes) | `outputs/4_index.json` |
 | 5+8+9 | Retrieval | Qdrant: dense + BM25 with permission filter **inside** the query, fused with RRF | `outputs/5_retrieval.json` |

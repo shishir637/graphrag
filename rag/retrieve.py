@@ -108,11 +108,25 @@ def _hit(p, score_key="score") -> dict:
     return {"chunk_id": p.payload["chunk_id"], "source": p.payload["source"], "pages": p.payload.get("pages") or [],
             "headings": p.payload.get("headings") or [],
             score_key: round(p.score, 4) if getattr(p, "score", None) is not None else None,
-            "text": p.payload["text"], "access": p.payload.get("access") or []}
+            "text": p.payload.get("text"), "access": p.payload.get("access") or []}
 
 
 def _hits(points, score_key="score"):
     return [_hit(p, score_key) for p in points]
+
+
+def fill_texts(hits: list[dict]) -> list[dict]:
+    """Passage texts from the passages repository, in one query (the search index keeps only ids and filters).
+    A hit whose passage no longer exists is dropped."""
+    need = [h["chunk_id"] for h in hits if h.get("text") is None]
+    if not need:
+        return hits
+    from . import passages
+    t = passages.texts(need)
+    for h in hits:
+        if h.get("text") is None:
+            h["text"] = t.get(h["chunk_id"])
+    return [h for h in hits if h.get("text") is not None]
 
 
 def point_id(chunk_id: str) -> str:
@@ -136,6 +150,7 @@ def fetch_chunks(chunk_ids: list[str], groups: list[str] | None, sources: list[s
         if sources and p.payload["source"] not in sources:
             continue
         out.append(_hit(p, "graph_score"))
+    out = fill_texts(out)
     order = {c: i for i, c in enumerate(chunk_ids)}
     return sorted(out, key=lambda h: order.get(h["chunk_id"], 1e9))
 
@@ -205,7 +220,8 @@ def retrieve(question: str, groups: list[str] | None = None, sources: list[str] 
             query=models.FusionQuery(fusion=models.Fusion.RRF),
             limit=FUSED_TOP_K, with_payload=True,
         ).points
-    fused_hits = _hits(fused, "rrf_score")
+    with timer("texts", timings):
+        fused_hits = fill_texts(_hits(fused, "rrf_score"))
 
     graph_info, entities = None, []
     if use_graph and not headings:
@@ -253,22 +269,20 @@ def retrieve(question: str, groups: list[str] | None = None, sources: list[str] 
 # ---------- surrounding context ----------
 from .wspath import PerFile  # noqa: E402
 
-_CHUNK_INDEX = PerFile()                    # per chunks file (per workspace)
+_CHUNK_INDEX = PerFile()                    # per workspace
 
 
 def _chunk_index() -> dict:
-    """chunk_id -> (source, position) from outputs/2_chunks.json, reloaded when the file changes."""
+    """chunk_id -> (source, position) from the passages repository, reloaded when the passages change."""
+    from . import passages
     from .config import OUT_DIR
-    path = OUT_DIR / "2_chunks.json"
-    try:
-        mtime = path.stat().st_mtime
-    except OSError:
+    mtime = passages.stamp()
+    if mtime is None:
         return {"by_id": {}, "by_source": {}}
-    e = _CHUNK_INDEX.entry(path)
+    e = _CHUNK_INDEX.entry(OUT_DIR / "2_chunks.json")
     if e["mtime"] != mtime:
-        import json
         by_id, by_source = {}, {}
-        for c in json.loads(path.read_text(encoding="utf-8")):
+        for c in passages.all():
             lst = by_source.setdefault(c["source"], [])
             by_id[c["chunk_id"]] = (c["source"], len(lst))
             lst.append(c)

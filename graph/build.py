@@ -382,7 +382,8 @@ def build(paths: list[str], tables: bool = True, reuse: bool = False):
 
 
 def _store(store, read_json, entities, relations, comms, chunk_ids, t0):
-    chunks = [c for c in read_json("2_chunks.json") if c["chunk_id"] in chunk_ids]
+    from rag import passages
+    chunks = list(passages.by_ids(chunk_ids).values())
     age = {"stored_in_age": False}
     try:                                   # Apache AGE copy for Cypher queries; answering works without it
         store.reset_graph()

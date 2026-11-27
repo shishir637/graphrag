@@ -1,6 +1,7 @@
 """Step 2 - Chunking: Docling HybridChunker for documents, RecursiveCharacterTextSplitter for plain text.
 
-Output: outputs/2_chunks.json
+Output: the passages repository (rag/passages.py): Postgres inside a workspace, outputs/2_chunks.json on the
+command line. Unchanged passages (same id and text) are left as they are.
 """
 import hashlib
 
@@ -59,5 +60,8 @@ def chunk_all() -> list[dict]:
     for c in chunks:
         c["n_tokens"] = len(hf_tok.encode(c["embed_text"], add_special_tokens=False))
     print(f"  {len(chunks)} chunks, max {max(c['n_tokens'] for c in chunks)} tokens")
-    write_json("2_chunks.json", chunks)
+    from . import passages
+    r = passages.save_all(chunks)
+    if "added" in r:
+        print(f"  passages: {r}")
     return chunks

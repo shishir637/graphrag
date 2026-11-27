@@ -76,10 +76,8 @@ def link_all(verbose: bool = True) -> int:
         return 0
     facts = core.db().execute("SELECT f.id, f.kind, f.field, f.norm, f.chunk_id, f.quote FROM facts f WHERE f.tenant_id = ? "
                               "AND f.status = 'approved'", (t,)).fetchall()
-    from rag.config import OUT_DIR
-    import json
-    p = OUT_DIR / "2_chunks.json"
-    texts = {c["chunk_id"]: c["text"] for c in json.loads(p.read_text(encoding="utf-8"))} if p.exists() else {}
+    from rag import passages
+    texts = passages.texts([f["chunk_id"] for f in facts])
     decided = {r["fact_id"] for r in core.db().execute("SELECT fact_id FROM fact_links WHERE tenant_id = ? AND decided_by IS NOT NULL",
                                                        (t,))}
     n = 0

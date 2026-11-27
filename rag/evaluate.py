@@ -231,7 +231,8 @@ def draft_mixed_questions(n: int = 60):
       comparison  - needs passages from two different regions
       unanswerable- about India but not covered by the document (should get "not found")
     Each item keeps the chunk ids holding the answer, so retrieval hit rate can be measured."""
-    chunks = read_json("2_chunks.json")
+    from . import passages
+    chunks = passages.all()
     regions = _regions_by_chunk(chunks)
     usable = [(c, r) for c, r in zip(chunks, regions) if r and len(c["text"]) > 500 and "public" in c["access"]]
     by_region: dict[str, list[dict]] = {}
@@ -306,7 +307,8 @@ class _QASet(BaseModel):
 def draft_questions(n: int = 20):
     """Bootstrap an eval set: Claude writes question + reference answer pairs from random chunks.
     Review/edit eval_questions.json afterwards and add real user questions."""
-    chunks = [c for c in read_json("2_chunks.json") if "public" in c["access"] and len(c["text"]) > 150]
+    from . import passages
+    chunks = [c for c in passages.all() if "public" in c["access"] and len(c["text"]) > 150]
     random.seed(7)
     sample = random.sample(chunks, min(n, len(chunks)))
     per_chunk = max(1, n // len(sample))

@@ -70,7 +70,8 @@ def _write(outputs, docs):
             chunks.append({"chunk_id": cid, "source": src, "access": ["public"], "headings": [], "pages": [], "text": t})
             vecs.append({"chunk_id": cid, "text_hash": str(hash(t)), "dense": _vec(t),
                          "sparse": {"indices": [1, 2], "values": [0.5, 0.5]}})
-    (outputs / "2_chunks.json").write_text(json.dumps(chunks))
+    from rag import passages
+    passages.save_all(chunks)
     (outputs / "3_embeddings.json").write_text(json.dumps({"vectors": vecs}))
 
 
@@ -101,4 +102,6 @@ def test_shared_qdrant_is_incremental_and_isolated(two, monkeypatch):
         assert {p.payload["source"] for p in pts} == {"g.md"}          # Globex never sees Acme's passages
     with core.tenant_scope(a):
         pts, _ = store.client().scroll("docs", scroll_filter=build_filter(None, None), limit=100)
-        assert {p.payload["text"] for p in pts} == {"alpha one", "alpha two changed"}
+        from rag import passages                                         # texts live in Postgres, ids in Qdrant
+        texts = passages.texts([p.payload["chunk_id"] for p in pts])
+        assert set(texts.values()) == {"alpha one", "alpha two changed"} and all("text" not in p.payload for p in pts)

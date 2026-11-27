@@ -66,7 +66,8 @@ def _existing(qc: QdrantClient, tenant: str) -> dict[str, str]:
 
 def build_index() -> dict:
     from .retrieve import point_id
-    chunks = {c["chunk_id"]: c for c in read_json("2_chunks.json")}
+    from . import passages
+    chunks = {c["chunk_id"]: c for c in passages.all()}
     emb = read_json("3_embeddings.json")
     qc = client()
     ensure_collection(qc)
@@ -83,7 +84,8 @@ def build_index() -> dict:
             continue                                  # unchanged passage and access: nothing to write
         points.append(models.PointStruct(
             id=pid, vector={"dense": r["dense"], "bm25": models.SparseVector(**r["sparse"])},
-            payload={k: c[k] for k in ("chunk_id", "source", "access", "headings", "pages", "text")} |
+            # ids and filter fields only: the text is in the passages repository (fetched by id when searching)
+            payload={k: c[k] for k in ("chunk_id", "source", "access", "headings", "pages")} |
                     {"tenant": tenant, "text_hash": version},
         ))
     for i in range(0, len(points), 256):          # batches keep memory and request size modest

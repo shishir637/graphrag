@@ -99,12 +99,13 @@ def ws(tmp_path):
 def write_chunks(docs):
     from rag.config import OUT_DIR
     from rag import registry
+    from rag import passages
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     chunks = []
     for name, (text, groups) in docs.items():
         registry.set_groups(name, groups)
         chunks.append(chunk(text, f"{name}-1", name) | {"access": groups})
-    (OUT_DIR / "2_chunks.json").write_text(json.dumps(chunks), encoding="utf-8")
+    passages.save_all(chunks)                                  # the passages repository (Postgres in a workspace)
 
 
 @needs_pg
@@ -116,12 +117,12 @@ def test_run_stores_facts_tables_cards_and_access(ws):
     with core.tenant_scope(a):
         write_chunks({"MSA-001.txt": (MSA, ["legal"]), "INV-2101.txt": (INVOICE, ["public"]),
                       "review.md": (MEETING, ["public"])})
-        from rag.config import OUT_DIR                       # like Docling: title and date only in the headings
-        import json as J
-        cs = J.loads((OUT_DIR / "2_chunks.json").read_text())
+        from rag import passages                             # like Docling: title and date only in the headings
+        cs = passages.all()
         lines = MEETING.splitlines()
-        cs[-1] |= {"headings": [lines[0]], "text": "\n".join(lines[1:])}
-        (OUT_DIR / "2_chunks.json").write_text(J.dumps(cs))
+        m = next(c for c in cs if c["source"] == "review.md")
+        m |= {"headings": [lines[0]], "text": "\n".join(lines[1:]), "embed_text": "\n".join(lines[1:])}
+        passages.save_all(cs)
         assert store.run() is True
         facts = store.facts_for(None)
         assert {f["kind"] for f in facts} == {"contract", "invoice", "meeting"}

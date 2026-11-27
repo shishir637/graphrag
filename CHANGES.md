@@ -32,6 +32,18 @@ runs no AI model. Existing workspaces are upgraded automatically at start (`app/
   the Lumora test set). Benchmark, 3M-row table (`experiments/bench_duckdb_views.py`): build 106 ms -> 1.7 ms,
   memory after build 126 MiB -> 0 MiB, a group-by query 72 ms -> 96 ms.
 
+**Passages in Postgres** (`rag/passages.py`, migration `012_passages.sql`)
+- The chunking step writes the passages to the `passages` table (text, headings, pages, access, text hash,
+  position) instead of `outputs/2_chunks.json`; unchanged passages are not touched, and a version
+  (`passages_state`) moves only when something changed, so caches reload exactly when needed.
+- Every reader goes through the repository: search, embedding, indexing, neighbours, the "answerable?" check, the
+  graph (access, search, build, extraction), facts and matching, `fetch_passage`. The command line keeps the file.
+- The search index keeps only ids and filter fields (chunk id, workspace, access, source, headings): retrieval reads
+  the candidates' texts from Postgres in one query. Measured on 20,000 passages, top 50
+  (`experiments/bench_passage_texts.py`): 28.0 ms with the text in the payload, 18.5 ms with ids + Postgres.
+  Indexes built before 0.7 still hold the text; it is simply not read, and points are rewritten as passages change.
+- Upgrade: each workspace's `2_chunks.json` moves into the table (kept as `2_chunks.json.pre-0.7`).
+
 ## 0.6.0: accuracy: facts, checks, an inbox, "answerable?" and a grounding check
 
 No AI model is added: everything below is rules, regular expressions, RapidFuzz and the local models already used.

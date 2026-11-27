@@ -77,12 +77,11 @@ def graph() -> dict:
                 chunk_ents[c].add(e["id"])
         df = Counter(len(e.get("chunk_ids") or []) for e in ents.values())
         texts, wdf = {}, Counter()
-        cpath = OUT_DIR / "2_chunks.json"
-        if cpath.exists():
-            for c in json.loads(cpath.read_text(encoding="utf-8")):
-                ws = _words(c["text"])
-                texts[c["chunk_id"]] = ws
-                wdf.update(ws)
+        from rag import passages
+        for c in passages.all():
+            ws = _words(c["text"])
+            texts[c["chunk_id"]] = ws
+            wdf.update(ws)
         _G.update(texts=texts, wdf=wdf, mtime=m, ents=ents, rels=data["relations"], comms=data.get("communities", []), names=dict(names),
                   name_keys=list(names), adj=adj, chunk_ents=chunk_ents, n_chunks=max(1, len(chunk_ents)), df=df)
     return _G

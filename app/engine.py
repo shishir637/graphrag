@@ -80,11 +80,8 @@ def _save_access(m: dict):
 
 
 def _chunk_stats() -> tuple[dict, float | None]:
-    p = OUT_DIR / "2_chunks.json"
-    chunks = _json(p, []) or []
-    per = {}
-    for c in chunks:
-        per[c["source"]] = per.get(c["source"], 0) + 1
+    from rag import passages
+    per = passages.counts_by_source()
     index_time = _mtime(OUT_DIR / "4_index.json")
     return per, index_time
 
@@ -344,7 +341,8 @@ def graph_mode() -> str:
 
 def build_graph():
     """Entities and links (spaCy, GLiNER + spaCy, or optional AI extraction), merging, Leiden communities."""
-    if not (OUT_DIR / "2_chunks.json").exists():
+    from rag import passages
+    if not passages.exists():
         raise RuntimeError("Prepare the documents first: the graph is built from their passages.")
     mode = graph_mode()
     if mode == "ai":
@@ -658,11 +656,12 @@ _ASK_CACHE: "dict[tuple, tuple[float, dict]]" = {}
 
 def _sources_version() -> tuple:
     from semantic import config as S
+    from rag import passages
     paths = [OUT_DIR / "2_chunks.json", OUT_DIR / "4_index.json", OUT_DIR / "_graph_build.json", ACCESS_FILE]
     if _in_workspace():
         from semantic import repo
         from .db import current_tenant
-        return (current_tenant(), repo.layer_version(), *(_mtime(p) for p in paths))
+        return (current_tenant(), repo.layer_version(), passages.stamp(), *(_mtime(p) for p in paths))
     paths += [S.STORE_DB, *sorted(S.LAYER_DIR.glob("*.yaml")), S.INSTRUCTIONS_FILE]
     return tuple(_mtime(p) for p in paths)
 
@@ -914,11 +913,12 @@ def passage(chunk_id: str, groups: list[str]) -> dict | None:
     from graph.access import visible
     if not visible(chunk_id, groups):
         return None
-    for c in _json(OUT_DIR / "2_chunks.json", []) or []:
-        if c["chunk_id"] == chunk_id:
-            return {"id": chunk_id, "source": c["source"], "pages": c.get("pages") or [],
-                    "section": " > ".join(c.get("headings") or []), "text": c["text"]}
-    return None
+    from rag import passages
+    c = passages.by_ids([chunk_id]).get(chunk_id)
+    if not c:
+        return None
+    return {"id": chunk_id, "source": c["source"], "pages": c.get("pages") or [],
+            "section": " > ".join(c.get("headings") or []), "text": c["text"]}
 
 
 def visible_documents(groups: list[str]) -> list[dict]:

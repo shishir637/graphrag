@@ -3,6 +3,7 @@
 Each step backfills the system of record and the landing zone from what older versions left in a workspace's
 folder, and does nothing when there is nothing left to do, so running it twice changes nothing:
   landing    CSV tables -> Parquet, a manifest row for every landed file          (app/landing.py)
+  passages   outputs/2_chunks.json -> Postgres table passages                     (rag/passages.py)
 Steps added by later phases are listed in STEPS. One process at a time runs it (a Postgres advisory lock), so an
 API and a worker container starting together never race.
 """
@@ -12,8 +13,9 @@ LOCK_ID = 727002
 
 
 def _steps():
+    from rag import passages
     from . import landing
-    return [("landing", landing.backfill)]
+    return [("landing", landing.backfill), ("passages", passages.backfill)]
 
 
 def run_workspace(tenant_id: str) -> dict:

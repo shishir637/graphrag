@@ -45,10 +45,10 @@ def run(verbose: bool = True) -> bool:
     from .validate import validate_document
     core = _db()
     t = core.current_tenant()
-    path = OUT_DIR / "2_chunks.json"
-    if not t or not path.exists():
+    from rag import passages
+    if not t or not passages.exists():
         return False
-    chunks = json.loads(path.read_text(encoding="utf-8"))
+    chunks = passages.all()
     by_doc: dict[str, list] = defaultdict(list)
     for c in chunks:
         by_doc[c["source"]].append(c)

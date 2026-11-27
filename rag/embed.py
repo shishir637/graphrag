@@ -17,7 +17,8 @@ def _h(text: str) -> str:
 
 
 def embed_all() -> list[dict]:
-    chunks = read_json("2_chunks.json")
+    from . import passages
+    chunks = passages.all()
     old = {}
     if (OUT_DIR / "3_embeddings.json").exists():
         try:
