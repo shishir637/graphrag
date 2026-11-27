@@ -704,8 +704,8 @@ def _ask(question: str, groups: list[str] | None, capabilities: list[str], mode:
     and clarifying questions (nothing guessed); a mixed question is answered part by part."""
     import os
     if mode == "auto" and os.environ.get("CL_ANSWERABLE", "1") != "0" and question.strip():
-        from app.answerable import check
-        chk = check(question, capabilities)
+        from app.planner import plan_question
+        chk = plan_question(question, capabilities)       # answerable?, route, parts, secondary: one pass
         if not chk["answerable"]:
             from semantic.learn import record
             record(question, "not_answerable")
@@ -716,6 +716,7 @@ def _ask(question: str, groups: list[str] | None, capabilities: list[str], mode:
                     "guidance": GUIDANCE, "timings_s": {"total": 0.0}}
         if split and chk["parts"]:
             return _ask_parts(question, chk["parts"], groups, capabilities)
+        return _ask_one(question, groups, capabilities, mode, planned=chk)
     return _ask_one(question, groups, capabilities, mode)
 
 
@@ -745,8 +746,9 @@ def _ask_parts(question: str, parts: list[str], groups, capabilities) -> dict:
             "notes": [], "guidance": GUIDANCE, "timings_s": {"total": round(time.perf_counter() - t0, 3)}}
 
 
-def _ask_one(question: str, groups: list[str] | None, capabilities: list[str], mode: str = "auto") -> dict:
-    from app.router import plan as pick_plan
+def _ask_one(question: str, groups: list[str] | None, capabilities: list[str], mode: str = "auto",
+             planned: dict | None = None) -> dict:
+    from app.planner import plan as pick_plan
     from graph import search as GS
     from graph.access import sees_everything, visible
     question = question.strip()
@@ -756,7 +758,9 @@ def _ask_one(question: str, groups: list[str] | None, capabilities: list[str], m
     t0 = time.perf_counter()
     notes = []
     secondary: list[str] = []
-    if mode == "auto":
+    if mode == "auto" and planned:
+        chosen, secondary, reason = planned["route"], list(planned["secondary"]), planned["route_reason"]
+    elif mode == "auto":
         chosen, secondary, reason = pick_plan(question)
     else:
         chosen, reason = {"documents": "documents", "metrics": "data", "graph": "connections",
@@ -833,7 +837,7 @@ def _ask_one(question: str, groups: list[str] | None, capabilities: list[str], m
 
 def _note_gap(question: str, chosen: str, out: dict, capabilities):
     """Questions the layer could not serve feed the weekly synonym suggestions (semantic/learn.py)."""
-    from app.router import COUNTING
+    from app.planner import COUNTING
     from semantic.learn import record
     if "data" in capabilities and COUNTING.search(question) and not (out.get("data") or {}).get("found"):
         record(question, "no_metric")

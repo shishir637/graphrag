@@ -64,6 +64,15 @@ runs no AI model. Existing workspaces are upgraded automatically at start (`app/
   the plan cache moved to `outputs/sl_plan_cache.json`. The `metric_store` Docker volume is gone (an existing one is
   simply left unused; `docker volume rm <project>_metric_store` removes it).
 
+**One question planner, one inbox** (`app/planner.py`, `facts/inbox.py`)
+- `app/planner.py` makes every decision about a question in one rule-based pass: answerable? (signals, reason,
+  clarifying questions), route, parts of a mixed question, secondary sources. The metric planner runs once per
+  question and its plan is shared by every step. `ask` uses it; `app/router.py` and `app/answerable.py` are thin
+  wrappers for their existing callers (their tests pass unchanged).
+- Every review decision goes through `facts/inbox.py`: the inbox page, approving on the Metrics and Ontology pages,
+  and the MCP tools `review_inbox`, `review_ontology` and `approve_metric`. An approved ontology change queues one
+  graph re-extraction wherever it was approved. The first sign-in guide counts exactly the items the inbox lists.
+
 ## 0.6.0: accuracy: facts, checks, an inbox, "answerable?" and a grounding check
 
 No AI model is added: everything below is rules, regular expressions, RapidFuzz and the local models already used.

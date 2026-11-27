@@ -6,6 +6,10 @@
   ontology    a proposed graph type
 Decisions: approve, reject, or edit (facts: a corrected value; links: the right row key), each recorded with who
 decided; facts and links decided by a person are kept as decided on every rebuild.
+
+This module is the one place review items are listed (items, count) and decided (decide): the inbox page, the
+Metrics and Ontology pages, and the MCP tools review_inbox, review_ontology and approve_metric all call it, and
+the first sign-in guide counts with count(). An approved ontology change queues a graph re-extraction.
 """
 import json
 
@@ -40,6 +44,26 @@ def items(limit: int = 500) -> list[dict]:
         out.append({"type": "ontology", "id": f"{r['kind']}:{r['name']}", "title": f"{r['kind'].replace('_', ' ')} {r['name']}",
                     "reason": r["note"], "source": r["source"], "definition": r["definition"]})
     return out
+
+
+def count() -> int:
+    """How many items wait for a person (the same items as items())."""
+    from app import core
+    t = core.current_tenant()
+    q = core.db().execute
+    return (q("SELECT count(*) FROM sl_definitions WHERE tenant_id = ? AND status IN ('draft', 'needs_review')", (t,)).fetchone()[0]
+            + q("SELECT count(*) FROM onto_definitions WHERE tenant_id = ? AND status = 'draft'", (t,)).fetchone()[0]
+            + q("SELECT count(*) FROM facts WHERE tenant_id = ? AND status = 'needs_review'", (t,)).fetchone()[0]
+            + q("SELECT count(*) FROM fact_links l JOIN facts f ON f.id = l.fact_id WHERE l.tenant_id = ? "
+                "AND l.status = 'needs_review'", (t,)).fetchone()[0])
+
+
+def ontology_changed(before: str, by: str):
+    """An approved ontology change re-extracts the graph (only passages extracted with the old ontology)."""
+    from app import engine, jobs
+    from graph import ontology
+    if ontology.fingerprint() != before and engine.graph_ready():
+        jobs.enqueue("graph", "Building the knowledge graph", None, by, {"reason": "ontology changed"})
 
 
 def _norm(field: str, value: str):
@@ -87,12 +111,17 @@ def decide(kind: str, item_id: str, action: str, by: str, value: str | None = No
         _refresh(by)
     elif kind == "definition":
         from semantic import repo
-        k, name = item_id.split(":", 1)
+        k, _, name = item_id.partition(":")
+        r = repo.get(k, name) if k in repo.KINDS else None
+        if r is None or r["status"] == "retired":
+            raise KeyError(item_id)
         repo.set_status(k, name, "approved" if action == "approve" else "retired", by)
     elif kind == "ontology":
         from graph import ontology
-        k, name = item_id.split(":", 1)
+        k, _, name = item_id.partition(":")
+        before = ontology.fingerprint()
         ontology.set_status(k, name, "approved" if action == "approve" else "retired", by)
+        ontology_changed(before, by)
     else:
         raise ValueError("Type is fact, link, definition or ontology.")
     core.log_event("user" if "@" in by else "agent", by, "inbox.decide", f"{kind} {item_id}", {"action": action})

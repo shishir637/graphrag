@@ -69,7 +69,7 @@ forwards the API to 8080), then `npm run build`.
 | Web app (React + TypeScript) | `web/src` (pages in `web/src/pages`) |
 | API, sign-in, workspaces, roles, agents, audit | `app/main.py`, `app/core.py`, `app/db.py` (Postgres, row-level security; schema in `migrations/`) |
 | Where things are stored | Postgres: everything people define or decide (workspaces, keys, semantic layer, ontology, document groups, facts, cards, inbox decisions, jobs, audit). Workspace folder (`CL_FILES_DIR/<workspace>/`): files and build outputs (passages, embeddings, graph build). Qdrant: search vectors. |
-| Facts, cards, inbox, grounding | `facts/` (kinds, extraction, checks, matching to database rows, inbox), `app/answerable.py`, `app/grounding.py` |
+| Facts, cards, inbox, grounding | `facts/` (kinds, extraction, checks, matching to database rows, inbox), `app/planner.py` (answerable?, route, split, secondary sources), `app/grounding.py` |
 | Background jobs, scheduler | `app/jobs.py` (queue in Postgres), `app/scheduler.py`, `semantic/monitor.py`, `semantic/learn.py` |
 | Connectors | `connectors/` (GitHub with an engineering semantic layer, Postgres snapshot/live), secrets in `app/vault.py` |
 | MCP server for agents | `app/mcp_server.py` (read: ask, search_documents, describe_data, query_metrics, list_metrics, find_connections, explore_entity, list_documents, fetch_passage, build_status; write: add_document, create_upload_link; admin keys: approve_metric, connect_source, list_sources, sync_source). Each key sees only the tools it may use. |

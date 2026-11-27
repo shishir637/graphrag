@@ -332,9 +332,10 @@ def tool_build_status(agent: dict, job_id: str | None = None) -> dict:
 def tool_approve_metric(agent: dict, name: str) -> dict:
     if agent.get("scope") != "admin":
         raise ToolError("Only an admin key or a signed-in Context Layer owner or admin can approve metrics.")
-    from semantic.auto_model import set_status
+    from facts.inbox import decide
     try:
-        r = set_status(name.strip(), "approved", by=agent.get("email") or agent["name"])
+        decide("definition", f"metric:{name.strip()}", "approve", agent.get("email") or agent["name"])
+        r = {"name": name.strip(), "status": "approved"}
     except KeyError as e:
         raise ToolError(f"No metric named {name}. See build_status or the Metrics page for drafts.") from e
     except ValueError as e:
@@ -386,19 +387,17 @@ def tool_sync_source(agent: dict, connector_id: str) -> dict:
 def tool_review_ontology(agent: dict, approve: list[str] | None = None, retire: list[str] | None = None) -> dict:
     """Proposed entity types (drafts) and, when given, approve or retire some by name (admin keys only)."""
     _need_admin(agent)
+    from facts.inbox import decide
     from graph import ontology
     who = agent.get("email") or agent["name"]
-    before = ontology.fingerprint()
     done = []
-    for names, st in ((approve or [], "approved"), (retire or [], "retired")):
+    for names, action, st in ((approve or [], "approve", "approved"), (retire or [], "reject", "retired")):
         for n in names:
             try:
-                ontology.set_status("entity_type", n.strip(), st, who)
+                decide("ontology", f"entity_type:{n.strip()}", action, who)     # queues the graph re-extraction
                 done.append({"type": n, "status": st})
             except KeyError:
                 raise ToolError(f"No entity type named {n}.") from None
-    if done and ontology.fingerprint() != before and engine.graph_ready():
-        jobs.enqueue("graph", "Building the knowledge graph", None, who, {"reason": "ontology changed"})
     drafts = [{"type": r["name"], "description": r["definition"].get("description"), "note": r["note"]}
               for r in ontology.rows("entity_type", ("draft",))]
     return {"changed": done, "proposed": drafts, "approved_types": sorted(ontology.load()["entity_types"])}

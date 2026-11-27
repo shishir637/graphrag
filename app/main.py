@@ -410,7 +410,12 @@ class MetricStatusIn(BaseModel):
 def set_metric_status(name: str, body: MetricStatusIn, u: dict = Depends(ADMIN)):
     from semantic.auto_model import set_status
     try:
-        r = set_status(name, body.status, by=u["email"])
+        if body.status == "approved" and core.current_tenant():      # a review decision: the inbox (facts/inbox.py)
+            from facts.inbox import decide
+            decide("definition", f"metric:{name}", "approve", u["email"])
+            r = {"name": name, "status": "approved"}
+        else:
+            r = set_status(name, body.status, by=u["email"])
     except KeyError:
         raise HTTPException(404, "No such metric.")
     except ValueError as e:
@@ -566,9 +571,8 @@ def export_ontology(u: dict = Depends(ADMIN)):
 
 def _ontology_changed(before: str, by: str):
     """An approved change re-extracts the graph (only passages extracted with the old ontology)."""
-    from graph import ontology
-    if ontology.fingerprint() != before and engine.graph_ready():
-        jobs.enqueue("graph", "Building the knowledge graph", None, by, {"reason": "ontology changed"})
+    from facts.inbox import ontology_changed
+    ontology_changed(before, by)
 
 
 @app.put("/api/v1/ontology")
@@ -624,13 +628,18 @@ def set_ontology_status(kind: str, name: str, body: DefinitionStatusIn, u: dict 
     if kind not in ("entity_type", "relation_type", "rule") or body.status not in ("draft", "approved", "needs_review",
                                                                                   "retired"):
         raise HTTPException(400, "Unknown kind or status.")
+    from facts.inbox import decide
     before = ontology.fingerprint()
     try:
-        r = ontology.set_status(kind, name, body.status, u["email"])
+        if body.status in ("approved", "retired"):                 # a review decision: the inbox (facts/inbox.py)
+            decide("ontology", f"{kind}:{name}", "approve" if body.status == "approved" else "reject", u["email"])
+            r = ontology.get(kind, name)                               # decide() queued any graph re-extraction
+        else:
+            r = ontology.set_status(kind, name, body.status, u["email"])
+            _ontology_changed(before, u["email"])
     except KeyError:
         raise HTTPException(404, "No such definition.")
     audit(u, "ontology.status", f"{kind} {name}", {"status": body.status})
-    _ontology_changed(before, u["email"])
     return {"definition": r}
 
 

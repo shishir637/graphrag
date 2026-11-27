@@ -40,13 +40,8 @@ def facts(u: dict) -> dict:
     org = core.get_setting("organisation", "") or ""
     st = engine.status()
     n_conn = core.db().execute("SELECT count(*) FROM connectors WHERE tenant_id = ?", (t,)).fetchone()[0]
-    drafts = core.db().execute("SELECT count(*) FROM sl_definitions WHERE tenant_id = ? AND status IN ('draft', 'needs_review')",
-                               (t,)).fetchone()[0]
-    drafts += core.db().execute("SELECT count(*) FROM onto_definitions WHERE tenant_id = ? AND status = 'draft'",
-                                (t,)).fetchone()[0]
-    drafts += core.db().execute("SELECT count(*) FROM facts WHERE tenant_id = ? AND status = 'needs_review'", (t,)).fetchone()[0]
-    drafts += core.db().execute("SELECT count(*) FROM fact_links WHERE tenant_id = ? AND status = 'needs_review'",
-                                (t,)).fetchone()[0]
+    from facts.inbox import count
+    drafts = count()                                         # exactly the items the inbox lists
     keys = [a for a in core.list_agents() if not a["revoked"]]
     apps = oauth.grants(None)
     asked_any = core.db().execute("SELECT 1 FROM events WHERE tenant_id = ? AND action IN ('playground.ask', 'tool.ask', "
