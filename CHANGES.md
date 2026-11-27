@@ -1,5 +1,37 @@
 # Changes
 
+## 0.7.0: target architecture: landing zone, system of record, rebuildable engines
+
+Every piece of data has one home: raw files in the **landing zone** (`data/` tables as Parquet, `documents/`
+originals), everything the system knows and decides in **Postgres**, and **derived engines** (DuckDB views, fact
+tables, the in-memory graph, the Qdrant index) that can be dropped and rebuilt from the first two. Answering still
+runs no AI model. Existing workspaces are upgraded automatically at start (`app/upgrade.py`, idempotent).
+
+**Landing zone and manifest** (`app/storage.py`, `app/landing.py`, migration `011_landing.sql`)
+- All reads and writes of table files and original documents go through one storage interface (`Store`, with
+  `LocalStore` over the existing workspace folders and Docker volumes). An S3-compatible store can be added later
+  without touching callers (`CL_STORE`; only `local` exists).
+- Tables are Parquet (zstd) only. CSV uploads are converted with the column names and types DuckDB inferred from
+  them before, so metric definitions keep working; Excel, JSON and JSON Lines keep their cleaning rules.
+- Every landing writes a row in `landing_files`: kind, name, path, source (web, upload link, MCP, connector,
+  sample, backfill), connector, who pushed it, groups, sha256, bytes, rows and schema (tables). Replaced and removed
+  files keep their rows (`replaced_at`). Landing an identical file changes nothing and starts no rebuild.
+- The Postgres connector reads with a server-side cursor and writes Parquet in batches (pyarrow, zstd), so big
+  tables never have to fit in memory; incremental merges by primary key run in DuckDB on the Parquet files. The
+  2,000,000-row cap is gone (`max_rows` is optional; `batch_rows` sets the batch size). Connectors can hand over
+  Parquet bytes or a Parquet file (`Table.parquet`, `Table.parquet_path`); CSV still works.
+- Upgrade: CSV tables in each workspace become Parquet (originals kept in `data/_uploads/`), and every file already
+  there gets a manifest row.
+
+**DuckDB views instead of copies** (`semantic/db.py`)
+- The workspace's DuckDB holds only views over the Parquet files (live database sources were views already):
+  building it takes milliseconds and no memory, and it can never disagree with the files. Row access rules still
+  shadow the views per caller.
+- Each DuckDB has a memory limit (`CL_DUCKDB_MEMORY`, default 1GB) and spills to `<workspace>/duckdb_tmp`.
+- Profiling and every metric give the same results as the old in-memory copies (tested on the shipped tables and
+  the Lumora test set). Benchmark, 3M-row table (`experiments/bench_duckdb_views.py`): build 106 ms -> 1.7 ms,
+  memory after build 126 MiB -> 0 MiB, a group-by query 72 ms -> 96 ms.
+
 ## 0.6.0: accuracy: facts, checks, an inbox, "answerable?" and a grounding check
 
 No AI model is added: everything below is rules, regular expressions, RapidFuzz and the local models already used.

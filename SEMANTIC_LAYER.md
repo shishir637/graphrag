@@ -35,7 +35,8 @@ files. The YAML below is the format for **import and export** and the seed of a 
 ## Folder layout
 
 ```
-data/                     raw tables (CSV/Excel/Parquet), one file per table - sample sales data
+data/                     raw tables, one file per table - sample sales data (CSV here; inside a workspace
+                          every table lands as Parquet, see app/landing.py)
 reference/                trusted numbers to reconcile against (finance_monthly_report.csv)
 semantic_layer/           THE REVIEWED LAYER (source of truth, changed only by pull request)
   model.yaml              entities, dimensions, measures, joins, descriptions
@@ -102,8 +103,9 @@ PostgreSQL + pgvector, to stay with the RAG system's stack and need no server.
 - The catalog is small (13 metrics, 11 dimensions), so Claude gets **all of it** and no embedding model is
   loaded per question. Above 150 items, or with `SL_VECTOR_SEARCH=1`, the closest items are retrieved from
   the Qdrant `semantic` collection instead.
-- Tables are loaded into in-memory DuckDB (fine for MBs). For large data, use views over Parquet or point
-  DuckDB at the warehouse.
+- Tables are Parquet files in the landing zone and DuckDB holds only views over them (0.7), with a memory limit
+  and a spill folder, so tables larger than memory work. Database connectors in live mode point DuckDB at the
+  database itself.
 
 ## Evaluation (`rag.py sl-eval`)
 

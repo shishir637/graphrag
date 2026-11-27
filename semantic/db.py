@@ -1,9 +1,15 @@
-"""DuckDB access to the raw tables: every file in data/ becomes a table with the file's name.
+"""DuckDB over the landing zone: every table file in data/ is a VIEW with the file's name (no copies).
 
-Inside the app there is one in-memory DuckDB per workspace, built from the workspace's files (and, for database
-connectors in live mode, views over the attached database), cached and rebuilt only when a file changes.
+Inside the app there is one in-memory DuckDB per workspace holding only views: read_parquet(...) over each table
+file of the landing zone (app/storage.py) and, for database connectors in live mode, views over the attached
+database. Nothing is copied into memory, so the views are a derived engine that can be dropped and rebuilt at any
+time and never disagree with the files. The catalog is cached and rebuilt only when a file changes.
+
+Memory: each DuckDB gets a memory_limit (CL_DUCKDB_MEMORY, default 1GB) and a temp_directory inside the
+workspace's volume (<workspace>/duckdb_tmp), so a query bigger than memory spills to disk instead of failing.
+
 Each query gets its own cursor; for a caller with row access rules (semantic/access.py) the cursor gets temporary
-views that shadow the restricted tables with only the allowed rows, so every metric, join and filter respects
+views that shadow the restricted views with only the allowed rows, so every metric, join and filter respects
 them without changing the SQL compiler.
 """
 import os
@@ -47,12 +53,27 @@ def _signature(files: dict, live: list) -> tuple:
             tuple((s["alias"], tuple(sorted(s["tables"].items()))) for s in live))
 
 
+MEMORY_LIMIT = os.environ.get("CL_DUCKDB_MEMORY", "1GB")
+
+
+def _config() -> dict:
+    """memory_limit, and a temp_directory in the workspace's volume (inside the app) for spilling to disk."""
+    cfg = {"memory_limit": MEMORY_LIMIT}
+    from rag.wspath import current_workspace, files_root
+    t = current_workspace()
+    if t:
+        tmp = files_root() / t / "duckdb_tmp"
+        tmp.mkdir(parents=True, exist_ok=True)
+        cfg["temp_directory"] = str(tmp).replace("\\", "/")
+    return cfg
+
+
 def _build(files: dict, live: list) -> duckdb.DuckDBPyConnection:
-    con = duckdb.connect()
+    con = duckdb.connect(config=_config())
     if any(p.endswith(".xlsx") for p in files.values()):
         con.execute("INSTALL excel; LOAD excel;")
-    for name, path in files.items():
-        con.execute(f'CREATE TABLE "{name}" AS SELECT * FROM {_reader(path)}')
+    for name, path in files.items():                       # views: the files are read at query time, never copied
+        con.execute(f'CREATE VIEW "{name}" AS SELECT * FROM {_reader(path)}')
     for s in live:
         con.execute("INSTALL postgres; LOAD postgres;")
         con.execute(f"ATTACH '{s['dsn']}' AS \"{s['alias']}\" (TYPE postgres, READ_ONLY)")
