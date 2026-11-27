@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.environ.get("CL_DATA_DIR", ROOT / "var"))
 DB_PATH = DATA_DIR / "app.db"
 SECRETS_FILE = DATA_DIR / "secrets.json"
-VERSION = "0.8.0"
+VERSION = "0.9.0"
 SESSION_DAYS = 1                       # absolute lifetime of a web session (cookie max-age too)
 SESSION_IDLE_MIN = int(os.environ.get("CL_SESSION_IDLE_MIN", "120"))   # signed out after this long without use
 SCRYPT_N = int(os.environ.get("CL_SCRYPT_N", str(2 ** 17)))           # OWASP: scrypt N=2^17, r=8, p=1
