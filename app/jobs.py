@@ -37,8 +37,15 @@ class _Log(io.TextIOBase):
         return len(s)
 
 
-def running() -> dict | None:
-    return next((_jobs[j] for j in reversed(_order) if _jobs[j]["status"] == "running"), None)
+def _mine(job: dict) -> bool:
+    from .db import TENANT
+    return job.get("tenant") == TENANT.get()
+
+
+def running(any_workspace: bool = False) -> dict | None:
+    """The running job of this workspace (any_workspace: of any; jobs run one at a time per process)."""
+    return next((_jobs[j] for j in reversed(_order) if _jobs[j]["status"] == "running"
+                 and (any_workspace or _mine(_jobs[j]))), None)
 
 
 def public(job: dict) -> dict:
@@ -47,12 +54,12 @@ def public(job: dict) -> dict:
 
 
 def list_jobs(limit: int = 20) -> list[dict]:
-    return [public(_jobs[j]) for j in reversed(_order[-limit:])]
+    return [public(_jobs[j]) for j in reversed(_order) if _mine(_jobs[j])][:limit]
 
 
 def get(job_id: str) -> dict | None:
     j = _jobs.get(job_id)
-    return public(j) if j else None
+    return public(j) if j and _mine(j) else None
 
 
 _qlock = threading.Lock()
@@ -60,8 +67,9 @@ _queue: list[str] = []
 
 
 def _new(kind: str, label: str, by: str, status: str) -> dict:
+    from .db import TENANT
     job = {"id": secrets.token_hex(5), "kind": kind, "label": label, "status": status, "started": None,
-           "finished": None, "by": by, "error": None, "log": [], "info": {}}
+           "finished": None, "by": by, "error": None, "log": [], "info": {}, "tenant": TENANT.get()}
     _jobs[job["id"]] = job
     _order.append(job["id"])
     for old in _order[:-50]:
@@ -75,6 +83,11 @@ def _launch(job: dict, fn):
     job["status"], job["started"] = "running", core.now()
 
     def run():
+        from .db import tenant_scope
+        with tenant_scope(job.get("tenant")):            # a job runs in the workspace that queued it
+            _run()
+
+    def _run():
         t = core.timer()
         log = _Log(job)
         with LOCK:
@@ -108,7 +121,7 @@ def _launch(job: dict, fn):
 
 def _kick():
     with _qlock:
-        if running() or not _queue:
+        if running(True) or not _queue:
             return
         job = _jobs[_queue.pop(0)]
         _launch(job, job.pop("fn"))
@@ -116,8 +129,10 @@ def _kick():
 
 def start(kind: str, label: str, fn, by: str) -> dict:
     with _qlock:
-        if running():
-            raise RuntimeError(f"'{running()['label']}' is still running. Wait for it to finish.")
+        busy = running(True)
+        if busy:
+            raise RuntimeError(f"'{busy['label']}' is still running. Wait for it to finish." if _mine(busy)
+                               else "Another build is running on this server. Try again in a few minutes.")
         job = _new(kind, label, by, "running")
         _launch(job, fn)
     return public(job)
@@ -129,7 +144,7 @@ def enqueue(kind: str, label: str, make_fn, by: str, info: dict) -> dict:
     with _qlock:
         for jid in _queue:
             j = _jobs[jid]
-            if j["kind"] == kind and j["info"].get("layer") == info.get("layer"):
+            if j["kind"] == kind and j["info"].get("layer") == info.get("layer") and _mine(j):
                 for k, v in info.items():
                     if isinstance(v, list):
                         j["info"].setdefault(k, [])
@@ -147,4 +162,4 @@ def enqueue(kind: str, label: str, make_fn, by: str, info: dict) -> dict:
 
 def info(job_id: str) -> dict:
     j = _jobs.get(job_id)
-    return dict(j["info"]) if j else {}
+    return dict(j["info"]) if j and _mine(j) else {}

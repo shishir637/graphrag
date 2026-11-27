@@ -34,7 +34,7 @@ SUITES = {
 KESTREL_GOLD = ROOT / "demo" / "kestrel" / "semantic_layer" / "eval_questions.yaml"
 SCHEMA = """CREATE TABLE IF NOT EXISTS quality_runs (
   id TEXT PRIMARY KEY, time TEXT NOT NULL, suite TEXT NOT NULL, trigger TEXT NOT NULL DEFAULT '', ok INTEGER NOT NULL,
-  scores TEXT NOT NULL DEFAULT '{}', detail TEXT NOT NULL DEFAULT '{}', seconds {real})"""
+  scores TEXT NOT NULL DEFAULT '{}', detail TEXT NOT NULL DEFAULT '{}', seconds {real}{tenant})"""
 _ready: str | None = None
 
 

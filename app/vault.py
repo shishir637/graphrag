@@ -8,12 +8,13 @@ import os
 import threading
 
 from . import core
+from . import db as D
 
 _lock = threading.Lock()
 _fernet = None
 
-SCHEMA = """CREATE TABLE IF NOT EXISTS secrets (name TEXT PRIMARY KEY, ciphertext TEXT NOT NULL,
-  hint TEXT NOT NULL DEFAULT '', updated TEXT NOT NULL)"""
+SCHEMA = """CREATE TABLE IF NOT EXISTS secrets (name TEXT NOT NULL, ciphertext TEXT NOT NULL,
+  hint TEXT NOT NULL DEFAULT '', updated TEXT NOT NULL{tenant}, PRIMARY KEY ({tk}name))"""
 _ready: str | None = None
 
 
@@ -61,7 +62,7 @@ def put(name: str, value: str | None):
         _db().execute("DELETE FROM secrets WHERE name = ?", (name,))
         return
     _db().execute("INSERT INTO secrets (name, ciphertext, hint, updated) VALUES (?, ?, ?, ?) "
-                  "ON CONFLICT (name) DO UPDATE SET ciphertext = excluded.ciphertext, hint = excluded.hint, "
+                  f"ON CONFLICT {D.ck('name')} DO UPDATE SET ciphertext = excluded.ciphertext, hint = excluded.hint, "
                   "updated = excluded.updated", (name, _f().encrypt(value.encode()).decode(), hint(value), core.now()))
 
 

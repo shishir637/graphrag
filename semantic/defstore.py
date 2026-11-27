@@ -61,11 +61,21 @@ def enabled() -> bool:
 
 # ------------------------------------------------------------------ connection (Postgres, or SQLite for tests)
 
+def _schema() -> str:
+    """Each workspace keeps its definitions in a schema of its own: cl_defs (the first workspace) or
+    cl_defs_<workspace id>. With a SQLite store (tests), a file per workspace next to the configured one."""
+    from rag.wspath import workspace_key
+    k = workspace_key()
+    return f"cl_defs_{k}"[:60] if k else "cl_defs"
+
+
 class _DB:
     def __init__(self, d: str):
         self.sqlite = d.startswith("sqlite:///")
         if self.sqlite:
             path = d.removeprefix("sqlite:///")
+            if _schema() != "cl_defs":
+                path = f"{path}.{_schema()}"
             Path(path).parent.mkdir(parents=True, exist_ok=True)
             self.c = sqlite3.connect(path, check_same_thread=False, isolation_level=None)
             self.c.row_factory = sqlite3.Row
@@ -73,8 +83,8 @@ class _DB:
             import psycopg
             from psycopg.rows import dict_row
             self.c = psycopg.connect(d, autocommit=True, row_factory=dict_row)
-            self.c.execute("CREATE SCHEMA IF NOT EXISTS cl_defs")
-            self.c.execute("SET search_path TO cl_defs")
+            self.c.execute(f"CREATE SCHEMA IF NOT EXISTS {_schema()}")
+            self.c.execute(f"SET search_path TO {_schema()}")
 
     def q(self, sql: str, args=()):
         if not self.sqlite:
@@ -107,20 +117,23 @@ def db() -> _DB:
     d = dsn()
     if not d:
         raise RuntimeError("the definitions store is off (CL_DEFS=yaml)")
-    cur = getattr(_local, "db", None)
-    if cur is None or getattr(_local, "dsn", None) != d:
-        cur = _DB(d)
-        _local.db, _local.dsn = cur, d
-    _ensure(cur, d)
+    key = f"{d}|{_schema()}"
+    cache = _local.__dict__.setdefault("dbs", {})
+    cur = cache.get(key)
+    if cur is None:
+        cur = cache[key] = _DB(d)
+    _ensure(cur, key)
     return cur
 
 
+_ready_keys: set = set()
+
+
 def _ensure(x: _DB, d: str):
-    global _ready
-    if _ready == d:
+    if d in _ready_keys:
         return
     with _lock:
-        if _ready == d:
+        if d in _ready_keys:
             return
         serial = "INTEGER PRIMARY KEY AUTOINCREMENT" if x.sqlite else "BIGSERIAL PRIMARY KEY"
         for sql in (
@@ -137,13 +150,15 @@ def _ensure(x: _DB, d: str):
             x.q(sql)
         if not x.one("SELECT id FROM layers WHERE id = ?", (COMPANY,)):
             x.q("INSERT INTO layers VALUES (?, 'company', NULL, 'Company', ?)", (COMPANY, now()))
-        _ready = d
+        _ready_keys.add(d)
     _migrate_once()
 
 
 def reset_for_tests():
-    global _ready, _migrated
-    _ready, _migrated = None, False
+    global _ready
+    _ready = None
+    _ready_keys.clear()
+    _migrated.clear()
     _local.__dict__.clear()
 
 
@@ -529,16 +544,15 @@ def export_company():
     export(LAYER_DIR, (COMPANY,))
 
 
-_migrated = False
+_migrated: set = set()                   # workspaces (schemas) already brought in line with their YAML
 
 
 def _migrate_once():
     """First start with the store on: today's YAML becomes the company layer. Later starts: the YAML files are
-    rewritten from the store, so a restored database always wins over stale files."""
-    global _migrated
-    if _migrated:
+    rewritten from the store, so a restored database always wins over stale files. Once per workspace."""
+    if _schema() in _migrated:
         return
-    _migrated = True
+    _migrated.add(_schema())
     from .config import LAYER_DIR
     x = db()
     has = x.one("SELECT COUNT(*) AS n FROM definitions WHERE layer_id = ?", (COMPANY,))["n"]
@@ -553,8 +567,7 @@ def _migrate_once():
 
 
 def reset_migration_flag():
-    global _migrated
-    _migrated = False
+    _migrated.clear()
 
 
 @contextmanager

@@ -165,6 +165,44 @@ def setup(body: SetupIn, request: Request, response: Response):
     return {"user": u}
 
 
+@app.get("/api/v1/signup")
+def signup_state():
+    import os
+    return {"open": os.environ.get("CL_SIGNUP", "off") == "open"}
+
+
+@app.post("/api/v1/signup")
+def signup(body: SetupIn, request: Request, response: Response):
+    """A new company: its own workspace (separate people, keys, files, definitions and activity; row-level security
+    in Postgres) with the person signing up as its owner (company admin). On only with CL_SIGNUP=open."""
+    import os
+    from . import db as D
+    if os.environ.get("CL_SIGNUP", "off") != "open":
+        raise HTTPException(403, "Sign-up is closed on this server. Ask its owner for an invite.")
+    if not D.postgres():
+        raise HTTPException(409, "Separate workspaces need the Postgres database (CL_DATABASE_URL).")
+    _rate_limit(f"signup:{request.client.host if request.client else '?'}", limit=5, window=3600)
+    with core.system():
+        taken = core.db().execute("SELECT 1 FROM users WHERE email = ?", (body.email.strip().lower(),)).fetchone()
+    if taken:
+        raise HTTPException(400, "A user with this email already exists. Sign in instead.")
+    try:
+        core.validate_password(body.password)
+        tid = core.create_tenant(body.organisation or body.name)
+        with core.tenant_scope(tid):
+            u = core.create_user(body.email, body.name, body.password, "owner")
+            _, token = core.login(body.email, body.password)
+            audit(u, "signup", body.organisation)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    _set_session(response, token, request)
+    try:
+        M.describe_org()                     # with two workspaces the MCP description names no company
+    except Exception:                        # noqa: BLE001
+        pass
+    return {"user": u, "workspace": tid}
+
+
 @app.post("/api/v1/login")
 def login(body: LoginIn, request: Request, response: Response):
     _rate_limit(f"login:{request.client.host if request.client else '?'}")
@@ -174,7 +212,8 @@ def login(body: LoginIn, request: Request, response: Response):
         raise HTTPException(401, "Email or password is not correct.")
     u, token = res
     _set_session(response, token, request)
-    audit(u, "login")
+    with core.tenant_scope(u.get("tenant_id")):
+        audit(u, "login")
     return {"user": u}
 
 
@@ -2202,13 +2241,67 @@ def spa(path: str):
     return FileResponse(index, headers={"Cache-Control": "no-cache"})
 
 
+def _request_workspace(scope) -> tuple[str | None, bool]:
+    """(workspace id, look across workspaces?) of one request: the signed-in session's, the bearer token's, or the
+    one a webhook / upload link / invite link belongs to. OAuth sign-in pages work with credentials only and look
+    across workspaces. Anything else runs in the first workspace (and sees nothing without signing in)."""
+    from . import db as D
+    path = scope.get("path") or ""
+    if path.startswith(("/oauth/", "/.well-known/")):
+        return None, True
+    headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers", [])}
+    tok = M._bearer(headers)
+    if tok:
+        a = core.principal_for_token(tok)
+        return (a or {}).get("tenant_id"), False
+    m = re.match(r"^/hooks/[a-z0-9_]+/([A-Za-z0-9_]+)$", path)
+    if m:
+        from sources import manage
+        with D.system():
+            r = manage.db().execute("SELECT tenant_id FROM sources WHERE id = ?", (m.group(1),)).fetchone() \
+                if D.postgres() else None
+        return (r["tenant_id"] if r else None), False
+    m = re.match(r"^/(upload|invite)/([A-Za-z0-9_\-]+)$", path)
+    if m and D.postgres():
+        table = "upload_links" if m.group(1) == "upload" else "invites"
+        if table == "invites":
+            from . import directory
+            directory.db()
+        with D.system():
+            r = core.db().execute(f"SELECT tenant_id FROM {table} WHERE token_hash = ?",
+                                  (core.token_hash(m.group(2)),)).fetchone()
+        return (r["tenant_id"] if r else None), False
+    cookie = ""
+    for part in headers.get("cookie", "").split(";"):
+        k, _, v = part.strip().partition("=")
+        if k == COOKIE:
+            cookie = v
+    if cookie:
+        u = core.session_user(cookie)
+        return (u or {}).get("tenant_id"), False
+    return None, False
+
+
 class _Router:
-    """/mcp goes to the MCP server; everything else to the FastAPI app."""
+    """/mcp goes to the MCP server; everything else to the FastAPI app. Each request runs in its workspace."""
 
     def __init__(self, api):
         self.api = api
 
     async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self._route(scope, receive, send)
+        from starlette.concurrency import run_in_threadpool
+        from . import db as D
+        tid, bypass = await run_in_threadpool(_request_workspace, scope)
+        t1, t2 = D.TENANT.set(tid), D.BYPASS.set(bypass)
+        try:
+            return await self._route(scope, receive, send)
+        finally:
+            D.TENANT.reset(t1)
+            D.BYPASS.reset(t2)
+
+    async def _route(self, scope, receive, send):
         if scope["type"] == "http":
             from .public import allowed
             ok, status, msg = allowed(scope)

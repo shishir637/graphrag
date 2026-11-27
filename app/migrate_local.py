@@ -28,6 +28,13 @@ def _ensure_all_tables():
 
 
 def migrate(path=None, force: bool = False) -> dict:
+    """The old single-company install becomes the first workspace ("default")."""
+    from . import db as D
+    with D.tenant_scope(D.DEFAULT):
+        return _migrate(path, force)
+
+
+def _migrate(path=None, force: bool = False) -> dict:
     from . import db as D
     if not D.postgres():
         return {"skipped": "not on Postgres"}
@@ -44,7 +51,7 @@ def migrate(path=None, force: bool = False) -> dict:
     try:
         names = [r[0] for r in src.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")]
         names = [n for n in FIRST if n in names] + [n for n in names if n not in FIRST]
-        with D.pg_tx() as pg:
+        with D.ddl_tx() as pg:             # as the database owner (sequences), into the first workspace
             have = {r[0] for r in pg.execute("SELECT tablename FROM pg_tables WHERE schemaname = current_schema()")}
             for t in names:
                 if t not in have:
@@ -65,7 +72,7 @@ def migrate(path=None, force: bool = False) -> dict:
                     seq = pg.execute("SELECT pg_get_serial_sequence(?, 'id')", (t,)).fetchone()[0]
                     if seq:
                         pg.execute(f'SELECT setval(?, GREATEST((SELECT COALESCE(max(id), 0) FROM "{t}"), 1))', (seq,))
-            pg.execute("INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+            pg.execute(f"INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT {D.ck('key')} DO UPDATE SET value = excluded.value",
                        (MARKER, json.dumps({"from": str(path), "time": core.now(), "rows": copied})))
     finally:
         src.close()

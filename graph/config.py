@@ -3,12 +3,19 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT_DIR = ROOT / "outputs"
+from rag.config import OUT_DIR  # noqa: E402 - per workspace
 SCHEMA_FILE = ROOT / "graph_layer" / "schema.yaml"
 
 # Apache AGE (PostgreSQL) - see docker-compose.graph.yml; local development defaults
 PG_DSN = os.environ.get("GRAPH_PG_DSN", "host=127.0.0.1 port=5455 dbname=graphrag user=rag password=rag_local_dev")
 GRAPH_NAME = "india_kg"            # AGE graph names need 3+ characters
+
+
+def graph_name() -> str:
+    """The workspace's AGE graph: india_kg in the first workspace, india_kg_<id> in others."""
+    from rag.wspath import workspace_key
+    k = workspace_key()
+    return f"{GRAPH_NAME}_{k}"[:60] if k else GRAPH_NAME
 
 # Models
 EXTRACT_MODEL = "claude-haiku-5-5"      # cheap tier: entities + typed relations per chunk

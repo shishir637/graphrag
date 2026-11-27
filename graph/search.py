@@ -22,10 +22,12 @@ from pathlib import Path
 from rapidfuzz import fuzz, process
 
 ROOT = Path(__file__).resolve().parent.parent
-BUILD = ROOT / "outputs" / "_graph_build.json"
+from rag.config import OUT_DIR as _OUT  # noqa: E402 - per workspace
+BUILD = _OUT / "_graph_build.json"
 STOP = set("the a an of in on at to for and or is are was were be by with from as that this which what who whom "
            "how when where why do does did has have had it its their there than then into about between".split())
-_G: dict = {"mtime": None}
+_GS: dict[str, dict] = {}                 # one loaded graph per workspace (path of its build file)
+_G: dict = {"mtime": None}                # (older callers reset this; the cache is _GS)
 
 
 def _st(w: str) -> str:
@@ -53,6 +55,7 @@ def graph() -> dict:
     m = BUILD.stat().st_mtime if BUILD.exists() else None
     if m is None:
         raise FileNotFoundError("The knowledge graph has not been built yet.")
+    _G = _GS.setdefault(str(BUILD), {"mtime": None})
     if _G["mtime"] != m:
         data = json.loads(BUILD.read_text(encoding="utf-8"))
         ents = {e["id"]: e for e in data["entities"]}
@@ -72,7 +75,7 @@ def graph() -> dict:
                 chunk_ents[c].add(e["id"])
         df = Counter(len(e.get("chunk_ids") or []) for e in ents.values())
         texts, wdf = {}, Counter()
-        cpath = ROOT / "outputs" / "2_chunks.json"
+        cpath = _OUT / "2_chunks.json"
         if cpath.exists():
             for c in json.loads(cpath.read_text(encoding="utf-8")):
                 ws = _words(c["text"])

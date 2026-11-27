@@ -165,9 +165,10 @@ def _layer_version() -> str:
     import hashlib
     from . import defstore
     from .config import LAYER_DIR
+    from rag.wspath import workspace_key
     if defstore.enabled():
-        return hashlib.sha1(defstore.version().encode()).hexdigest()[:12]
-    h = hashlib.sha1()
+        return hashlib.sha1(f"{workspace_key()}|{defstore.version()}".encode()).hexdigest()[:12]
+    h = hashlib.sha1(workspace_key().encode())
     for f in sorted(LAYER_DIR.glob("*")):
         if f.is_file() and f.name != "eval_questions.yaml":
             h.update(f.read_bytes())

@@ -50,14 +50,14 @@ TOOL_LABEL = {"ask": "Looking for evidence", "search_documents": "Searching docu
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS chat_keys (
   user_id INTEGER PRIMARY KEY REFERENCES users(id), enc TEXT NOT NULL, hint TEXT NOT NULL, model TEXT NOT NULL,
-  created TEXT NOT NULL, last_used TEXT);
+  created TEXT NOT NULL, last_used TEXT{tenant});
 CREATE TABLE IF NOT EXISTS chats (
   id TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), title TEXT NOT NULL, created TEXT NOT NULL,
-  updated TEXT NOT NULL);
+  updated TEXT NOT NULL{tenant});
 CREATE INDEX IF NOT EXISTS chats_user ON chats(user_id, updated);
 CREATE TABLE IF NOT EXISTS chat_messages (
   id {serial}, chat_id TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE, role TEXT NOT NULL,
-  content TEXT NOT NULL, meta TEXT NOT NULL DEFAULT '{}', created TEXT NOT NULL);
+  content TEXT NOT NULL, meta TEXT NOT NULL DEFAULT '{}', created TEXT NOT NULL{tenant});
 CREATE INDEX IF NOT EXISTS chat_messages_chat ON chat_messages(chat_id, id);
 """
 _ready_for: str | None = None

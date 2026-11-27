@@ -37,9 +37,9 @@ CREATE TABLE IF NOT EXISTS sources (
   id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL, config TEXT NOT NULL DEFAULT '{}',
   dataset TEXT NOT NULL DEFAULT 'public', every_minutes INTEGER NOT NULL DEFAULT 360, state TEXT NOT NULL DEFAULT '{}',
   status TEXT NOT NULL DEFAULT 'active', last_run TEXT, last_ok TEXT, last_error TEXT, next_run TEXT,
-  summary TEXT NOT NULL DEFAULT '{}', created TEXT NOT NULL, created_by TEXT NOT NULL);
+  summary TEXT NOT NULL DEFAULT '{}', created TEXT NOT NULL, created_by TEXT NOT NULL{tenant});
 CREATE TABLE IF NOT EXISTS source_docs (
-  source_id TEXT NOT NULL, name TEXT NOT NULL, ref TEXT NOT NULL DEFAULT '', PRIMARY KEY (source_id, name));
+  source_id TEXT NOT NULL, name TEXT NOT NULL, ref TEXT NOT NULL DEFAULT ''{tenant}, PRIMARY KEY (source_id, name));
 """
 _ready: str | None = None
 
@@ -319,19 +319,22 @@ def run_sync(info: dict):
 # ------------------------------------------------------------------ scheduling and webhooks
 
 def due() -> list[tuple[str, str]]:
-    """For the scheduler: (source id, by) of every active source whose next sync is due."""
-    rows = db().execute("SELECT id FROM sources WHERE status = 'active' AND (next_run IS NULL OR next_run <= ?)",
-                        (core.now(),)).fetchall()
-    return [(r["id"], "schedule") for r in rows]
+    """For the scheduler: (source id, workspace) of every active source whose next sync is due, in every workspace."""
+    from app import db as D
+    with core.system():
+        rows = db().execute("SELECT * FROM sources WHERE status = 'active' AND (next_run IS NULL OR next_run <= ?)",
+                            (core.now(),)).fetchall()
+    return [(r["id"], core._tenant(r) if D.postgres() else None) for r in rows]
 
 
 def run_due() -> int:
     """Queue a sync for every source that is due (its next_run moves on, so it is queued once)."""
     n = 0
-    for sid, by in due():
-        r = _row(sid)
-        db().execute("UPDATE sources SET next_run = ? WHERE id = ?", (_later(r["every_minutes"]), sid))
-        queue_sync(sid, by)
+    for sid, tid in due():
+        with core.tenant_scope(tid):
+            r = _row(sid)
+            db().execute("UPDATE sources SET next_run = ? WHERE id = ?", (_later(r["every_minutes"]), sid))
+            queue_sync(sid, "schedule")
         n += 1
     return n
 

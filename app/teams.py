@@ -14,8 +14,8 @@ import re
 from . import core, directory
 
 SCHEMA = """
-CREATE TABLE IF NOT EXISTS team_admins (team TEXT NOT NULL, email TEXT NOT NULL, added_by TEXT, added TEXT NOT NULL,
-  PRIMARY KEY (team, email));
+CREATE TABLE IF NOT EXISTS team_admins (team TEXT NOT NULL, email TEXT NOT NULL, added_by TEXT, added TEXT NOT NULL{tenant},
+  PRIMARY KEY ({tk}team, email));
 """
 _ready: str | None = None
 

@@ -15,7 +15,7 @@ from . import core, engine, teams
 
 SCHEMA = """CREATE TABLE IF NOT EXISTS doc_requests (id {serial}, file TEXT NOT NULL, dataset TEXT NOT NULL,
   team TEXT, asked_by TEXT NOT NULL, app TEXT NOT NULL DEFAULT '', created TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'waiting',
-  decided_by TEXT, decided TEXT, reason TEXT NOT NULL DEFAULT '')"""
+  decided_by TEXT, decided TEXT, reason TEXT NOT NULL DEFAULT ''{tenant})"""
 _ready: str | None = None
 _holds: dict[str, dict] = {}          # confirm code -> the move waiting for the person's yes (10 minutes)
 

@@ -59,7 +59,21 @@ mode: auto (default), documents, metrics, graph (how things connect) or overview
 def describe_org():
     """Name the organisation and what it covers in the server instructions and the ask tool, so that Claude
     knows to use these tools for questions about it instead of answering from general knowledge.
-    Only names that every member may know (organisation, teams, metric names) are used: no file titles."""
+    Only names that every member may know (organisation, teams, metric names) are used: no file titles.
+    The instructions are the same for every caller, so with more than one workspace on the server they name no
+    company (one company's names must not reach another's agents)."""
+    if len(core.list_tenants()) > 1:
+        org, teams_txt, metrics_txt = "your organisation", "", ""
+        lead = ("Context Layer is your organisation's company knowledge. Use these tools for EVERY question about your "
+                "organisation, its people, teams, customers, products, policies, incidents, plans or numbers, even when "
+                "you think you know the answer, and before using web search. If the tools return nothing relevant, say "
+                "that the organisation's documents do not cover it.\n\n")
+        mcp._lowlevel_server.instructions = lead + INSTRUCTIONS
+        try:
+            mcp._tool_manager.get_tool("ask").description = ASK_DOC.format(org=org, teams=teams_txt, metrics=metrics_txt)
+        except Exception:                                  # noqa: BLE001
+            pass
+        return mcp._lowlevel_server.instructions
     org = (core.get_setting("organisation", "") or "this organisation").strip()
     teams_txt = metrics_txt = ""
     try:
@@ -98,6 +112,9 @@ def _bearer(headers) -> str | None:
 def resolve(token: str | None, resource: str | None = None, layer_link: str | None = None) -> dict | None:
     """The caller behind a token, with their effective groups and the layers they read."""
     a = core.principal_for_token(token, resource)
+    if a:                                   # the rest of this call runs in the caller's workspace (one call = one context)
+        from . import db as D
+        D.TENANT.set(a.get("tenant_id"))
     if a and a.get("all_groups"):
         a["groups"] = sorted(set(engine.all_groups()) | set(a["groups"]))
     if a:

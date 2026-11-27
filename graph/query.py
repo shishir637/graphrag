@@ -70,7 +70,7 @@ def link_entities(question: str, qv) -> list[dict]:
 
 # ---------- local search ----------
 # ---------- access groups (moved to graph/access.py) ----------
-from .access import _ACCESS, chunk_access, sees_everything, visible  # noqa: E402,F401
+from .access import chunk_access, sees_everything, visible  # noqa: E402,F401
 
 
 def _chunks(ids: list[str]) -> dict:

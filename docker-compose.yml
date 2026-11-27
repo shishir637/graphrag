@@ -23,6 +23,9 @@ services:
       # (0.9; an existing var/app.db is copied in once on the first start)
       CL_DATABASE_URL: postgresql://rag@graphdb:5432/graphrag
       CL_DB_PASSWORD: ${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
+      # separate workspaces per company (0.9): files of workspaces other than the first, and open sign-up
+      CL_FILES_DIR: /app/workspaces
+      CL_SIGNUP: ${CL_SIGNUP:-off}
     extra_hosts:
       - "host.docker.internal:host-gateway"    # lets optional AI extraction reach a local model (Ollama) on this machine
     volumes:
@@ -32,6 +35,7 @@ services:
       - search_index:/app/qdrant_data
       - metric_store:/app/sl_store
       - app_data:/app/var
+      - workspaces:/app/workspaces
       - semantic_layer:/app/semantic_layer     # reviewed definitions; approvals in the app persist here
       - models:/models
 
@@ -88,6 +92,7 @@ services:
       OLLAMA_KEEP_ALIVE: 10m
 
 volumes:
+  workspaces:
   ollama_models:
   documents:
   tables:

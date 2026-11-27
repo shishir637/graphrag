@@ -9,39 +9,40 @@ from qdrant_client import QdrantClient, models
 from .config import COLLECTION, EMBED_DIM, QDRANT_PATH
 from .utils import read_json, write_json
 
-_client = None
-_active: str | None = None
+_clients: dict[str, QdrantClient] = {}       # embedded Qdrant: one folder (and client) per workspace
+_actives: dict[str, str] = {}
+_client = _active = None                         # (older callers reset these; the caches above are per workspace)
 
 
 def active_collection() -> str:
     """The collection searches use. A rebuild fills the other one and switches only when it is complete,
     so answering never waits for (or sees half of) a rebuild."""
-    global _active
-    if _active is None:
+    key = str(QDRANT_PATH)
+    if key not in _actives:
         import json
         from . import utils
         f = utils.OUT_DIR / "4_index.json"
         try:
-            _active = (json.loads(f.read_text(encoding="utf-8")).get("collection") if f.exists() else None) or COLLECTION
+            a = (json.loads(f.read_text(encoding="utf-8")).get("collection") if f.exists() else None) or COLLECTION
         except (OSError, ValueError, AttributeError):
-            _active = COLLECTION
-        if _active != COLLECTION and not client().collection_exists(_active):
-            _active = COLLECTION
-    return _active
+            a = COLLECTION
+        if a != COLLECTION and not client().collection_exists(a):
+            a = COLLECTION
+        _actives[key] = a
+    return _actives[key]
 
 
 def client() -> QdrantClient:
-    global _client
-    if _client is None:
-        _client = QdrantClient(path=str(QDRANT_PATH))
-    return _client
+    key = str(QDRANT_PATH)
+    if key not in _clients:
+        _clients[key] = QdrantClient(path=key)
+    return _clients[key]
 
 
 def build_index() -> dict:
     chunks = {c["chunk_id"]: c for c in read_json("2_chunks.json")}
     emb = read_json("3_embeddings.json")
     qc = client()
-    global _active
     old = active_collection() if qc.collection_exists(active_collection()) else None
     target = f"{COLLECTION}_b" if old == f"{COLLECTION}_a" else f"{COLLECTION}_a"
     if qc.collection_exists(target):
@@ -86,7 +87,7 @@ def build_index() -> dict:
         "status": str(info.status),
     }
     write_json("4_index.json", report)
-    _active = target                              # switch: new searches use the new collection
+    _actives[str(QDRANT_PATH)] = target           # switch: new searches use the new collection
     if old and old != target:
         try:
             qc.delete_collection(old)

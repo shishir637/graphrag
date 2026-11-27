@@ -627,7 +627,8 @@ def _sources_version() -> tuple:
         layers = (defstore.STACK.get(), defstore.version())
     else:
         layers = tuple(_mtime(p) for p in [*sorted(S.LAYER_DIR.glob("*.yaml")), S.INSTRUCTIONS_FILE])
-    return (tuple(_mtime(p) for p in paths), layers)
+    from rag.wspath import workspace_key
+    return (workspace_key(), tuple(_mtime(p) for p in paths), layers)
 
 
 def _ask_key(question: str, groups, capabilities, mode: str) -> tuple:
