@@ -90,6 +90,12 @@ def _launch(job: dict, fn):
                 job["finished"] = core.now()
                 core.log_event("user", job["by"], f"job.{job['kind']}", job["label"],
                                {"job": job["id"], "error": job["error"]}, ok=job["status"] == "done", seconds=t())
+        if job["status"] == "done":
+            try:                                           # scores after every build (Quality tab)
+                from . import quality
+                quality.after_build(job["kind"], job.get("info") or {}, job["by"])
+            except Exception:                              # noqa: BLE001 - never blocks the queue
+                print(traceback.format_exc(), file=sys.__stderr__)
         _kick()
 
     threading.Thread(target=run, daemon=True, name=f"job-{job['kind']}").start()

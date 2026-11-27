@@ -637,7 +637,36 @@ def events_csv(type: str | None = None, u: dict = Depends(ADMIN)):
 
 @app.get("/api/v1/quality")
 def quality(u: dict = Depends(ANY)):
-    return {"suites": engine.quality()}
+    """Scores after every build (deterministic, no AI model) with their trend; see app/quality.py."""
+    from . import quality as Q
+    return {"suites": Q.overview(), "after_build": Q.enabled(), "runs": Q.history(limit=40)}
+
+
+class QualityRunIn(BaseModel):
+    suites: list[str] = Field(default_factory=lambda: ["documents", "metrics", "graph"])
+
+
+@app.post("/api/v1/quality/run")
+def quality_run(body: QualityRunIn, u: dict = Depends(ADMIN)):
+    from . import quality as Q
+    bad = [s for s in body.suites if s not in Q.SUITES]
+    if bad or not body.suites:
+        raise HTTPException(400, f"Suites are {', '.join(Q.SUITES)}.")
+    job = jobs.enqueue("quality", "Scoring quality", lambda i: Q.run(i["suites"], i["trigger"]), u["email"],
+                       {"suites": body.suites, "trigger": "manual"})
+    audit(u, "quality.run", ", ".join(body.suites))
+    return {"job": job}
+
+
+class QualitySettingsIn(BaseModel):
+    after_build: bool
+
+
+@app.put("/api/v1/quality/settings")
+def quality_settings(body: QualitySettingsIn, u: dict = Depends(ADMIN)):
+    core.set_setting("quality_after_build", body.after_build)
+    audit(u, "quality.settings", "after_build", {"after_build": body.after_build})
+    return {"after_build": body.after_build}
 
 
 # ------------------------------------------------------------------ access: groups and team
