@@ -2,8 +2,9 @@
 (commits, pull requests, issues, CI runs, contributors) becomes tables with a ready-made engineering semantic layer
 (connectors/templates/github.yaml), so agents can ask "median time to merge last month" or "open bugs by repo".
 
-Incremental: only files whose blob changed are fetched (state keeps each path's sha), activity is read since the
-last cursor and merged into the tables by id. Each repository is its own access group (repo-<owner>-<name>), so a
+Built on the file-source base (connectors/files_base.py: change detection by blob sha, removals, groups,
+webhooks). Incremental: only files whose blob changed are fetched (state keeps each path's sha), activity is read
+since the last cursor and merged into the tables by id. Each repository is its own access group (repo-<owner>-<name>), so a
 person or key sees only the repositories they were given, in passages and in numbers (row access rules).
 
 Config: repos (["owner/name"]), include_code (default true), include_activity (default true), max_files (2000),
@@ -19,7 +20,8 @@ import re
 from datetime import datetime, timedelta, timezone
 from pathlib import PurePosixPath
 
-from .base import Connector, Document, SyncResult, Table
+from .base import SyncResult, Table
+from .files_base import FileSource
 
 API = os.environ.get("CL_GITHUB_API", "https://api.github.com").rstrip("/")
 CODE_LANG = {".py": "python", ".js": "javascript", ".jsx": "jsx", ".ts": "typescript", ".tsx": "tsx", ".java": "java",
@@ -71,8 +73,9 @@ def _hours(a: str | None, b: str | None):
     return round(d.total_seconds() / 3600, 2)
 
 
-class GitHub(Connector):
+class GitHub(FileSource):
     kind = "github"
+    WEBHOOK = True
     label = "GitHub"
     CONFIG = {"repos": "Repositories as owner/name, e.g. [\"acme/api\"]",
               "include_code": "Index code and docs (default true)",
@@ -145,9 +148,10 @@ class GitHub(Connector):
             for full in self.repos():
                 st = dict(res.state["repos"].get(full) or {})
                 meta = self._get(c, f"/repos/{full}").json()
-                group = [repo_group(full)] + [g for g in self.groups if g != repo_group(full)]
+                group = self.scope_groups(full)
                 if self.config.get("include_code", True):
-                    docs, deleted, st["files"] = self._files(c, full, meta["default_branch"], st.get("files") or {}, group)
+                    docs, deleted, st["files"] = self.sync_files(c, full, st.get("files") or {}, group,
+                                                                 branch=meta["default_branch"])
                     res.documents += docs
                     res.deleted += deleted
                     n_files, n_deleted = n_files + len(docs), n_deleted + len(deleted)
@@ -163,8 +167,32 @@ class GitHub(Connector):
                        "activity_rows": {t: len(v) for t, v in rows.items() if v}}
         return res
 
-    # ------------------------------------------------------------------ code and docs
-    def _files(self, c, full, branch, known: dict, groups) -> tuple[list[Document], list[str], dict]:
+    # ------------------------------------------------------------------ code and docs (the file-source parts)
+    def scopes(self) -> list[str]:
+        return self.repos()
+
+    def scope_groups(self, full: str) -> list[str]:
+        return [repo_group(full)] + [g for g in self.groups if g != repo_group(full)]
+
+    def client(self):
+        return self._client()
+
+    def doc_name(self, full: str, path: str) -> str:
+        return _doc_name(full, path)
+
+    def ref(self, full: str, path: str, sha: str) -> str:
+        return f"{full}@{sha}:{path}"
+
+    def fetch(self, c, full: str, path: str, sha: str, **ctx) -> bytes | None:
+        blob = self._get(c, f"/repos/{full}/git/blobs/{sha}").json()
+        raw = base64.b64decode(blob.get("content") or "") if blob.get("encoding") == "base64" else \
+            (blob.get("content") or "").encode()
+        return None if b"\x00" in raw[:4096] else raw          # binary after all
+
+    def render(self, full: str, path: str, raw: bytes, branch: str = "", **ctx) -> bytes:
+        return _render(full, path, branch, raw.decode("utf-8", errors="replace")).encode("utf-8")
+
+    def listing(self, c, full: str, branch: str = "", **ctx) -> dict[str, str]:
         max_files = int(self.config.get("max_files", 2000))
         max_bytes = int(self.config.get("max_file_kb", 200)) * 1024
         tree = self._get(c, f"/repos/{full}/git/trees/{branch}", recursive="1").json().get("tree", [])
@@ -179,20 +207,7 @@ class GitHub(Connector):
             want[e["path"]] = e["sha"]
             if len(want) >= max_files:
                 break
-        docs = []
-        for path, sha in want.items():
-            if known.get(path) == sha:
-                continue                                        # unchanged since the last sync
-            blob = self._get(c, f"/repos/{full}/git/blobs/{sha}").json()
-            raw = base64.b64decode(blob.get("content") or "") if blob.get("encoding") == "base64" else \
-                (blob.get("content") or "").encode()
-            if b"\x00" in raw[:4096]:
-                continue                                        # binary after all
-            text = raw.decode("utf-8", errors="replace")
-            docs.append(Document(_doc_name(full, path), _render(full, path, branch, text).encode("utf-8"), groups,
-                                 ref=f"{full}@{sha}:{path}"))
-        deleted = [_doc_name(full, p) for p in known if p not in want]
-        return docs, deleted, want
+        return want
 
     # ------------------------------------------------------------------ activity
     def _activity(self, c, full, meta, st: dict, rows: dict):

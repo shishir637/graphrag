@@ -71,7 +71,7 @@ forwards the API to 8080), then `npm run build`.
 | Where things are stored | Postgres: everything people define or decide (workspaces, keys, semantic layer, ontology, document groups, facts, cards, inbox decisions, jobs, audit). Workspace folder (`CL_FILES_DIR/<workspace>/`): files and build outputs (passages, embeddings, graph build). Qdrant: search vectors. |
 | Facts, cards, inbox, grounding | `facts/` (kinds, extraction, checks, matching to database rows, inbox), `app/planner.py` (answerable?, route, split, secondary sources), `app/grounding.py` |
 | Background jobs, scheduler | `app/jobs.py` (queue in Postgres), `app/scheduler.py`, `semantic/monitor.py`, `semantic/learn.py` |
-| Connectors | `connectors/` (GitHub with an engineering semantic layer, Postgres snapshot/live), secrets in `app/vault.py` |
+| Connectors | `connectors/`: SQL family on `sql_base.py` (Postgres, MySQL: snapshot/live), file family on `files_base.py` (GitHub with an engineering semantic layer, S3-compatible folders); secrets in `app/vault.py` |
 | MCP server for agents | `app/mcp_server.py` (read: ask, search_documents, describe_data, query_metrics, list_metrics, find_connections, explore_entity, list_documents, fetch_passage, build_status; write: add_document, create_upload_link; admin keys: approve_metric, connect_source, list_sources, sync_source). Each key sees only the tools it may use. |
 | Sign in from Claude / ChatGPT (OAuth 2.1, PKCE, DCR, client metadata documents) | `app/oauth.py` |
 | Routing without a model (evidence plan: primary + secondary sources) | `app/router.py` |

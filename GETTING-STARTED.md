@@ -48,8 +48,9 @@ The first build and start take 10-20 minutes while the models download. Check pr
 5. **Playground**: ask a question to check what agents will get back.
 6. **Access**: add team members. Viewers see only the access groups you give them; owners and admins see everything.
 7. **Sources** (optional): connect GitHub (repositories: code and docs become searchable, commits, pull requests,
-   issues and CI runs become metrics such as "median time to merge" or "build failure rate") or a Postgres database
-   (tables copied on a schedule, or queried live). They stay up to date on their own; a GitHub webhook
+   issues and CI runs become metrics such as "median time to merge" or "build failure rate"), a Postgres or MySQL
+   database (tables copied on a schedule as Parquet, or queried live), or an S3-compatible folder (S3, MinIO, R2:
+   documents). They stay up to date on their own; a GitHub webhook
    (`https://<public name>/hooks/github/<connector id>`, with the connector's webhook secret) makes it immediate.
    Each repository is its own access group (`repo-<owner>-<name>`), for passages and numbers.
 

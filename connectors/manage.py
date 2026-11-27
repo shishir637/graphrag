@@ -15,11 +15,12 @@ from app import core, vault
 from .github import GitHub
 
 KINDS = {GitHub.kind: GitHub}
-try:
-    from .postgres import Postgres
-    KINDS[Postgres.kind] = Postgres
-except ImportError:                                   # optional connector
-    pass
+for _mod, _cls in (("postgres", "Postgres"), ("mysql", "MySQL"), ("s3", "S3Folder")):
+    try:                                              # optional connectors (their drivers are optional dependencies)
+        _c = getattr(__import__(f"connectors.{_mod}", fromlist=[_cls]), _cls)
+        KINDS[_c.kind] = _c
+    except ImportError:
+        pass
 DEFAULT_GROUPS = {"github": []}                 # GitHub: one access group per repository (repo-<owner>-<name>)
 
 
@@ -37,7 +38,7 @@ def public(r) -> dict:
             "every_minutes": r["every_minutes"], "status": r["status"], "last_run": r["last_run"], "last_ok": r["last_ok"],
             "last_error": r["last_error"], "next_run": r["next_run"], "created": r["created"], "created_by": r["created_by"],
             "secrets": {f: vault.get_hint(_secret_name(r["id"], f)) for f in (cls.SECRETS if cls else {})},
-            "webhook": f"/hooks/{r['kind']}/{r['id']}" if r["kind"] == "github" else None}
+            "webhook": f"/hooks/{r['kind']}/{r['id']}" if getattr(cls, "WEBHOOK", False) else None}
 
 
 def catalog() -> list[dict]:
@@ -254,18 +255,22 @@ def webhook(kind: str, cid: str, body: bytes, signature: str, event: str) -> tup
 
 
 def live_sources() -> list[dict]:
-    """Database connectors in live mode of the current workspace, for semantic/db.py to attach read-only."""
+    """SQL connectors in live mode of the current workspace, for semantic/db.py to attach read-only:
+    [{"alias", "type" (postgres | mysql), "attach" (DuckDB ATTACH string), "tables": {name: "schema.table"}}]."""
+    from .sql_base import SqlSource
     t = core.current_tenant()
     if not t:
         return []
+    sql_kinds = [k for k, c in KINDS.items() if issubclass(c, SqlSource)]
     out = []
-    for r in core.db().execute("SELECT * FROM connectors WHERE tenant_id = ? AND kind = 'postgres' AND status = 'active'",
-                               (t,)):
+    for r in core.db().execute("SELECT * FROM connectors WHERE tenant_id = ? AND kind = ANY(?) AND status = 'active'",
+                               (t, sql_kinds)):
         tables = (r["state"] or {}).get("live_tables") or {}
         if (r["config"] or {}).get("mode") == "live" and tables:
-            dsn = vault.get(_secret_name(r["id"], "dsn"))
-            if dsn:
-                out.append({"alias": f"src_{r['id']}", "dsn": dsn, "tables": tables})
+            inst = _instance(r)
+            if inst.secrets.get("dsn"):
+                out.append({"alias": f"src_{r['id']}", "type": inst.DUCKDB_TYPE, "attach": inst.duckdb_attach(),
+                            "tables": tables})
     return out
 
 

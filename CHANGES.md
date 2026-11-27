@@ -73,6 +73,18 @@ runs no AI model. Existing workspaces are upgraded automatically at start (`app/
   and the MCP tools `review_inbox`, `review_ontology` and `approve_metric`. An approved ontology change queues one
   graph re-extraction wherever it was approved. The first sign-in guide counts exactly the items the inbox lists.
 
+**Connector families** (`connectors/sql_base.py`, `connectors/files_base.py`)
+- SQL sources share one base: table listing, primary keys, incremental `updated_column`, batched Parquet snapshots
+  through a server-side cursor, live mode (DuckDB attaches the database read-only), and hooks for a ready-made
+  semantic layer and row access rules. Postgres is re-implemented on it; **MySQL / MariaDB** is the second
+  implementation (`connectors/mysql.py`, driver PyMySQL optional; live mode through DuckDB's mysql extension).
+- File sources share one base: per-scope state, change detection by version (git blob sha, S3 ETag), removals,
+  document groups, webhooks. GitHub is re-implemented on it; an **S3-compatible folder** (`connectors/s3.py`: AWS S3,
+  MinIO, Cloudflare R2...; boto3 optional) is the second. S3 was chosen over Google Drive because Drive needs a
+  Google Cloud OAuth app and consent screen per install.
+- Optional drivers are listed in `requirements-connectors.txt` (installed in the Docker image); without them the
+  connector is not offered. Secrets go only through `app/vault.py`.
+
 ## 0.6.0: accuracy: facts, checks, an inbox, "answerable?" and a grounding check
 
 No AI model is added: everything below is rules, regular expressions, RapidFuzz and the local models already used.

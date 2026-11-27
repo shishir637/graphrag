@@ -16,8 +16,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2
 WORKDIR /app
 # CPU-only PyTorch first, so requirements.txt does not pull multi-GB GPU builds
 RUN pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
-COPY requirements.txt requirements-semantic.txt requirements-app.txt ./
-RUN sed -i -E '/^(torch|torchvision)==/d' requirements.txt && pip install -r requirements.txt
+COPY requirements.txt requirements-semantic.txt requirements-app.txt requirements-connectors.txt ./
+RUN sed -i -E '/^(torch|torchvision)==/d' requirements.txt && pip install -r requirements.txt     && pip install -r requirements-connectors.txt
 COPY . .
 COPY --from=web /web/dist ./web/dist
 RUN useradd --create-home --uid 10001 cl && mkdir -p /app/var /app/outputs /app/qdrant_data /models \

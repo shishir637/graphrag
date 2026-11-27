@@ -40,7 +40,7 @@ def _reader(path: str) -> str:
 
 
 def _live_sources() -> list[dict]:
-    """Database connectors in live mode: [{"alias", "dsn", "tables": {name: "schema.table"}}]."""
+    """SQL connectors in live mode: [{"alias", "type", "attach", "tables": {name: "schema.table"}}]."""
     try:
         from connectors.manage import live_sources
         return live_sources()
@@ -74,9 +74,11 @@ def _build(files: dict, live: list) -> duckdb.DuckDBPyConnection:
         con.execute("INSTALL excel; LOAD excel;")
     for name, path in files.items():                       # views: the files are read at query time, never copied
         con.execute(f'CREATE VIEW "{name}" AS SELECT * FROM {_reader(path)}')
-    for s in live:
-        con.execute("INSTALL postgres; LOAD postgres;")
-        con.execute(f"ATTACH '{s['dsn']}' AS \"{s['alias']}\" (TYPE postgres, READ_ONLY)")
+    for s in live:                                          # SQL connectors in live mode (postgres, mysql)
+        typ = s.get("type", "postgres")
+        target = (s.get("attach") or s.get("dsn") or "").replace("'", "''")
+        con.execute(f"INSTALL {typ}; LOAD {typ};")
+        con.execute(f"ATTACH '{target}' AS \"{s['alias']}\" (TYPE {typ}, READ_ONLY)")
         for name, src in s["tables"].items():
             schema, table = src.split(".", 1)
             con.execute(f'CREATE VIEW "{name}" AS SELECT * FROM "{s["alias"]}"."{schema}"."{table}"')

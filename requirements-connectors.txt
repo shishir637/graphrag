@@ -1,0 +1,4 @@
+# Optional connector drivers. Without them the matching connector is simply not offered.
+# The Docker image installs them.
+pymysql>=1.1      # MySQL / MariaDB connector (connectors/mysql.py)
+boto3>=1.34       # S3-compatible folder connector (connectors/s3.py)
