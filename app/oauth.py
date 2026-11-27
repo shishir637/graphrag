@@ -82,6 +82,22 @@ def resource_url(request: Request) -> str:
     return base_url(request.scope) + "/mcp"
 
 
+def _known_resource(request: Request, res: str) -> bool:
+    """/mcp, or a shared layer's own link /mcp/layers/<name>."""
+    import re
+    r = res.rstrip("/").lower()
+    if r == resource_url(request).rstrip("/").lower():
+        return True
+    m = re.match(re.escape(resource_url(request).lower()) + r"/(?:layers|teams)/([a-z0-9-]{1,80})$", r)
+    if not m:
+        return False
+    try:
+        from . import sharing
+        return sharing.layer_for_slug(m.group(1)) is not None
+    except Exception:                                      # noqa: BLE001 - store off
+        return False
+
+
 def server_metadata(base: str) -> dict:
     return {
         "issuer": base,
@@ -108,10 +124,15 @@ def _preflight(rest: str):
 
 @router.get("/.well-known/oauth-protected-resource", include_in_schema=False)
 @router.get("/.well-known/oauth-protected-resource/mcp", include_in_schema=False)
-def protected_resource(request: Request):
+@router.get("/.well-known/oauth-protected-resource/mcp/layers/{slug}", include_in_schema=False)
+@router.get("/.well-known/oauth-protected-resource/mcp/teams/{team}", include_in_schema=False)
+def protected_resource(request: Request, slug: str | None = None, team: str | None = None):
     base = base_url(request.scope)
-    return JSONResponse({"resource": f"{base}/mcp", "authorization_servers": [base], "scopes_supported": [SCOPE],
-                         "bearer_methods_supported": ["header"], "resource_name": "Context Layer"}, headers=CORS)
+    path = f"/mcp/teams/{team}" if team else f"/mcp/layers/{slug}" if slug else "/mcp"
+    slug = slug or team
+    return JSONResponse({"resource": f"{base}{path}", "authorization_servers": [base], "scopes_supported": [SCOPE],
+                         "bearer_methods_supported": ["header"],
+                         "resource_name": "Context Layer" + (f" ({slug})" if slug else "")}, headers=CORS)
 
 
 @router.get("/.well-known/oauth-authorization-server", include_in_schema=False)
@@ -285,7 +306,7 @@ def _check_request(request: Request, params: dict):
     if not params.get("code_challenge") or params.get("code_challenge_method") != "S256":
         return None, _back(ru, issuer, error="invalid_request", error_description="PKCE with S256 is required.", state=st)
     res = params.get("resource")
-    if res and res.rstrip("/").lower() != resource_url(request).rstrip("/").lower():
+    if res and not _known_resource(request, res):
         return None, _back(ru, issuer, error="invalid_target", error_description="Unknown resource.", state=st)
     scopes = set((params.get("scope") or SCOPE).split())
     if not scopes <= {SCOPE, "openid", "profile", "email", "offline_access"}:
@@ -312,6 +333,8 @@ def authorize(request: Request):
     user = core.session_user(session)
     if user is None:
         return _login_form(params)
+    if user.get("must_change"):
+        return _new_password_form(params)
     host = urlparse(params["redirect_uri"]).hostname
     admin = user["role"] in ("owner", "admin")
     can = ["Search and read the documents you can see", "Answer questions about approved business metrics",
@@ -323,6 +346,39 @@ def authorize(request: Request):
 <p class="muted">You will return to <code>{html.escape(host or '')}</code>. You can disconnect it at any time from Agents in Context Layer.</p>
 <form method="post" action="/oauth/authorize">{_hidden(params)}<input type="hidden" name="csrf" value="{_csrf(session, params)}">
 <button name="decision" value="allow" type="submit">Allow</button><button class="secondary" name="decision" value="deny" type="submit">Cancel</button></form>""")
+
+
+def _new_password_form(params: dict, error: str = "") -> HTMLResponse:
+    err = f'<div class="err">{html.escape(error)}</div>' if error else ""
+    return page("Choose a password", f"""<h1>Choose your password</h1><p class="muted">You signed in with a temporary
+password. Choose your own to continue.</p>{err}<form method="post" action="/oauth/password">{_hidden(params)}
+<label for="p">New password ({core.MIN_PASSWORD}+ characters; a short sentence works well)</label><input id="p" name="password" type="password" autocomplete="new-password" minlength="{core.MIN_PASSWORD}" required autofocus>
+<label for="p2">Again</label><input id="p2" name="password2" type="password" autocomplete="new-password" minlength="{core.MIN_PASSWORD}" required>
+<button type="submit">Save and continue</button></form>""", 400 if error else 200)
+
+
+@router.post("/oauth/password", include_in_schema=False)
+async def new_password(request: Request):
+    form = await request.form()
+    params = {k: str(form.get(k, "")) for k in AUTH_PARAMS}
+    client, bad = _check_request(request, params)
+    if bad:
+        return bad
+    user = core.session_user(request.cookies.get(COOKIE))
+    if user is None:
+        return _login_form(params, "Your sign-in expired. Sign in again.")
+    pw, pw2 = str(form.get("password", "")), str(form.get("password2", ""))
+    if pw != pw2:
+        return _new_password_form(params, "The two passwords are different.")
+    row = core.db().execute("SELECT pw_hash FROM users WHERE id = ?", (user["id"],)).fetchone()
+    if core.check_password(pw, row["pw_hash"]):
+        return _new_password_form(params, "Choose a password different from the temporary one.")
+    try:
+        core.set_password(user["id"], pw)
+    except ValueError as e:
+        return _new_password_form(params, str(e))
+    core.log_event("user", user["email"], "account.password", "first sign-in")
+    return RedirectResponse("/oauth/authorize?" + urlencode({k: v for k, v in params.items() if v}), 303)
 
 
 @router.post("/oauth/login", include_in_schema=False)
@@ -503,7 +559,8 @@ def revoke_grant(family: str, user_id: int | None = None) -> bool:
 
 def www_authenticate(scope, error: bool) -> bytes:
     base = base_url(scope)
-    v = f'Bearer resource_metadata="{base}/.well-known/oauth-protected-resource/mcp", scope="{SCOPE}"'
+    path = scope.get("cl_resource_path", "/mcp")
+    v = f'Bearer resource_metadata="{base}/.well-known/oauth-protected-resource{path}", scope="{SCOPE}"'
     if error:
         v += ', error="invalid_token"'
     return v.encode()

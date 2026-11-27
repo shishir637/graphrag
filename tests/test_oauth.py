@@ -216,16 +216,20 @@ def test_upload_link(pub):
     assert c.get("/upload/clu_nope", headers=PUB).status_code == 404
 
 
-def test_viewer_cannot_upload_and_sees_own_groups(pub):
+def test_viewer_uploads_to_own_groups_and_sees_own_groups(pub):
     c, _ = pub
     c.post("/api/v1/login", headers=H, json={"email": "o@example.com", "password": "pass-word-123"})
     uid = c.post("/api/v1/users", headers=H, json={"email": "v@example.com", "name": "V", "role": "viewer",
                                                    "password": "pass-word-456"}).json()["user"]["id"]
     assert c.patch(f"/api/v1/users/{uid}", headers=H, json={"groups": ["sales"]}).json()["user"]["groups"] == ["sales"]
+    # since 0.8 every account gets the Everyone role (public); take public out of it for this check
+    assert c.post("/api/v1/access/roles", headers=H, json={"name": "Everyone", "old": "Everyone", "datasets": [],
+                                                           "connectors": ["documents", "data", "graph", "upload"]}).status_code == 200
     c.cookies.clear()
     acc = connect(c, "v@example.com", "pass-word-456")["access_token"]
     r = mcp(c, acc, "add_document", {"filename": "x.md", "text": "hello"})
-    assert r["isError"] and "may not use upload" in r["content"][0]["text"]
+    # since 0.6 everyone may add files; a member's file is shared only with their own groups
+    assert r["structuredContent"]["saved"]["groups"] == ["sales"]
     assert mcp(c, acc, "list_documents", {})["structuredContent"]["your_groups"] == ["sales"]
     assert mcp(c, acc, "approve_metric", {"name": "net_revenue"})["isError"]
     # disabling the user signs their apps out

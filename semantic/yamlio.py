@@ -16,11 +16,37 @@ def _yaml() -> YAML:
     return y
 
 
-def read(path: Path):
+def raw_read(path: Path):
     return _yaml().load(path.read_text(encoding="utf-8"))
 
 
+def _store_file(path: Path) -> str | None:
+    """The layer files that live in the definitions store when it is on (semantic/defstore.py)."""
+    from . import defstore
+    from .config import LAYER_DIR
+    if defstore.enabled() and path.name in defstore.SPEC and Path(path).parent.name == LAYER_DIR.name:
+        return path.name
+    return None
+
+
+def read(path: Path):
+    name = _store_file(path)
+    if name:
+        from . import defstore
+        return defstore.compose(name)
+    return raw_read(path)
+
+
 def write(path: Path, data, header: str = ""):
+    name = _store_file(path)
+    if name:
+        from . import defstore
+        defstore.save_file(name, _plain(data))
+        return
+    raw_write(path, data, header)
+
+
+def raw_write(path: Path, data, header: str = ""):
     buf = StringIO()
     _yaml().dump(data, buf)
     path.parent.mkdir(parents=True, exist_ok=True)

@@ -18,7 +18,7 @@ from qdrant_client import models
 
 from .config import CANDIDATES_PER_RETRIEVER, COLLECTION, FINAL_TOP_K, FUSED_TOP_K
 from .models import embed_dense, embed_sparse, rerank_scores
-from .store import client
+from .store import active_collection, client
 from .utils import timer, write_json
 
 GRAPH_CANDIDATES = 12
@@ -62,7 +62,7 @@ def fetch_chunks(chunk_ids: list[str], groups: list[str] | None, sources: list[s
     """Passages by id, re-checking access and source filters (graph candidates come from outside Qdrant)."""
     if not chunk_ids:
         return []
-    pts = client().retrieve(COLLECTION, ids=[point_id(c) for c in chunk_ids], with_payload=True)
+    pts = client().retrieve(active_collection(), ids=[point_id(c) for c in chunk_ids], with_payload=True)
     out = []
     for p in pts:
         if groups and not set(p.payload.get("access") or []) & set(groups):
@@ -131,7 +131,7 @@ def retrieve(question: str, groups: list[str] | None = None, sources: list[str] 
     with timer("search", timings):
         # The filter is applied INSIDE each search (pre-filtering), never after.
         fused = qc.query_points(
-            COLLECTION,
+            active_collection(),
             prefetch=[
                 models.Prefetch(query=qd, using="dense", filter=flt, limit=CANDIDATES_PER_RETRIEVER),
                 models.Prefetch(query=qs, using="bm25", filter=flt, limit=CANDIDATES_PER_RETRIEVER),

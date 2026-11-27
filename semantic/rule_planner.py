@@ -351,6 +351,7 @@ class RulePlanner:
         # 4. filters from values (a value inside a grouping phrase is skipped)
         dim_pos = {j for sp in dim_spans for j in sp}
         filters: dict[str, list[str]] = {}
+        grams: list[str] = []                       # the words that became filters ("data team" -> Data Engineering)
         for i, gram, refs, how in self._find_values(low, metric_pos):
             choices = [r for r, _ in refs]
             if i in dim_pos and any(r in dims for r in choices):
@@ -359,6 +360,7 @@ class RulePlanner:
             if ref is None:
                 continue
             val = next(v for r, v in refs if r == ref)
+            grams.append(gram.lower())
             filters.setdefault(ref, [])
             if val not in filters[ref]:
                 filters[ref].append(val)
@@ -371,6 +373,7 @@ class RulePlanner:
                     or any(mt.group(2) in d for d in dims):
                 continue
             if not any(phrase.startswith(v.lower()) or v.lower() in phrase for vals in filters.values() for v in vals) \
+                    and not any(phrase in g or g in phrase for g in grams) \
                     and not any(mt.group(1) in d for d in dims):
                 return Plan(False, reason_if_not_answerable=f"could not find '{phrase}' in the data, so the number "
                             "cannot be limited to it")
@@ -450,12 +453,14 @@ def planner() -> RulePlanner:
     from .enrich import load_store
     from .yamlio import load_enrichment, load_metrics, load_model
     v = _layer_version()
-    if _cache.get("v") != v:
+    if v not in _cache:
         try:
             store = load_store()
         except SystemExit:                       # catalog not built yet (fresh install): build it, no model needed
             from .enrich import build_enrichment
             build_enrichment(embed=False)
             store = load_store()
-        _cache.update(v=v, p=RulePlanner(load_model(), load_metrics(), load_enrichment(), store["values"]))
-    return _cache["p"]
+        while len(_cache) >= 8:                  # one planner per layer stack in use; keep the most recent
+            _cache.pop(next(iter(_cache)))
+        _cache[v] = RulePlanner(load_model(), load_metrics(), load_enrichment(), store["values"])
+    return _cache[v]

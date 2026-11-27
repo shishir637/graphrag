@@ -1,0 +1,271 @@
+# Kestrel Labs demo company: metric definitions.
+version: 1
+metrics:
+  - name: deployment_count
+    label: Deployments
+    description: Number of production deploys.
+    type: simple
+    entity: deployments
+    format: number
+    owner: Platform and DevOps
+    status: approved
+    expression: count(*)
+    time_column: deployments.deployed_at
+  - name: failed_deployments
+    label: Failed deployments
+    description: Production deploys that failed or were rolled back.
+    type: simple
+    entity: deployments
+    format: number
+    owner: Platform and DevOps
+    status: approved
+    expression: count(*)
+    time_column: deployments.deployed_at
+    filters:
+      - deployments.status != 'success'
+  - name: change_failure_rate
+    label: Change failure rate
+    description: Share of production deploys that failed or were rolled back (DORA).
+    type: ratio
+    entity: deployments
+    format: percent
+    owner: Platform and DevOps
+    status: approved
+    numerator: failed_deployments
+    denominator: deployment_count
+  - name: lead_time_for_changes
+    label: Lead time for changes (hours)
+    description: Average hours from first commit to production deploy (DORA).
+    type: simple
+    entity: deployments
+    format: number
+    owner: Platform and DevOps
+    status: approved
+    expression: avg(deployments.lead_time_hours)
+    time_column: deployments.deployed_at
+  - name: incident_count
+    label: Incidents
+    description: Number of production incidents.
+    type: simple
+    entity: incidents
+    format: number
+    owner: Platform and DevOps
+    status: approved
+    expression: count(*)
+    time_column: incidents.opened_at
+  - name: sev1_incidents
+    label: Sev1 incidents
+    description: Number of Sev1 incidents.
+    type: simple
+    entity: incidents
+    format: number
+    owner: Platform and DevOps
+    status: approved
+    expression: count(*)
+    time_column: incidents.opened_at
+    filters:
+      - incidents.severity = 'Sev1'
+  - name: time_to_restore
+    label: Time to restore (hours)
+    description: Average hours from an incident being opened to service being restored (DORA).
+    type: simple
+    entity: incidents
+    format: number
+    owner: Platform and DevOps
+    status: approved
+    expression: avg(incidents.time_to_restore_hours)
+    time_column: incidents.opened_at
+  - name: story_points_done
+    label: Story points done (velocity)
+    description: Story points of tickets finished in the sprint.
+    type: simple
+    entity: tickets
+    format: number
+    owner: Engineering
+    status: approved
+    expression: sum(tickets.story_points)
+    time_column: tickets.sprint_start
+    filters:
+      - tickets.status = 'done'
+  - name: ticket_cycle_time
+    label: Ticket cycle time (days)
+    description: Average days from a ticket being created to done.
+    type: simple
+    entity: tickets
+    format: number
+    owner: Engineering
+    status: approved
+    expression: avg(tickets.cycle_time_days)
+    time_column: tickets.sprint_start
+    filters:
+      - tickets.status = 'done'
+  - name: bugs_opened
+    label: Bugs
+    description: Number of bug tickets.
+    type: simple
+    entity: tickets
+    format: number
+    owner: QA
+    status: approved
+    expression: count(*)
+    time_column: tickets.sprint_start
+    filters:
+      - tickets.type = 'bug'
+  - name: pipeline_runs_count
+    label: Pipeline runs
+    description: Number of data pipeline runs.
+    type: simple
+    entity: pipeline_runs
+    format: number
+    owner: Data Engineering
+    status: approved
+    expression: count(*)
+    time_column: pipeline_runs.run_date
+  - name: successful_pipeline_runs
+    label: Successful pipeline runs
+    description: Pipeline runs that succeeded.
+    type: simple
+    entity: pipeline_runs
+    format: number
+    owner: Data Engineering
+    status: approved
+    expression: count(*)
+    time_column: pipeline_runs.run_date
+    filters:
+      - pipeline_runs.status = 'success'
+  - name: pipeline_success_rate
+    label: Pipeline success rate
+    description: Share of data pipeline runs that succeeded.
+    type: ratio
+    entity: pipeline_runs
+    format: percent
+    owner: Data Engineering
+    status: approved
+    numerator: successful_pipeline_runs
+    denominator: pipeline_runs_count
+  - name: data_freshness_hours
+    label: Data freshness (hours)
+    description: Average age in hours of the data a pipeline run delivered.
+    type: simple
+    entity: pipeline_runs
+    format: number
+    owner: Data Engineering
+    status: approved
+    expression: avg(pipeline_runs.freshness_hours)
+    time_column: pipeline_runs.run_date
+  - name: cloud_cost
+    label: Cloud cost (USD)
+    description: Cloud and tooling spend in US dollars.
+    type: simple
+    entity: cloud_costs
+    format: currency
+    owner: Finance
+    status: approved
+    expression: sum(cloud_costs.cost_usd)
+    time_column: cloud_costs.month
+  - name: headcount
+    label: Headcount
+    description: People currently employed.
+    type: simple
+    entity: employees
+    format: number
+    owner: People
+    status: approved
+    expression: count(*)
+    filters:
+      - employees.status = 'active'
+  - name: people_left
+    label: People who left
+    description: People whose last day was in the period.
+    type: simple
+    entity: employees
+    format: number
+    owner: People
+    status: approved
+    expression: count(*)
+    time_column: employees.left_date
+    filters:
+      - employees.status = 'left'
+  - name: mrr
+    label: MRR (USD)
+    description: 'Monthly recurring revenue: the monthly price of all active subscriptions, in US dollars.'
+    type: simple
+    entity: subscriptions
+    format: currency
+    owner: Finance
+    status: approved
+    expression: sum(subscriptions.mrr_usd)
+    filters:
+      - subscriptions.status = 'active'
+  - name: arr
+    label: ARR (USD)
+    description: 'Annual recurring revenue: MRR times 12, in US dollars.'
+    type: derived
+    entity: subscriptions
+    format: currency
+    owner: Finance
+    status: approved
+    expression: '{mrr} * 12'
+  - name: active_customers
+    label: Active customers
+    description: Customers who have not churned.
+    type: simple
+    entity: customers
+    format: number
+    owner: Customer Success
+    status: approved
+    expression: count(*)
+    filters:
+      - customers.status = 'active'
+  - name: new_customers
+    label: New customers
+    description: Customers who signed up in the period.
+    type: simple
+    entity: customers
+    format: number
+    owner: Sales
+    status: approved
+    expression: count(*)
+    time_column: customers.signup_date
+  - name: churned_customers
+    label: Churned customers
+    description: Customers who left in the period.
+    type: simple
+    entity: customers
+    format: number
+    owner: Customer Success
+    status: approved
+    expression: count(*)
+    time_column: customers.churned_at
+    filters:
+      - customers.status = 'churned'
+  - name: support_ticket_count
+    label: Support tickets
+    description: Number of customer support tickets.
+    type: simple
+    entity: support_tickets
+    format: number
+    owner: Customer Success
+    status: approved
+    expression: count(*)
+    time_column: support_tickets.opened_at
+  - name: first_response_minutes
+    label: First response time (minutes)
+    description: Average minutes to the first reply on a support ticket.
+    type: simple
+    entity: support_tickets
+    format: number
+    owner: Customer Success
+    status: approved
+    expression: avg(support_tickets.first_response_minutes)
+    time_column: support_tickets.opened_at
+  - name: csat
+    label: CSAT
+    description: Average customer satisfaction score (1 to 5) on support tickets.
+    type: simple
+    entity: support_tickets
+    format: number
+    owner: Customer Success
+    status: approved
+    expression: avg(support_tickets.csat)
+    time_column: support_tickets.opened_at

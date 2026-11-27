@@ -3,7 +3,7 @@ import { ago, api, can, type Role, type User } from '../api'
 import type { Session } from '../App'
 import { Badge, ErrorBox, Icon, Loading, Modal, PageHead, useLoad, useToast } from '../ui'
 
-const ROLE_HELP: Record<Role, string> = { owner: 'Everything, including team and settings', admin: 'Sources, agents and quality', viewer: 'Read-only; can use the Playground' }
+const ROLE_HELP: Record<Role, string> = { owner: 'Everything, including team and settings', admin: 'Sources, agents, directory and the company layer', publisher: 'A member who can also publish changes to the company layer', viewer: 'Asks, adds files and changes their own layer through Claude or ChatGPT' }
 
 export default function Access({ s }: { s: Session }) {
   const groups = useLoad<{ groups: { name: string; documents: string[]; agents: string[] }[] }>('/groups')
@@ -25,14 +25,14 @@ export default function Access({ s }: { s: Session }) {
         <div className="tablewrap"><table className="t"><thead><tr><th>Member</th><th>Role</th><th>Sees groups</th><th>Last sign-in</th><th /></tr></thead>
           <tbody>{users.data.users.map((u) => <tr key={u.id} className={u.disabled ? 'dim' : ''}><td><b>{u.name}</b>{u.id === s.user.id && <span className="muted"> (you)</span>}<div className="tiny muted">{u.email}</div></td>
             <td>{owner && u.id !== s.user.id ? <select value={u.role} onChange={(e) => patch(u, { role: e.target.value as Role })} style={{ width: 130 }} aria-label={`Role of ${u.name}`}>
-              {(['owner', 'admin', 'viewer'] as Role[]).map((r) => <option key={r} value={r}>{r}</option>)}</select> : <Badge>{u.role}</Badge>}</td>
-            <td className="small">{u.role !== 'viewer' ? <span className="muted">all</span> : owner
+              {(['owner', 'admin', 'publisher', 'viewer'] as Role[]).map((r) => <option key={r} value={r}>{r === 'viewer' ? 'member' : r}</option>)}</select> : <Badge>{u.role}</Badge>}</td>
+            <td className="small">{u.role === 'owner' || u.role === 'admin' ? <span className="muted">all</span> : owner
               ? <input type="text" defaultValue={u.groups.join(', ')} style={{ width: 160 }} aria-label={`Groups of ${u.name}`}
                   onBlur={(e) => { const g = e.target.value.split(',').map((x) => x.trim()).filter(Boolean); if (g.join(',') !== u.groups.join(',')) patch(u, { groups: g }) }} />
               : u.groups.join(', ')}</td>
             <td className="small muted">{ago(u.last_login)}</td>
             <td style={{ textAlign: 'right' }}>{owner && u.id !== s.user.id && <button className="btn sm" onClick={() => patch(u, { disabled: !u.disabled })}>{u.disabled ? 'Enable' : 'Disable'}</button>}</td></tr>)}</tbody></table></div>}
-      <div className="bd tiny muted" style={{ borderTop: '1px solid var(--line)' }}>{(['owner', 'admin', 'viewer'] as Role[]).map((r) => <div key={r}><b>{r}</b>: {ROLE_HELP[r]}</div>)}</div></div>
+      <div className="bd tiny muted" style={{ borderTop: '1px solid var(--line)' }}>{(['owner', 'admin', 'publisher', 'viewer'] as Role[]).map((r) => <div key={r}><b>{r === 'viewer' ? 'member' : r}</b>: {ROLE_HELP[r]}</div>)}</div></div>
     {add && <AddUser onClose={() => setAdd(false)} onDone={() => { setAdd(false); users.reload(); toast('Member added. Share their temporary password with them securely.') }} />}
   </div>
 }
@@ -40,11 +40,11 @@ export default function Access({ s }: { s: Session }) {
 function AddUser({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const [f, setF] = useState({ name: '', email: '', role: 'viewer', password: '' }); const toast = useToast()
   return <Modal title="Add a team member" onClose={onClose} footer={<><button className="btn" onClick={onClose}>Cancel</button>
-    <button className="btn primary" disabled={!f.name || !f.email || f.password.length < 10} onClick={async () => { try { await api('/users', { json: f }); onDone() } catch (e: any) { toast(e.message, true) } }}>Add member</button></>}>
+    <button className="btn primary" disabled={!f.name || !f.email || f.password.length < 10} onClick={async () => { try { await api('/users', { json: { ...f, temporary: true } }); onDone() } catch (e: any) { toast(e.message, true) } }}>Add member</button></>}>
     <div className="stack">
       <label className="f">Name<input type="text" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></label>
       <label className="f">Email<input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></label>
-      <label className="f">Role<select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>{(['viewer', 'admin', 'owner'] as Role[]).map((r) => <option key={r} value={r}>{r}: {ROLE_HELP[r]}</option>)}</select></label>
-      <label className="f">Temporary password<span className="h">At least 10 characters. They can change it under Settings after signing in.</span><input type="text" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} autoComplete="off" /></label>
+      <label className="f">Role<select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>{(['viewer', 'publisher', 'admin', 'owner'] as Role[]).map((r) => <option key={r} value={r}>{r === 'viewer' ? 'member' : r}: {ROLE_HELP[r]}</option>)}</select></label>
+      <label className="f">Temporary password<span className="h">At least 10 characters. They must choose their own password the first time they sign in.</span><input type="text" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} autoComplete="off" /></label>
     </div></Modal>
 }

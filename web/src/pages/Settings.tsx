@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { api, can } from '../api'
 import type { Session } from '../App'
-import { Badge, ErrorBox, Loading, PageHead, useLoad, useToast } from '../ui'
+import { askConfirm, Badge, ErrorBox, Loading, PageHead, useLoad, useToast } from '../ui'
 
 interface S {
   organisation: string; version: string
@@ -69,6 +69,57 @@ function AIExtraction({ ai, owner, reload }: { ai: AI; owner: boolean; reload: (
     </div></div>
 }
 
+
+interface ChatS { guests: boolean; company_key_for: string; uploads: string; company_model: string; company_key_set: boolean; company_key: string | null; models: [string, string][]; keys_url: string }
+
+function ChatSettings({ owner }: { owner: boolean }) {
+  const toast = useToast()
+  const { data, reload } = useLoad<ChatS>('/settings/chat')
+  const [f, setF] = useState<null | { guests: boolean; company_key_for: string; uploads: string; company_model: string; company_key: string }>(null)
+  const [busy, setBusy] = useState(false)
+  if (!data) return null
+  const v = f ?? { guests: data.guests, company_key_for: data.company_key_for, uploads: data.uploads, company_model: data.company_model, company_key: '' }
+  const save = async (extra: { company_key: string | null }) => {
+    setBusy(true)
+    try { await api('/settings/chat', { method: 'PUT', json: { ...v, ...extra } }); setF(null); toast('Saved'); reload() } catch (e: any) { toast(e.message, true) } finally { setBusy(false) }
+  }
+  return <div className="card" style={{ marginTop: 16 }}>
+    <div className="hd"><div><h2>Chat</h2><div className="muted small">People chat on the Chat page with their own Claude API key (billed to their own Claude Console account). Their questions and the passages Claude reads are sent to Anthropic.</div></div>
+      <Badge kind={data.guests || (data.company_key_for === 'everyone' && data.company_key_set) ? 'ok' : ''} dot>{data.guests ? 'open to guests' : data.company_key_for === 'everyone' && data.company_key_set ? 'company key on' : 'own keys only'}</Badge></div>
+    <div className="bd stack small">
+      <div className="between"><span><b>People without their own key</b><div className="muted">Let them use a company Claude key (your organisation pays).</div></span>
+        <div className="seg" role="group" aria-label="Company key">{[['nobody', 'Must add their own'], ['everyone', 'May use the company key']].map(([k, l]) =>
+          <button key={k} type="button" disabled={!owner} className={v.company_key_for === k ? 'on' : ''} onClick={() => setF({ ...v, company_key_for: k })}>{l}</button>)}</div></div>
+      <div className="between"><span><b>Chat without signing in</b><div className="muted">Anyone who opens Context Layer on this computer can chat right away, as a guest: public documents only, on the company key. Not available over the public link.</div></span>
+        <div className="seg" role="group" aria-label="Guests">{[[false, 'Off'], [true, 'On']].map(([k, l]) =>
+          <button key={String(k)} type="button" disabled={!owner} className={v.guests === k ? 'on' : ''} onClick={() => setF({ ...v, guests: k as boolean })}>{l as string}</button>)}</div></div>
+      {(v.company_key_for === 'everyone' || v.guests) && <div className="row">
+        <label className="f" style={{ flex: '2 1 260px' }}>Company Claude API key{data.company_key_set && <span className="muted"> (saved: {data.company_key}; leave empty to keep)</span>}
+          <input type="password" autoComplete="off" disabled={!owner} value={v.company_key} placeholder={data.company_key_set ? 'leave empty to keep the saved key' : 'sk-ant-…'} onChange={(e) => setF({ ...v, company_key: e.target.value })} /></label>
+        <label className="f" style={{ flex: '1 1 200px' }}>Model for the company key<select disabled={!owner} value={v.company_model} onChange={(e) => setF({ ...v, company_model: e.target.value })}>
+          {data.models.map(([m, l]) => <option key={m} value={m}>{l}</option>)}{!data.models.some(([m]) => m === v.company_model) && <option value={v.company_model}>{v.company_model}</option>}</select></label></div>}
+      <div className="between"><span><b>Adding files from the chat</b><div className="muted">Files are shared with the person's own access groups.</div></span>
+        <div className="seg" role="group" aria-label="Chat uploads">{[['everyone', 'Everyone'], ['admins', 'Owners and admins']].map(([k, l]) =>
+          <button key={k} type="button" disabled={!owner} className={v.uploads === k ? 'on' : ''} onClick={() => setF({ ...v, uploads: k })}>{l}</button>)}</div></div>
+      {owner && <div className="row"><button className="btn" disabled={busy || f === null} onClick={() => save({ company_key: v.company_key ? v.company_key : null })}>Save</button>
+        {data.company_key_set && <button className="btn ghost" disabled={busy} onClick={() => save({ company_key: '' })}>Remove company key</button>}</div>}
+    </div></div>
+}
+
+function Demo({ owner }: { owner: boolean }) {
+  const { data } = useLoad<{ available: boolean; company?: string; tables?: string[]; documents?: string[]; people?: number }>('/demo')
+  const [busy, setBusy] = useState(false); const toast = useToast()
+  if (!data || !data.available) return null
+  const go = async () => {
+    if (!await askConfirm('Replace the company data tables, documents and definitions with the Kestrel Labs demo company? Personal layers stay. The current company layer is saved in a backup first, and every definition change is recorded in the history.', 'Load Kestrel Labs')) return
+    setBusy(true)
+    try { await api('/demo/load', { method: 'POST' }); toast('Loading Kestrel Labs: follow it on the Activity page') } catch (e: any) { toast(e.message, true) } finally { setBusy(false) }
+  }
+  return <div className="card" style={{ marginTop: 16 }}>
+    <div className="hd"><div><h2>Demo company</h2><div className="muted small">Kestrel Labs, a made-up software company: {data.people} people, {data.tables?.length} data tables (teams, deployments, incidents, sprints, pipelines, cloud costs, customers, support) and {data.documents?.length} documents that match the data.</div></div></div>
+    <div className="bd row">{owner ? <button className="btn" disabled={busy} onClick={go}>Load Kestrel Labs as the company layer</button> : <span className="muted small">Only the owner can load it.</span>}</div></div>
+}
+
 export default function Settings({ s }: { s: Session }) {
   const { data, error, reload } = useLoad<S>('/settings')
   const [org, setOrg] = useState<string | null>(null)
@@ -81,7 +132,7 @@ export default function Settings({ s }: { s: Session }) {
   return <div className="page">
     <PageHead title="Settings" sub={`Context Layer ${data.version}`} />
     <div className="card"><div className="hd"><div><h2>How agents connect</h2><div className="muted small">{data.ai_model.note}</div></div>
-      <Badge kind="ok" dot>{data.graph_mode === 'ai' ? 'AI used for graph builds only' : 'no AI model needed'}</Badge></div>
+      <Badge kind="ok" dot>{data.graph_mode === 'ai' ? 'agents: AI used for graph builds only' : 'agents: no AI model needed'}</Badge></div>
       <div className="bd stack small">
         <div className="between"><span className="muted">MCP link (this computer)</span><code>{data.mcp.url}</code></div>
         <div className="between"><span className="muted">Public MCP link</span>{data.mcp.public_url ? <code>{data.mcp.public_url}</code>
@@ -94,6 +145,7 @@ export default function Settings({ s }: { s: Session }) {
         <div className="sep" /><div className="between" style={{ alignItems: 'center' }}><span><b>Knowledge graph quality</b><div className="muted">{MODES[data.graph_mode]}</div></span>
           <div className="seg" role="group" aria-label="Graph mode">{['fast', 'accurate', 'ai'].map((m) => <button key={m} type="button" disabled={!owner || (m === 'ai' && !data.ai_extraction.ready)} title={m === 'ai' && !data.ai_extraction.ready ? 'Set up AI extraction below first' : MODES[m]} className={data.graph_mode === m ? 'on' : ''} onClick={() => setMode(m)}>{m}</button>)}</div></div>
       </div></div>
+    <ChatSettings owner={owner} />
     <AIExtraction ai={data.ai_extraction} owner={owner} reload={reload} />
     <div className="grid g2" style={{ marginTop: 16 }}>
       <div className="card"><div className="hd"><h2>Organisation</h2></div><div className="bd stack">
@@ -107,6 +159,7 @@ export default function Settings({ s }: { s: Session }) {
         <div className="between"><span className="muted">Free disk</span><span>{data.storage.disk.free_gb} GB of {data.storage.disk.total_gb} GB</span></div>
       </div></div>
     </div>
+    <Demo owner={owner} />
     <div className="card" style={{ marginTop: 16 }}><div className="hd"><h2>Your password</h2></div><div className="bd row" style={{ alignItems: 'flex-end' }}>
       <label className="f" style={{ flex: '1 1 220px' }}>Current<input type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} autoComplete="current-password" /></label>
       <label className="f" style={{ flex: '1 1 220px' }}>New (10+ characters)<input type="password" value={pw.new} onChange={(e) => setPw({ ...pw, new: e.target.value })} autoComplete="new-password" /></label>

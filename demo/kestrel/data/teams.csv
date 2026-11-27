@@ -1,0 +1,13 @@
+team_id,team_name,department,lead
+T01,Leadership,Leadership,Anika Rao
+T02,Data Engineering,Engineering,Meera Krishnan
+T03,Platform and DevOps,Engineering,Ravi Shankar
+T04,Backend,Engineering,Daniel Okafor
+T05,Frontend,Engineering,Sara Lindqvist
+T06,Mobile,Engineering,Arjun Mehta
+T07,QA,Engineering,Fatima Sheikh
+T08,Product,Product,Neha Kapoor
+T09,Sales,Commercial,Tom Becker
+T10,Customer Success,Commercial,Leela Iyer
+T11,Finance,G&A,Rohan Das
+T12,People,G&A,Kavya Reddy

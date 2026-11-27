@@ -123,8 +123,10 @@ def test_public_hosts(monkeypatch):
 def test_tools_registered_read_only():
     tools = {t.name: t for t in M.mcp._tool_manager.list_tools()}
     read = {"ask", "search_documents", "describe_data", "query_metrics", "list_metrics", "find_connections",
-            "explore_entity", "list_documents", "fetch_passage", "build_status"}
-    writes = {"add_document", "create_upload_link", "approve_metric"}
+            "explore_entity", "list_documents", "fetch_passage", "build_status", "check_answer"}
+    read |= {"my_changes", "who_changed", "list_shared_layers", "find_person", "list_teams", "my_account"}
+    writes = {"add_document", "create_upload_link", "approve_metric", "propose_metric", "add_business_rule",
+              "add_synonym", "undo_change", "share_my_layer", "use_layer", "revoke_share", "publish_change"}
     assert set(tools) == read | writes
     assert all(tools[t].annotations.read_only_hint for t in read)
     assert not any(tools[t].annotations.read_only_hint or tools[t].annotations.destructive_hint for t in writes)

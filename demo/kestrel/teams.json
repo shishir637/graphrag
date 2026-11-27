@@ -1,0 +1,74 @@
+[
+ {
+  "name": "Leadership",
+  "lead_email": "anika.rao@kestrel-labs.example",
+  "parent": null,
+  "description": "Sets strategy, approves budgets and owns the company's goals."
+ },
+ {
+  "name": "Data Engineering",
+  "lead_email": "meera.krishnan@kestrel-labs.example",
+  "parent": null,
+  "description": "Builds and runs the data pipelines and the warehouse that power product analytics and finance reporting."
+ },
+ {
+  "name": "Platform and DevOps",
+  "lead_email": "ravi.shankar@kestrel-labs.example",
+  "parent": null,
+  "description": "Runs the cloud platform, CI/CD, the API gateway and authentication; leads incident response."
+ },
+ {
+  "name": "Backend",
+  "lead_email": "daniel.okafor@kestrel-labs.example",
+  "parent": null,
+  "description": "Owns the core API, billing, notifications and search services."
+ },
+ {
+  "name": "Frontend",
+  "lead_email": "sara.lindqvist@kestrel-labs.example",
+  "parent": null,
+  "description": "Owns the web app and the admin console."
+ },
+ {
+  "name": "Mobile",
+  "lead_email": "arjun.mehta@kestrel-labs.example",
+  "parent": null,
+  "description": "Owns the iOS and Android apps."
+ },
+ {
+  "name": "QA",
+  "lead_email": "fatima.sheikh@kestrel-labs.example",
+  "parent": null,
+  "description": "Owns test automation, release checks and the test environments."
+ },
+ {
+  "name": "Product",
+  "lead_email": "neha.kapoor@kestrel-labs.example",
+  "parent": null,
+  "description": "Decides what to build and why; owns the roadmap and pricing proposals."
+ },
+ {
+  "name": "Sales",
+  "lead_email": "tom.becker@kestrel-labs.example",
+  "parent": null,
+  "description": "Wins new customers and expansions."
+ },
+ {
+  "name": "Customer Success",
+  "lead_email": "leela.iyer@kestrel-labs.example",
+  "parent": null,
+  "description": "Onboards customers, runs support and owns renewals."
+ },
+ {
+  "name": "Finance",
+  "lead_email": "rohan.das@kestrel-labs.example",
+  "parent": null,
+  "description": "Owns budgeting, billing operations, cloud cost reporting and the financial close."
+ },
+ {
+  "name": "People",
+  "lead_email": "kavya.reddy@kestrel-labs.example",
+  "parent": null,
+  "description": "Owns hiring, onboarding and people policies."
+ }
+]

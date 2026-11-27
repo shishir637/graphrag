@@ -111,6 +111,9 @@ def draft_model(use_llm: bool = True) -> SemanticModel:
     print(f"  -> wrote {DRAFT_FILE.relative_to(OUT_DIR.parent)}")
     if not MODEL_FILE.exists():
         shutil.copy(DRAFT_FILE, MODEL_FILE)
+        from . import defstore
+        if defstore.enabled():
+            defstore.import_dir(MODEL_FILE.parent)
         print(f"  -> no reviewed model yet: copied the draft to {MODEL_FILE.relative_to(OUT_DIR.parent)}")
     return model
 

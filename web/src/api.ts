@@ -1,6 +1,6 @@
 // Small typed client for the Context Layer API.
-export type Role = 'owner' | 'admin' | 'viewer'
-export interface User { id: number; email: string; name: string; role: Role; created: string; last_login: string | null; disabled: boolean; groups: string[] }
+export type Role = 'owner' | 'admin' | 'publisher' | 'viewer'
+export interface User { id: number; email: string; name: string; role: Role; created: string; last_login: string | null; disabled: boolean; groups: string[]; must_change?: boolean }
 export interface Agent {
   id: string; name: string; description: string; groups: string[]; capabilities: string[]; prefix: string
   created: string; created_by: string; last_used: string | null; calls: number; revoked: string | null

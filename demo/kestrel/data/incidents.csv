@@ -1,0 +1,141 @@
+incident_id,title,severity,service,team_id,opened_at,resolved_at,time_to_restore_hours,owner_email,caused_by_deploy
+INC-2025-001,Push notifications delayed,Sev4,auth-service,T03,2025-01-03 09:08,2025-01-05 19:44,58.6,divya.hegde@kestrel-labs.example,
+INC-2025-002,Slow responses,Sev3,k8s-platform,T03,2025-01-06 12:41,2025-01-07 18:14,29.56,vidya.iyer@kestrel-labs.example,
+INC-2025-003,Background jobs delayed,Sev3,web-app,T05,2025-01-07 13:09,2025-01-08 18:31,29.37,aarav.chatterjee@kestrel-labs.example,
+INC-2025-004,Slow responses,Sev3,admin-console,T05,2025-01-12 09:37,2025-01-13 07:50,22.23,sara.lindqvist@kestrel-labs.example,D000065
+INC-2025-005,Elevated error rate,Sev3,notification-service,T04,2025-01-17 08:54,2025-01-17 23:51,14.96,kenji.haddad@kestrel-labs.example,
+INC-2025-006,Elevated error rate,Sev3,web-app,T05,2025-01-20 17:11,2025-01-21 06:59,13.8,ananya.desai@kestrel-labs.example,
+INC-2025-007,Webhook deliveries failing,Sev3,android-app,T06,2025-01-22 09:07,2025-01-22 22:40,13.55,elena.saxena@kestrel-labs.example,
+INC-2025-008,Login failures for some users,Sev3,ios-app,T06,2025-01-28 05:54,2025-01-28 17:28,11.57,lucas.kulkarni@kestrel-labs.example,
+INC-2025-009,Slow responses,Sev4,search-service,T04,2025-02-03 02:37,2025-02-04 17:37,39.01,farhan.chatterjee@kestrel-labs.example,
+INC-2025-010,Push notifications delayed,Sev2,billing-service,T04,2025-02-14 16:16,2025-02-14 20:55,4.65,daniel.okafor@kestrel-labs.example,D000236
+INC-2025-011,Background jobs delayed,Sev3,k8s-platform,T03,2025-02-16 21:35,2025-02-18 01:57,28.37,amara.okoye@kestrel-labs.example,
+INC-2025-012,Search results missing,Sev3,auth-service,T03,2025-02-23 04:34,2025-02-23 23:14,18.68,aarav.novak@kestrel-labs.example,D000162
+INC-2025-013,Background jobs delayed,Sev3,search-service,T04,2025-02-23 16:34,2025-02-24 10:34,18.01,maya.sen@kestrel-labs.example,D000282
+INC-2025-014,Search results missing,Sev3,ingest-pipeline,T02,2025-03-01 16:35,2025-03-02 04:28,11.89,deepak.kulkarni@kestrel-labs.example,
+INC-2025-015,Slow responses,Sev2,android-app,T06,2025-03-06 17:36,2025-03-06 21:24,3.81,deepak.haddad@kestrel-labs.example,
+INC-2025-016,Slow responses,Sev2,android-app,T06,2025-03-09 04:11,2025-03-09 07:44,3.55,deepak.haddad@kestrel-labs.example,D000305
+INC-2025-017,Search results missing,Sev1,search-service,T04,2025-03-11 22:27,2025-03-12 02:25,3.97,nikhil.muller@kestrel-labs.example,
+INC-2025-018,Login failures for some users,Sev4,billing-service,T04,2025-03-22 12:37,2025-03-24 09:21,44.74,vidya.bose@kestrel-labs.example,
+INC-2025-019,Webhook deliveries failing,Sev2,api-gateway,T03,2025-03-27 04:35,2025-03-27 07:38,3.06,aarav.novak@kestrel-labs.example,
+INC-2025-020,Slow responses,Sev2,web-app,T05,2025-04-06 15:35,2025-04-06 21:22,5.79,ananya.desai@kestrel-labs.example,
+INC-2025-021,Elevated error rate,Sev3,ingest-pipeline,T02,2025-04-12 11:02,2025-04-13 20:58,33.94,mei.fernandes@kestrel-labs.example,
+INC-2025-022,Push notifications delayed,Sev4,web-app,T05,2025-04-13 12:56,2025-04-15 16:48,51.88,priya.jain@kestrel-labs.example,D000690
+INC-2025-023,Background jobs delayed,Sev3,api-gateway,T03,2025-04-17 16:25,2025-04-18 02:03,9.64,vidya.iyer@kestrel-labs.example,
+INC-2025-024,Background jobs delayed,Sev3,api-gateway,T03,2025-04-28 10:38,2025-04-29 11:44,25.11,mohan.muller@kestrel-labs.example,D000582
+INC-2025-025,Search results missing,Sev3,search-service,T04,2025-05-09 11:48,2025-05-10 01:55,14.13,maya.sen@kestrel-labs.example,
+INC-2025-026,Elevated error rate,Sev3,kestrel-api,T04,2025-05-10 00:47,2025-05-10 18:16,17.49,nikhil.muller@kestrel-labs.example,
+INC-2025-027,Background jobs delayed,Sev4,warehouse-sync,T02,2025-05-10 11:09,2025-05-11 02:15,15.11,leah.muller@kestrel-labs.example,
+INC-2025-028,Search results missing,Sev3,web-app,T05,2025-05-12 03:18,2025-05-13 12:21,33.05,yusuf.chatterjee@kestrel-labs.example,
+INC-2025-029,Push notifications delayed,Sev3,admin-console,T05,2025-05-16 07:11,2025-05-17 13:42,30.52,lakshmi.bose@kestrel-labs.example,D000867
+INC-2025-030,Webhook deliveries failing,Sev3,warehouse-sync,T02,2025-05-17 15:53,2025-05-18 07:51,15.97,jaya.raman@kestrel-labs.example,D000875
+INC-2025-031,Webhook deliveries failing,Sev2,kestrel-api,T04,2025-05-18 21:36,2025-05-19 05:54,8.31,elena.iyer@kestrel-labs.example,
+INC-2025-032,Background jobs delayed,Sev2,ios-app,T06,2025-05-21 18:05,2025-05-22 02:11,8.1,deepak.haddad@kestrel-labs.example,D000939
+INC-2025-033,Elevated error rate,Sev3,admin-console,T05,2025-06-01 12:03,2025-06-02 19:58,31.92,yusuf.chatterjee@kestrel-labs.example,D001019
+INC-2025-034,Push notifications delayed,Sev3,api-gateway,T03,2025-06-12 04:54,2025-06-13 16:43,35.83,mohan.muller@kestrel-labs.example,D000968
+INC-2025-035,Webhook deliveries failing,Sev4,api-gateway,T03,2025-06-13 02:28,2025-06-14 00:46,22.3,ravi.shankar@kestrel-labs.example,D000968
+INC-2025-036,Login failures for some users,Sev4,android-app,T06,2025-06-17 15:35,2025-06-18 05:42,14.12,lucas.kulkarni@kestrel-labs.example,
+INC-2025-037,Search results missing,Sev4,search-service,T04,2025-06-23 08:44,2025-06-26 02:58,66.24,vidya.bose@kestrel-labs.example,
+INC-2025-038,Slow responses,Sev2,notification-service,T04,2025-06-24 14:42,2025-06-24 16:46,2.08,liam.chatterjee@kestrel-labs.example,
+INC-2025-039,Push notifications delayed,Sev3,billing-service,T04,2025-06-24 21:11,2025-06-25 10:42,13.53,elena.iyer@kestrel-labs.example,
+INC-2025-040,Webhook deliveries failing,Sev3,auth-service,T03,2025-07-02 05:41,2025-07-03 02:23,20.71,ravi.shankar@kestrel-labs.example,D000856
+INC-2025-041,Search results missing,Sev4,api-gateway,T03,2025-07-03 07:33,2025-07-06 09:15,73.71,maya.nair@kestrel-labs.example,
+INC-2025-042,Login failures for some users,Sev2,ios-app,T06,2025-07-13 08:04,2025-07-13 11:46,3.71,sneha.wong@kestrel-labs.example,D001308
+INC-2025-043,Push notifications delayed,Sev3,auth-service,T03,2025-07-15 19:41,2025-07-17 02:21,30.68,maya.nair@kestrel-labs.example,D000856
+INC-2025-044,Push notifications delayed,Sev4,billing-service,T04,2025-07-26 05:36,2025-07-28 05:48,48.21,deepak.saxena@kestrel-labs.example,
+INC-2025-045,Search results missing,Sev4,web-app,T05,2025-07-27 23:25,2025-07-30 04:35,53.18,kiran.muller@kestrel-labs.example,
+INC-2025-046,Background jobs delayed,Sev4,auth-service,T03,2025-08-03 23:43,2025-08-04 13:08,13.42,yusuf.gupta@kestrel-labs.example,D001453
+INC-2025-047,Search results missing,Sev2,web-app,T05,2025-08-05 08:52,2025-08-05 19:44,10.87,sara.lindqvist@kestrel-labs.example,D001416
+INC-2025-048,Webhook deliveries failing,Sev4,billing-service,T04,2025-08-06 00:57,2025-08-09 00:00,71.05,divya.wong@kestrel-labs.example,
+INC-2025-049,Slow responses,Sev3,admin-console,T05,2025-08-12 05:51,2025-08-13 00:13,18.37,nikhil.andersen@kestrel-labs.example,
+INC-2025-050,Webhook deliveries failing,Sev3,auth-service,T03,2025-08-27 07:51,2025-08-28 13:06,29.26,chen.kowalski@kestrel-labs.example,
+INC-2025-051,Elevated error rate,Sev4,warehouse-sync,T02,2025-09-05 05:39,2025-09-08 09:57,76.3,leah.muller@kestrel-labs.example,D001723
+INC-2025-052,Push notifications delayed,Sev3,search-service,T04,2025-09-18 07:09,2025-09-18 17:11,10.04,deepak.saxena@kestrel-labs.example,
+INC-2025-053,Background jobs delayed,Sev3,kestrel-api,T04,2025-09-19 23:29,2025-09-21 09:33,34.08,oliver.rossi@kestrel-labs.example,
+INC-2025-054,Slow responses,Sev3,search-service,T04,2025-09-20 19:48,2025-09-21 04:42,8.91,divya.wong@kestrel-labs.example,
+INC-2025-055,Login failures for some users,Sev4,web-app,T05,2025-09-25 06:09,2025-09-28 23:34,89.42,lakshmi.bose@kestrel-labs.example,D001810
+INC-2025-056,Push notifications delayed,Sev3,api-gateway,T03,2025-10-05 17:21,2025-10-06 16:48,23.46,chen.kowalski@kestrel-labs.example,D001659
+INC-2025-057,Elevated error rate,Sev4,search-service,T04,2025-10-05 21:37,2025-10-07 08:42,35.09,nikhil.muller@kestrel-labs.example,D001855
+INC-2025-058,Login failures for some users,Sev2,k8s-platform,T03,2025-10-14 19:32,2025-10-15 05:56,10.4,yusuf.gupta@kestrel-labs.example,D001840
+INC-2025-059,Slow responses,Sev2,admin-console,T05,2025-10-14 20:47,2025-10-15 00:42,3.92,ananya.desai@kestrel-labs.example,D001894
+INC-2025-060,Background jobs delayed,Sev3,web-app,T05,2025-10-15 08:46,2025-10-16 20:19,35.56,sara.lindqvist@kestrel-labs.example,D001999
+INC-2025-061,Webhook deliveries failing,Sev4,api-gateway,T03,2025-10-27 02:09,2025-10-28 06:14,28.09,divya.hegde@kestrel-labs.example,D002064
+INC-2025-062,Push notifications delayed,Sev4,ios-app,T06,2025-10-27 02:19,2025-10-30 01:55,71.6,rahul.garcia@kestrel-labs.example,
+INC-2025-063,Push notifications delayed,Sev2,billing-service,T04,2025-10-28 23:41,2025-10-29 04:52,5.19,noah.iyer@kestrel-labs.example,
+INC-2025-064,Push notifications delayed,Sev3,ios-app,T06,2025-11-05 03:42,2025-11-06 03:31,23.82,lucas.kulkarni@kestrel-labs.example,
+INC-2025-065,Search results missing,Sev3,k8s-platform,T03,2025-11-11 06:08,2025-11-12 10:20,28.2,yusuf.gupta@kestrel-labs.example,
+INC-2025-066,Search results missing,Sev4,kestrel-api,T04,2025-11-13 07:09,2025-11-14 04:59,21.84,isabel.ghosh@kestrel-labs.example,
+INC-2025-067,Search results missing,Sev4,admin-console,T05,2025-11-15 09:10,2025-11-18 23:34,86.4,nikhil.andersen@kestrel-labs.example,
+INC-2025-068,Elevated error rate,Sev4,android-app,T06,2025-11-21 08:12,2025-11-22 23:48,39.61,rahul.garcia@kestrel-labs.example,D002126
+INC-2025-069,Slow responses,Sev3,kestrel-api,T04,2025-11-22 07:37,2025-11-22 18:01,10.4,oliver.rossi@kestrel-labs.example,
+INC-2025-070,Slow responses,Sev3,kestrel-api,T04,2025-11-26 23:59,2025-11-27 14:05,14.11,kenji.haddad@kestrel-labs.example,
+INC-2025-071,Elevated error rate,Sev4,auth-service,T03,2025-11-28 21:08,2025-11-30 23:49,50.69,siddharth.andersen@kestrel-labs.example,
+INC-2025-072,Elevated error rate,Sev3,kestrel-api,T04,2025-12-01 05:42,2025-12-02 08:04,26.37,nikhil.muller@kestrel-labs.example,D002307
+INC-2025-073,Elevated error rate,Sev3,api-gateway,T03,2025-12-06 00:00,2025-12-07 10:31,34.53,maya.nair@kestrel-labs.example,
+INC-2025-074,Elevated error rate,Sev1,k8s-platform,T03,2025-12-13 10:21,2025-12-13 12:39,2.31,divya.hegde@kestrel-labs.example,
+INC-2025-075,Webhook deliveries failing,Sev4,notification-service,T04,2025-12-14 21:13,2025-12-18 01:50,76.62,kenji.haddad@kestrel-labs.example,D002349
+INC-2025-076,Elevated error rate,Sev4,android-app,T06,2025-12-15 23:07,2025-12-17 05:25,30.31,rahul.garcia@kestrel-labs.example,
+INC-2026-001,Elevated error rate,Sev2,warehouse-sync,T02,2026-01-07 21:58,2026-01-08 03:43,5.75,mei.fernandes@kestrel-labs.example,D002356
+INC-2026-002,Search results missing,Sev3,search-service,T04,2026-01-14 19:07,2026-01-15 06:11,11.08,omar.jain@kestrel-labs.example,
+INC-2026-003,Push notifications delayed,Sev4,ios-app,T06,2026-01-27 02:22,2026-01-28 01:33,23.19,sneha.fernandes@kestrel-labs.example,
+INC-2026-004,Background jobs delayed,Sev3,ios-app,T06,2026-01-28 19:49,2026-01-29 13:10,17.36,arjun.mehta@kestrel-labs.example,D002727
+INC-2026-005,Login failures for some users,Sev2,ingest-pipeline,T02,2026-02-02 19:34,2026-02-03 06:34,11.0,kanakavalli@kestrel-labs.example,D002663
+INC-2026-006,Login failures for some users,Sev3,k8s-platform,T03,2026-02-03 10:17,2026-02-04 15:09,28.88,siddharth.andersen@kestrel-labs.example,
+INC-2026-007,Elevated error rate,Sev3,ingest-pipeline,T02,2026-02-12 11:12,2026-02-13 05:15,18.06,mei.fernandes@kestrel-labs.example,
+INC-2026-008,Login failures for some users,Sev3,warehouse-sync,T02,2026-02-19 11:22,2026-02-19 18:01,6.65,sanjana.malhotra@kestrel-labs.example,D002880
+INC-2026-009,Elevated error rate,Sev3,k8s-platform,T03,2026-03-04 18:30,2026-03-06 02:59,32.49,chen.kowalski@kestrel-labs.example,D002944
+INC-2026-010,Login failures for some users,Sev4,android-app,T06,2026-03-10 00:34,2026-03-13 00:06,71.54,karan.gupta@kestrel-labs.example,D002839
+INC-2026-031,Customers charged twice for annual renewals,Sev1,billing-service,T04,2026-03-14 09:20,2026-03-14 14:50,5.5,daniel.okafor@kestrel-labs.example,D003006
+INC-2026-011,Background jobs delayed,Sev3,api-gateway,T03,2026-03-15 04:43,2026-03-15 20:46,16.06,chen.kowalski@kestrel-labs.example,D003001
+INC-2026-012,Login failures for some users,Sev4,kestrel-api,T04,2026-03-17 06:40,2026-03-17 22:02,15.38,isabel.ghosh@kestrel-labs.example,
+INC-2026-013,Webhook deliveries failing,Sev4,notification-service,T04,2026-03-18 18:08,2026-03-21 17:41,71.55,isabel.ghosh@kestrel-labs.example,
+INC-2026-014,Push notifications delayed,Sev3,ios-app,T06,2026-04-01 21:00,2026-04-02 06:01,9.02,sneha.fernandes@kestrel-labs.example,
+INC-2026-015,Push notifications delayed,Sev2,api-gateway,T03,2026-04-11 20:35,2026-04-12 03:36,7.02,aarav.novak@kestrel-labs.example,
+INC-2026-016,Background jobs delayed,Sev2,auth-service,T03,2026-04-16 10:42,2026-04-16 18:17,7.59,maya.nair@kestrel-labs.example,
+INC-2026-017,Login failures for some users,Sev1,android-app,T06,2026-04-19 04:34,2026-04-19 06:22,1.8,lucas.kulkarni@kestrel-labs.example,D002839
+INC-2026-018,Push notifications delayed,Sev2,notification-service,T04,2026-05-04 15:55,2026-05-05 01:50,9.93,daniel.okafor@kestrel-labs.example,D003216
+INC-2026-019,Elevated error rate,Sev3,ingest-pipeline,T02,2026-05-05 00:55,2026-05-05 19:15,18.34,mei.fernandes@kestrel-labs.example,
+INC-2026-020,Elevated error rate,Sev4,ingest-pipeline,T02,2026-05-15 13:25,2026-05-18 23:34,82.15,jaya.raman@kestrel-labs.example,D003439
+INC-2026-021,Search results missing,Sev4,web-app,T05,2026-05-16 10:08,2026-05-19 12:22,74.24,aarav.chatterjee@kestrel-labs.example,
+INC-2026-022,Push notifications delayed,Sev3,warehouse-sync,T02,2026-05-25 11:49,2026-05-26 20:53,33.07,hannah.rossi@kestrel-labs.example,
+INC-2026-023,Login failures for some users,Sev3,ingest-pipeline,T02,2026-05-25 16:18,2026-05-26 02:14,9.94,nadia.novak@kestrel-labs.example,
+INC-2026-024,Webhook deliveries failing,Sev4,android-app,T06,2026-06-07 18:11,2026-06-08 13:56,19.75,elena.saxena@kestrel-labs.example,
+INC-2026-025,Webhook deliveries failing,Sev4,search-service,T04,2026-06-09 09:05,2026-06-10 07:50,22.76,noah.iyer@kestrel-labs.example,
+INC-2026-026,Elevated error rate,Sev1,admin-console,T05,2026-06-14 02:55,2026-06-14 06:43,3.81,nikhil.andersen@kestrel-labs.example,D003620
+INC-2026-027,Webhook deliveries failing,Sev4,notification-service,T04,2026-06-15 22:52,2026-06-17 04:40,29.8,vidya.bose@kestrel-labs.example,
+INC-2026-028,Elevated error rate,Sev3,android-app,T06,2026-06-26 11:11,2026-06-27 02:36,15.43,sneha.fernandes@kestrel-labs.example,
+INC-2026-029,Login failures for some users,Sev4,billing-service,T04,2026-06-28 15:22,2026-07-02 11:50,92.48,isabel.ghosh@kestrel-labs.example,D003497
+INC-2026-030,Push notifications delayed,Sev3,ingest-pipeline,T02,2026-07-01 11:07,2026-07-01 22:23,11.28,kanakavalli@kestrel-labs.example,
+INC-2026-032,Webhook deliveries failing,Sev3,notification-service,T04,2026-07-07 11:23,2026-07-07 20:30,9.13,deepak.saxena@kestrel-labs.example,
+INC-2026-033,Search results missing,Sev4,warehouse-sync,T02,2026-07-17 07:39,2026-07-17 23:43,16.07,deepak.kulkarni@kestrel-labs.example,
+INC-2026-034,Webhook deliveries failing,Sev3,kestrel-api,T04,2026-07-19 22:06,2026-07-21 02:10,28.07,nikhil.muller@kestrel-labs.example,
+INC-2026-035,Elevated error rate,Sev3,warehouse-sync,T02,2026-07-20 11:23,2026-07-21 03:41,16.3,leah.muller@kestrel-labs.example,D003799
+INC-2026-036,Login failures for some users,Sev3,k8s-platform,T03,2026-07-26 16:27,2026-07-28 01:41,33.24,vidya.iyer@kestrel-labs.example,
+INC-2026-077,API gateway outage after certificate rotation,Sev1,api-gateway,T03,2026-08-02 02:45,2026-08-02 05:00,2.25,ravi.shankar@kestrel-labs.example,
+INC-2026-037,Background jobs delayed,Sev4,k8s-platform,T03,2026-08-13 10:56,2026-08-14 00:15,13.32,maya.nair@kestrel-labs.example,
+INC-2026-038,Elevated error rate,Sev2,k8s-platform,T03,2026-08-14 04:10,2026-08-14 09:37,5.45,aarav.novak@kestrel-labs.example,D003935
+INC-2026-039,Webhook deliveries failing,Sev3,search-service,T04,2026-08-22 16:17,2026-08-23 08:45,16.47,kenji.haddad@kestrel-labs.example,D004034
+INC-2026-040,Elevated error rate,Sev4,warehouse-sync,T02,2026-08-24 04:53,2026-08-27 11:14,78.35,hannah.rossi@kestrel-labs.example,
+INC-2026-041,Login failures for some users,Sev4,ingest-pipeline,T02,2026-08-28 13:34,2026-08-29 12:34,23.01,meera.krishnan@kestrel-labs.example,D003892
+INC-2026-042,Webhook deliveries failing,Sev3,admin-console,T05,2026-09-03 06:32,2026-09-04 00:59,18.46,sara.lindqvist@kestrel-labs.example,
+INC-2026-043,Elevated error rate,Sev2,auth-service,T03,2026-09-06 00:22,2026-09-06 10:12,9.84,divya.hegde@kestrel-labs.example,
+INC-2026-044,Slow responses,Sev3,k8s-platform,T03,2026-09-07 12:17,2026-09-08 19:17,31.0,maya.jain@kestrel-labs.example,D003935
+INC-2026-045,Push notifications delayed,Sev4,api-gateway,T03,2026-09-10 05:08,2026-09-13 18:25,85.29,vidya.iyer@kestrel-labs.example,
+INC-2026-046,Background jobs delayed,Sev2,ingest-pipeline,T02,2026-09-11 01:59,2026-09-11 07:32,5.55,kanakavalli@kestrel-labs.example,D003892
+INC-2026-047,Search results missing,Sev3,android-app,T06,2026-09-25 07:53,2026-09-26 14:11,30.3,sneha.fernandes@kestrel-labs.example,D004095
+INC-2026-048,Background jobs delayed,Sev4,warehouse-sync,T02,2026-09-28 21:51,2026-10-02 19:46,93.93,deepak.kulkarni@kestrel-labs.example,
+INC-2026-049,Background jobs delayed,Sev3,search-service,T04,2026-10-03 01:45,2026-10-04 04:16,26.52,maya.sen@kestrel-labs.example,
+INC-2026-050,Search results missing,Sev2,search-service,T04,2026-10-03 12:15,2026-10-03 17:37,5.38,amara.wong@kestrel-labs.example,D004361
+INC-2026-051,Background jobs delayed,Sev3,auth-service,T03,2026-10-04 20:24,2026-10-05 19:27,23.06,vidya.iyer@kestrel-labs.example,D004118
+INC-2026-052,Webhook deliveries failing,Sev3,android-app,T06,2026-10-04 23:23,2026-10-05 14:50,15.46,elena.saxena@kestrel-labs.example,D004095
+INC-2026-053,Search results missing,Sev4,ios-app,T06,2026-10-06 05:15,2026-10-09 23:22,90.13,arjun.mehta@kestrel-labs.example,D002738
+INC-2026-054,Background jobs delayed,Sev4,kestrel-api,T04,2026-10-06 07:46,2026-10-09 17:17,81.53,liam.chatterjee@kestrel-labs.example,
+INC-2026-055,Search results missing,Sev2,auth-service,T03,2026-10-19 12:49,2026-10-19 16:18,3.49,maya.nair@kestrel-labs.example,
+INC-2026-104,Dashboards stale for 14 hours after warehouse sync stalled,Sev2,warehouse-sync,T02,2026-10-21 06:10,2026-10-21 20:10,14.0,meera.krishnan@kestrel-labs.example,D004363
+INC-2026-056,Login failures for some users,Sev4,search-service,T04,2026-11-04 01:03,2026-11-07 11:52,82.83,omar.jain@kestrel-labs.example,
+INC-2026-057,Push notifications delayed,Sev3,notification-service,T04,2026-11-07 23:28,2026-11-09 03:11,27.73,oliver.rossi@kestrel-labs.example,D004580
+INC-2026-058,Background jobs delayed,Sev4,search-service,T04,2026-11-10 13:36,2026-11-11 13:34,23.98,nikhil.muller@kestrel-labs.example,D004592
+INC-2026-059,Slow responses,Sev2,ios-app,T06,2026-11-12 10:40,2026-11-12 19:00,8.34,arjun.mehta@kestrel-labs.example,
+INC-2026-060,Elevated error rate,Sev3,notification-service,T04,2026-11-12 21:16,2026-11-13 11:11,13.92,divya.wong@kestrel-labs.example,
+INC-2026-061,Login failures for some users,Sev3,notification-service,T04,2026-11-15 02:40,2026-11-16 10:01,31.36,omar.jain@kestrel-labs.example,D004580
+INC-2026-062,Login failures for some users,Sev2,ios-app,T06,2026-11-20 19:34,2026-11-21 06:16,10.71,lucas.kulkarni@kestrel-labs.example,

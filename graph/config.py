@@ -19,6 +19,10 @@ ANSWER_MODEL = "claude-opus-5-5"        # final answers, reduce step
 AUTO_MERGE_SCORE = 96                   # RapidFuzz token_sort_ratio at/above this: same entity
 CANDIDATE_SCORE = 86                    # between this and AUTO: ask the LLM
 CANDIDATE_COSINE = 0.90                 # BGE-M3 cosine of "name (type)" at/above this: ask the LLM
+# Resolution by meaning (no LLM): an entity's context = the mean BGE-M3 vector of the passages that name it
+CONTEXT_MERGE_COSINE = 0.80             # near-spellings (CANDIDATE..AUTO) merge when their contexts agree this much
+ACRONYM_COSINE = 0.70                   # "SRE" and "Site Reliability Engineering" merge when contexts agree this much
+CONTEXT_VETO_COSINE = 0.25              # an automatic spelling merge (< 99) is cancelled when contexts are this unlike
 
 # Qdrant collections for the graph (chunks stay in "docs")
 ENTITY_COLLECTION = "graph_entities"

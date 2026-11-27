@@ -15,7 +15,7 @@ import os
 import time
 
 LOCAL = {"127.0.0.1", "localhost", "::1", "[::1]", "app", "testserver"}
-PUBLIC_PATHS = ("/mcp", "/api/v1/health", "/.well-known", "/oauth", "/upload")
+PUBLIC_PATHS = ("/mcp", "/api/v1/health", "/.well-known", "/oauth", "/upload", "/invite", "/account")
 
 
 def _host(scope) -> str:

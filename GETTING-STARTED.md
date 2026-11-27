@@ -111,12 +111,31 @@ from it once the build is ready.
 | Update to a new version | `git pull` then `docker compose up -d --build` |
 | Back up | the Docker volumes `app_data`, `documents`, `tables`, `semantic_layer`, `graph_data` (the others are rebuilt) |
 
+### Business context from chat, personal layers and sharing (v0.6)
+
+- **Change definitions from chat.** Anyone can say things like "count only rolled-back deploys as failures",
+  "our fiscal year starts in April" or "'platform team' means Platform and DevOps". Claude first asks
+  "Are you sure?" (it says whether the company or you define the item now, and how a number changes), then
+  saves it in **your own layer**: only your answers change. Every change is recorded with your name;
+  "undo that" or "who changed failed deployments?" work from chat, and admins can undo on the Layers page.
+- **Company layer.** Owners, admins and publishers can make a change the company definition
+  ("publish my failed deployments definition to the company").
+- **Share your layer.** "Share my layer with the Data Engineering team" (or named people, or everyone) gives a
+  link. People add the link as a connector and sign in; only people on the share list get in. In their normal
+  connector they can also say "use Shishir's layer". Members can share only with people who already have an
+  account; admins sharing with someone new get an invite link to pass on.
+- **People and teams** live on the Directory page (CSV import, invites). Teams are access groups too.
+- **Demo company:** Settings → Demo company loads Kestrel Labs (a made-up software company) as the company
+  layer. Your personal layers stay; the old company layer is saved first under `var/backups`.
+
 ## 6. If something goes wrong
 
 - **Page won't open**: run `docker compose ps`. If `app` isn't healthy, check `docker compose logs app --tail 50`.
 - **Claude says it can't connect**: open the public `/mcp` link in a browser. "Sign in to Context Layer from
   your AI app" (401) means it's reachable. A quick-tunnel address changes after a restart, so people have to add
   the new one. Use a named tunnel to avoid this.
+- **Claude shows "Bad Gateway" right after a restart**: wait a few minutes and try again; it clears by itself
+  (the requests never reached Context Layer, which was already answering).
 - **421 "Unknown host name"**: add that name to `CL_PUBLIC_HOSTS` in `.env`, then run `docker compose up -d`.
 - **Build graph takes long**: switch to fast mode in Settings, or leave it running. Answers keep working while it builds.
 - **Running without Docker** (development): see the README.

@@ -1,0 +1,384 @@
+# Kestrel Labs demo company: semantic model.
+version: 1
+entities:
+  - name: teams
+    table: teams
+    label: Teams
+    primary_key: team_id
+    description: One row per team.
+    dimensions:
+      - name: team_id
+        column: team_id
+        type: key
+        label: Team ID
+        description: Team identifier, T01 to T12.
+      - name: team_name
+        column: team_name
+        type: category
+        label: Team
+        description: Team name, e.g. Backend or Data Engineering.
+      - name: department
+        column: department
+        type: category
+        label: Department
+        description: Engineering, Commercial, Product, G&A or Leadership.
+      - name: lead
+        column: lead
+        type: text
+        label: Team lead
+        description: Name of the team lead.
+    measures: []
+  - name: employees
+    table: employees
+    label: Employees
+    primary_key: employee_id
+    description: One row per person who works or worked at Kestrel Labs.
+    dimensions:
+      - name: employee_id
+        column: employee_id
+        type: key
+        label: Employee ID
+        description: ''
+      - name: team_id
+        column: team_id
+        type: key
+        label: Team ID
+        description: ''
+      - name: title
+        column: title
+        type: category
+        label: Title
+        description: Job title.
+      - name: location
+        column: location
+        type: category
+        label: Location
+        description: Office or Remote.
+      - name: hire_date
+        column: hire_date
+        type: time
+        label: Hire date
+        description: ''
+      - name: status
+        column: status
+        type: category
+        label: Status
+        description: active or left.
+      - name: left_date
+        column: left_date
+        type: time
+        label: Left date
+        description: Last day, for people who left.
+    measures: []
+  - name: deployments
+    table: deployments
+    label: Deployments
+    primary_key: deploy_id
+    description: One row per production deploy of a service.
+    dimensions:
+      - name: deploy_id
+        column: deploy_id
+        type: key
+        label: Deploy ID
+        description: ''
+      - name: service
+        column: service
+        type: category
+        label: Service
+        description: The deployed service.
+      - name: team_id
+        column: team_id
+        type: key
+        label: Team ID
+        description: ''
+      - name: deployed_at
+        column: deployed_at
+        type: time
+        label: Deployed at
+        description: ''
+      - name: status
+        column: status
+        type: category
+        label: Deploy status
+        description: success, failed or rolled_back.
+    measures: []
+  - name: incidents
+    table: incidents
+    label: Incidents
+    primary_key: incident_id
+    description: One row per production incident.
+    dimensions:
+      - name: incident_id
+        column: incident_id
+        type: key
+        label: Incident ID
+        description: ''
+      - name: severity
+        column: severity
+        type: category
+        label: Severity
+        description: Sev1 (worst) to Sev4.
+      - name: service
+        column: service
+        type: category
+        label: Service
+        description: ''
+      - name: team_id
+        column: team_id
+        type: key
+        label: Team ID
+        description: ''
+      - name: opened_at
+        column: opened_at
+        type: time
+        label: Opened at
+        description: ''
+    measures: []
+  - name: tickets
+    table: tickets
+    label: Engineering tickets
+    primary_key: ticket_id
+    description: One row per engineering ticket in a two-week sprint.
+    dimensions:
+      - name: ticket_id
+        column: ticket_id
+        type: key
+        label: Ticket ID
+        description: ''
+      - name: team_id
+        column: team_id
+        type: key
+        label: Team ID
+        description: ''
+      - name: sprint
+        column: sprint
+        type: category
+        label: Sprint
+        description: Sprint 1 started on 2025-01-06.
+      - name: type
+        column: type
+        type: category
+        label: Ticket type
+        description: story, bug or task.
+      - name: status
+        column: status
+        type: category
+        label: Ticket status
+        description: done or carried over.
+      - name: sprint_start
+        column: sprint_start
+        type: time
+        label: Sprint start
+        description: ''
+    measures: []
+  - name: pipeline_runs
+    table: pipeline_runs
+    label: Data pipeline runs
+    primary_key: run_id
+    description: One row per daily run of a Data Engineering pipeline.
+    dimensions:
+      - name: run_id
+        column: run_id
+        type: key
+        label: Run ID
+        description: ''
+      - name: pipeline
+        column: pipeline
+        type: category
+        label: Pipeline
+        description: ''
+      - name: team_id
+        column: team_id
+        type: key
+        label: Team ID
+        description: ''
+      - name: run_date
+        column: run_date
+        type: time
+        label: Run date
+        description: ''
+      - name: status
+        column: status
+        type: category
+        label: Run status
+        description: success or failed.
+    measures: []
+  - name: cloud_costs
+    table: cloud_costs
+    label: Cloud costs
+    primary_key: month
+    description: Monthly cloud and tooling cost per team, provider and service, in US dollars.
+    dimensions:
+      - name: month
+        column: month
+        type: time
+        label: Month
+        description: ''
+      - name: team_id
+        column: team_id
+        type: key
+        label: Team ID
+        description: ''
+      - name: provider
+        column: provider
+        type: category
+        label: Provider
+        description: aws, snowflake or datadog.
+      - name: service
+        column: service
+        type: category
+        label: Cloud service
+        description: compute, database, storage, network, warehouse or monitoring.
+    measures: []
+  - name: customers
+    table: customers
+    label: Customers
+    primary_key: customer_id
+    description: One row per customer company.
+    dimensions:
+      - name: customer_id
+        column: customer_id
+        type: key
+        label: Customer ID
+        description: ''
+      - name: name
+        column: name
+        type: text
+        label: Customer
+        description: ''
+      - name: industry
+        column: industry
+        type: category
+        label: Industry
+        description: ''
+      - name: region
+        column: region
+        type: category
+        label: Region
+        description: India, North America, Europe or APAC.
+      - name: plan
+        column: plan
+        type: category
+        label: Plan at signup
+        description: Starter, Growth or Enterprise.
+      - name: signup_date
+        column: signup_date
+        type: time
+        label: Signup date
+        description: ''
+      - name: status
+        column: status
+        type: category
+        label: Customer status
+        description: active or churned.
+      - name: churned_at
+        column: churned_at
+        type: time
+        label: Churn date
+        description: ''
+    measures: []
+  - name: subscriptions
+    table: subscriptions
+    label: Subscriptions
+    primary_key: subscription_id
+    description: One row per subscription period of a customer; an upgrade ends one and starts the next.
+    dimensions:
+      - name: subscription_id
+        column: subscription_id
+        type: key
+        label: Subscription ID
+        description: ''
+      - name: customer_id
+        column: customer_id
+        type: key
+        label: Customer ID
+        description: ''
+      - name: plan
+        column: plan
+        type: category
+        label: Plan
+        description: Starter, Growth or Enterprise.
+      - name: start_date
+        column: start_date
+        type: time
+        label: Start date
+        description: ''
+      - name: status
+        column: status
+        type: category
+        label: Subscription status
+        description: active, upgraded or cancelled.
+    measures: []
+  - name: support_tickets
+    table: support_tickets
+    label: Support tickets
+    primary_key: ticket_id
+    description: One row per customer support ticket.
+    dimensions:
+      - name: ticket_id
+        column: ticket_id
+        type: key
+        label: Ticket ID
+        description: ''
+      - name: customer_id
+        column: customer_id
+        type: key
+        label: Customer ID
+        description: ''
+      - name: opened_at
+        column: opened_at
+        type: time
+        label: Opened at
+        description: ''
+      - name: priority
+        column: priority
+        type: category
+        label: Priority
+        description: urgent, high, normal or low.
+      - name: channel
+        column: channel
+        type: category
+        label: Channel
+        description: email, chat, portal or phone.
+    measures: []
+joins:
+  - from_entity: employees
+    from_column: team_id
+    to_entity: teams
+    to_column: team_id
+    relationship: many_to_one
+  - from_entity: deployments
+    from_column: team_id
+    to_entity: teams
+    to_column: team_id
+    relationship: many_to_one
+  - from_entity: incidents
+    from_column: team_id
+    to_entity: teams
+    to_column: team_id
+    relationship: many_to_one
+  - from_entity: tickets
+    from_column: team_id
+    to_entity: teams
+    to_column: team_id
+    relationship: many_to_one
+  - from_entity: pipeline_runs
+    from_column: team_id
+    to_entity: teams
+    to_column: team_id
+    relationship: many_to_one
+  - from_entity: cloud_costs
+    from_column: team_id
+    to_entity: teams
+    to_column: team_id
+    relationship: many_to_one
+  - from_entity: subscriptions
+    from_column: customer_id
+    to_entity: customers
+    to_column: customer_id
+    relationship: many_to_one
+  - from_entity: support_tickets
+    from_column: customer_id
+    to_entity: customers
+    to_column: customer_id
+    relationship: many_to_one

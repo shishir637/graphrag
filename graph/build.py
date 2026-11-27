@@ -26,7 +26,8 @@ from rapidfuzz import fuzz, process
 
 from rag.utils import write_json
 
-from .config import AUTO_MERGE_SCORE, OUT_DIR, ROOT
+from .config import (ACRONYM_COSINE, AUTO_MERGE_SCORE, CANDIDATE_SCORE, CONTEXT_MERGE_COSINE, CONTEXT_VETO_COSINE,
+                     OUT_DIR, ROOT)
 
 PLACE_TYPES = {"State", "City", "District", "Place", "Country", "GeoFeature"}
 
@@ -43,6 +44,12 @@ def _eid(typ: str, key: str) -> str:
 
 
 # ---------- 1. collect ----------
+def _clean_name(name: str) -> str:
+    """Entity names never span lines (record fields like "owner: X\n\nlumora_incidents" glued together)."""
+    from graph.nlp_extract import clean
+    return clean(name or "")
+
+
 def collect(paths: list[str]):
     groups: dict[str, dict] = {}            # normalised name -> mention group
     rels, chunk_ids = [], set()
@@ -52,6 +59,7 @@ def collect(paths: list[str]):
             chunk_ids.add(r["chunk_id"])
             local = {}
             for e in r["entities"]:
+                e = e | {"name": _clean_name(e["name"])}
                 k = norm(e["name"])
                 if not k:
                     continue
@@ -64,7 +72,7 @@ def collect(paths: list[str]):
                 g["chunk_ids"].add(r["chunk_id"])
                 local[e["name"]] = k
             for x in r["relations"]:
-                s, t = local.get(x["source"]), local.get(x["target"])
+                s, t = local.get(_clean_name(x["source"])), local.get(_clean_name(x["target"]))
                 if s and t and s != t:
                     rels.append({"s": s, "t": t, "type": x["type"], "description": x.get("description", ""),
                                  "strength": x.get("strength", 5), "chunk_id": r["chunk_id"]})
@@ -118,6 +126,43 @@ def map_tables(groups: dict, rels: list):
 
 
 # ---------- 3. resolve ----------
+def _context_vectors(items: list[dict]):
+    """Each mention group's context: the mean of the BGE-M3 vectors of the passages that name it (already
+    computed for search, so no model runs here). None when the embeddings are not there."""
+    import os
+    if os.environ.get("CL_GRAPH_CONTEXT", "1") == "0":
+        return None
+    f = OUT_DIR / "3_embeddings.json"
+    if not f.exists():
+        return None
+    try:
+        recs = json.loads(f.read_text(encoding="utf-8"))
+        recs = recs.get("vectors", []) if isinstance(recs, dict) else recs
+        dense = {r["chunk_id"]: np.asarray(r["dense"], dtype=np.float32) for r in recs if r.get("dense")}
+    except Exception:                                   # noqa: BLE001 - unreadable: resolve by spelling only
+        return None
+    out = []
+    for g in items:
+        vs = [dense[c] for c in g["chunk_ids"] if c in dense]
+        if not vs:
+            out.append(None)
+            continue
+        v = np.mean(vs, axis=0)
+        out.append(v / (np.linalg.norm(v) or 1.0))
+    return out
+
+
+def _cos(vecs, i: int, j: int) -> float | None:
+    if vecs is None or vecs[i] is None or vecs[j] is None:
+        return None
+    return float(np.dot(vecs[i], vecs[j]))
+
+
+def _initials(name: str) -> str:
+    words = [w for w in re.findall(r"[A-Za-z]+", name) if w.lower() not in {"and", "of", "the", "for", "&"}]
+    return "".join(w[0] for w in words).lower() if len(words) >= 2 else ""
+
+
 def resolve(groups: dict):
     """Merge mention groups that name the same thing. Exact normalised names were already grouped by collect();
     here near-spellings ("Pondicherry"/"Puducherry" stays apart, "Arunachal Pradesh"/"Arunachal Pradesh state"
@@ -136,7 +181,8 @@ def resolve(groups: dict):
             i = parent[i]
         return i
 
-    auto = []
+    auto, by_context, vetoed = [], [], []
+    vecs = _context_vectors(items)
     blocks = defaultdict(list)
     for i, g in enumerate(items):
         fam = "place" if g["type"] in PLACE_TYPES else g["type"]
@@ -145,15 +191,38 @@ def resolve(groups: dict):
         if len(idx) < 2:
             continue
         names = [items[i]["key"] for i in idx]
-        scores = process.cdist(names, names, scorer=fuzz.token_sort_ratio, workers=-1, score_cutoff=AUTO_MERGE_SCORE)
+        cutoff = CANDIDATE_SCORE if vecs is not None else AUTO_MERGE_SCORE
+        scores = process.cdist(names, names, scorer=fuzz.token_sort_ratio, workers=-1, score_cutoff=cutoff)
         for a, b in zip(*np.nonzero(np.triu(scores, 1))):
             i, j = idx[a], idx[b]
             if re.findall(r"\d+", items[i]["key"]) != re.findall(r"\d+", items[j]["key"]):
                 continue
-            if items[i]["type"] != items[j]["type"] and scores[a][b] < 99:
+            sc, cos = scores[a][b], _cos(vecs, i, j)
+            if items[i]["type"] != items[j]["type"] and sc < 99:
                 continue
-            auto.append((i, j))
-    for i, j in auto:
+            if sc >= AUTO_MERGE_SCORE:
+                if cos is not None and sc < 99 and cos < CONTEXT_VETO_COSINE:
+                    vetoed.append((i, j))              # spelled alike, used in unrelated passages: keep apart
+                else:
+                    auto.append((i, j))
+            elif cos is not None and cos >= CONTEXT_MERGE_COSINE:
+                by_context.append((i, j))              # near-spelling and the same context: same thing
+    acronyms = []
+    if vecs is not None:                               # "SRE" = "Site Reliability Engineering" when used alike
+        by_initials = defaultdict(list)
+        for i, g in enumerate(items):
+            ini = _initials(g["name"])
+            if len(ini) >= 2:
+                by_initials[(ini, "place" if g["type"] in PLACE_TYPES else g["type"])].append(i)
+        for i, g in enumerate(items):
+            short = g["name"].replace(".", "")
+            if not (2 <= len(short) <= 6 and short.isupper() and short.isalpha()):
+                continue
+            fam = "place" if g["type"] in PLACE_TYPES else g["type"]
+            cands = [j for j in by_initials.get((short.lower(), fam), []) if (_cos(vecs, i, j) or 0) >= ACRONYM_COSINE]
+            if len(cands) == 1:                       # one clear expansion only
+                acronyms.append((i, cands[0]))
+    for i, j in auto + by_context + acronyms:
         parent[find(i)] = find(j)
 
     merged: dict[int, dict] = {}
@@ -180,7 +249,11 @@ def resolve(groups: dict):
         for g in mem:
             key_to_id[g["key"]] = eid
     report = {"mention_groups": len(items), "entities": len(entities), "auto_merges": len(auto),
+              "context_merges": len(by_context), "acronym_merges": len(acronyms), "vetoed_by_context": len(vetoed),
+              "by_meaning": "on" if vecs is not None else "off (no passage vectors)",
               "merge_examples": [(items[i]["name"], items[j]["name"]) for i, j in auto[:40]],
+              "context_examples": [(items[i]["name"], items[j]["name"]) for i, j in (by_context + acronyms)[:40]],
+              "vetoed_examples": [(items[i]["name"], items[j]["name"]) for i, j in vetoed[:20]],
               "seconds": round(time.perf_counter() - t0, 1)}
     return entities, key_to_id, report
 
@@ -285,8 +358,11 @@ def build(paths: list[str], tables: bool = True, reuse: bool = False):
     comms = communities(entities, relations)
     print(f"  {len(relations)} edges, {len(comms)} communities "
           f"({sum(c['level'] == 0 for c in comms)} top-level)", flush=True)
-    cache.write_text(json.dumps({"entities": entities, "relations": relations, "communities": comms,
-                                 "chunk_ids": sorted(chunk_ids)}, ensure_ascii=False), encoding="utf-8")
+    tmp = cache.with_name(cache.name + ".tmp")     # atomic: graph answers keep using the old graph until then
+    tmp.write_text(json.dumps({"entities": entities, "relations": relations, "communities": comms,
+                               "chunk_ids": sorted(chunk_ids)}, ensure_ascii=False), encoding="utf-8")
+    import os
+    os.replace(tmp, cache)
     return _store(store, read_json, entities, relations, comms, chunk_ids, t0)
 
 

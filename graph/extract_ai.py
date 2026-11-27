@@ -120,14 +120,14 @@ class AIError(RuntimeError):
     pass
 
 
-def _post(url: str, body: dict, headers: dict) -> dict:
+def _post(url: str, body: dict, headers: dict, timeout: int | None = None) -> dict:
     data = json.dumps(body).encode("utf-8")
     last = None
     for attempt in range(RETRIES):
         req = urllib.request.Request(url, data=data, method="POST",
                                      headers={"content-type": "application/json", **headers})
         try:
-            with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+            with urllib.request.urlopen(req, timeout=timeout or TIMEOUT) as r:
                 return json.loads(r.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             detail = e.read().decode("utf-8", "replace")[:300]
@@ -142,21 +142,22 @@ def _post(url: str, body: dict, headers: dict) -> dict:
     raise last
 
 
-def _call(cfg: dict, system: str, user: str) -> tuple[str, dict]:
-    """Returns (reply text, usage)."""
+def _call(cfg: dict, system: str, user: str, timeout: int | None = None) -> tuple[str, dict]:
+    """Returns (reply text, usage). timeout: seconds per attempt (a local model on a laptop CPU is slow)."""
     if cfg["provider"] == "anthropic":
         r = _post(cfg["base_url"] + "/v1/messages",
                   {"model": cfg["model"], "max_tokens": 4000, "temperature": 0, "system": system,
                    "messages": [{"role": "user", "content": user}]},
-                  {"x-api-key": cfg["api_key"], "anthropic-version": "2023-06-01"})
+                  {"x-api-key": cfg["api_key"], "anthropic-version": "2023-06-01"}, timeout)
         text = "".join(b.get("text", "") for b in r.get("content", []) if b.get("type") == "text")
         u = r.get("usage") or {}
         return text, {"input_tokens": u.get("input_tokens", 0), "output_tokens": u.get("output_tokens", 0)}
     headers = {"authorization": f"Bearer {cfg['api_key']}"} if cfg["api_key"] else {}
-    r = _post(cfg["base_url"] + "/chat/completions",
-              {"model": cfg["model"], "temperature": 0, "response_format": {"type": "json_object"},
-               "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]},
-              headers)
+    body = {"model": cfg["model"], "temperature": 0, "response_format": {"type": "json_object"},
+            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+    if cfg["provider"] == "local":
+        body["reasoning_effort"] = "none"     # thinking models (Qwen3.5) answer directly: minutes faster on a CPU
+    r = _post(cfg["base_url"] + "/chat/completions", body, headers, timeout)
     text = ((r.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
     u = r.get("usage") or {}
     return text, {"input_tokens": u.get("prompt_tokens", 0), "output_tokens": u.get("completion_tokens", 0)}

@@ -67,6 +67,14 @@ def parse_all() -> list[dict]:
 
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     used = set()
+    prev, prev_time = {}, 0.0                        # the last full parse, for files older than it
+    last = OUT_DIR / "1_parsed.json"
+    if last.exists():
+        try:
+            prev = {e["source"]: e for e in json.loads(last.read_text(encoding="utf-8"))}
+            prev_time = last.stat().st_mtime
+        except (OSError, ValueError, KeyError, TypeError):
+            prev = {}
     for path in files:
         ext = path.suffix.lower()
         entry = {"source": path.name, "access": access.get(path.name, ["public"])}
@@ -81,6 +89,14 @@ def parse_all() -> list[dict]:
                 continue
             except (OSError, ValueError):
                 pass
+        old = prev.get(path.name)
+        if old and old.get("parser") and path.stat().st_mtime < prev_time:
+            keep = {k: v for k, v in old.items() if k not in ("source", "access", "seconds")}
+            cached.write_text(json.dumps(keep, ensure_ascii=False), encoding="utf-8")
+            entry |= keep | {"seconds": 0.0}
+            print(f"  unchanged {path.name} (parsed before)")
+            results.append(entry)
+            continue
         with timer(path.name, timings):
             if ext in DOCLING_EXTS:
                 doc = converter.convert(path).document

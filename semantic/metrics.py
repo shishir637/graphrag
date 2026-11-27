@@ -73,6 +73,10 @@ def validate(model: SemanticModel, metrics: MetricSet, con) -> list[str]:
 
 
 def reconcile(model, metrics, con) -> dict:
+    """Compare with the finance report of the sample data (only when that data and its metrics are loaded)."""
+    names = {m.name for m in metrics.metrics}
+    if not REPORT.exists() or not set(RECONCILE) <= names or "orders" not in {e.name for e in model.entities}:
+        return {"skipped": "no finance report to compare with"}
     report = pd.read_csv(REPORT, parse_dates=["month"])
     q = SemanticQuery(metrics=list(RECONCILE), dimensions=["orders.order_date__month"])
     ours = con.execute(compile_query(q, model, metrics).sql).df()

@@ -24,6 +24,7 @@ const P: Record<string, ReactNode> = {
   x: <path d="M6 6l12 12M18 6 6 18" />,
   download: <><path d="M12 4v11M7 10l5 5 5-5" /><path d="M5 19h14" /></>,
   search: <><circle cx="11" cy="11" r="6.5" /><path d="m20 20-4.2-4.2" /></>,
+  chat: <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />,
   key: <><circle cx="8" cy="14" r="4" /><path d="m11 11 9-9M17 5l2 2M15 7l2 2" /></>,
 }
 export function Icon({ name, size = 18 }: { name: keyof typeof P | string; size?: number }) {
@@ -41,7 +42,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setT({ msg, bad }); window.clearTimeout(timer.current)
     timer.current = window.setTimeout(() => setT(null), bad ? 6500 : 2600)
   }, [])
-  return <ToastCtx.Provider value={show}>{children}{t && <div className={`toast${t.bad ? ' bad' : ''}`} role="status">{t.msg}</div>}</ToastCtx.Provider>
+  return <ToastCtx.Provider value={show}>{children}<ConfirmHost />{t && <div className={`toast${t.bad ? ' bad' : ''}`} role="status">{t.msg}</div>}</ToastCtx.Provider>
 }
 
 /* ---------------- small components ---------------- */
@@ -136,7 +137,7 @@ export function JobPanel({ job }: { job: Job | null }) {
   if (!job) return null
   return <div className={`callout ${job.status === 'failed' ? 'bad' : ''}`} style={{ marginBottom: 16 }}>
     <div className="row">{job.status === 'running' ? <Spinner /> : job.status === 'done' ? <Badge kind="ok">done</Badge> : <Badge kind="bad">failed</Badge>}
-      <b>{job.label}</b>{job.status === 'running' && <span className="muted small">The first run downloads the local search models (about 5 GB) and can take several minutes.</span>}</div>
+      <b>{job.label}</b>{job.status === 'running' && <span className="muted small">{job.kind === 'ontology' ? 'A local model on a laptop CPU takes about a minute per batch of passages; you can leave this page.' : job.kind === 'demo' ? 'About two minutes.' : 'The first run downloads the local search models (about 5 GB) and can take several minutes.'}</span>}</div>
     {job.error && <div className="small" style={{ marginTop: 6 }}>{job.error}</div>}
     {job.log.length > 0 && <pre className="joblog">{job.log.slice(-12).join('\n')}</pre>}
   </div>
@@ -147,3 +148,21 @@ export function GroupChips({ groups }: { groups: string[] }) {
 }
 
 export const CAP_LABEL: Record<string, string> = { documents: 'Documents', data: 'Metrics', graph: 'Knowledge graph', upload: 'Add files' }
+
+// An in-page "Are you sure?" (the browser's own confirm box is blocked in some embedded browsers).
+type Ask = { msg: string; yes: string; done: (ok: boolean) => void }
+let openConfirm: ((a: Ask) => void) | null = null
+
+export function askConfirm(msg: string, yes = 'Yes'): Promise<boolean> {
+  return new Promise((done) => { if (openConfirm) openConfirm({ msg, yes, done }); else done(window.confirm(msg)) })
+}
+
+function ConfirmHost() {
+  const [a, setA] = useState<Ask | null>(null)
+  useEffect(() => { openConfirm = setA; return () => { openConfirm = null } }, [])
+  const close = useCallback((ok: boolean) => { setA((cur) => { cur?.done(ok); return null }) }, [])
+  const cancel = useCallback(() => close(false), [close])
+  if (!a) return null
+  return <Modal title="Are you sure?" onClose={cancel} footer={<><button className="btn ghost" onClick={cancel}>Cancel</button><button className="btn primary" autoFocus onClick={() => close(true)}>{a.yes}</button></>}>
+    <p style={{ margin: 0 }}>{a.msg}</p></Modal>
+}

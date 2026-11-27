@@ -1,6 +1,8 @@
 """Background jobs (prepare documents, data, graph; quality runs). One at a time, because the engines share
 the embedded search index and output files. Agent questions wait for a running job (see LOCK)."""
 import io
+import time
+import re
 import secrets
 import sys
 import threading
@@ -12,6 +14,9 @@ from . import core
 LOCK = threading.Lock()            # held by a running job; read paths take it briefly too
 _jobs: dict[str, dict] = {}
 _order: list[str] = []
+
+
+STEP = re.compile(r"^\s*(\[\d+/\d+\]|\[graph\]|Rebuilding|\d+/\d+ passages|unchanged |parsed |indexed |  removed )")
 
 
 class _Log(io.TextIOBase):
@@ -26,6 +31,9 @@ class _Log(io.TextIOBase):
             if line:
                 self.job["log"].append(line[:400])
                 del self.job["log"][:-300]
+                if STEP.match(line):
+                    self.job.setdefault("steps", []).append(f"{time.strftime('%H:%M:%S')} {line.strip()[:160]}")
+                    del self.job["steps"][:-40]
         return len(s)
 
 
@@ -35,7 +43,7 @@ def running() -> dict | None:
 
 def public(job: dict) -> dict:
     return {k: job[k] for k in ("id", "kind", "label", "status", "started", "finished", "by", "error")} | \
-           {"log": job["log"][-60:], "queue_position": (_queue.index(job["id"]) + 1) if job["id"] in _queue else None}
+           {"log": job["log"][-60:], "steps": list(job.get("steps") or [])[-40:], "queue_position": (_queue.index(job["id"]) + 1) if job["id"] in _queue else None}
 
 
 def list_jobs(limit: int = 20) -> list[dict]:
@@ -110,7 +118,7 @@ def enqueue(kind: str, label: str, make_fn, by: str, info: dict) -> dict:
     with _qlock:
         for jid in _queue:
             j = _jobs[jid]
-            if j["kind"] == kind:
+            if j["kind"] == kind and j["info"].get("layer") == info.get("layer"):
                 for k, v in info.items():
                     if isinstance(v, list):
                         j["info"].setdefault(k, [])

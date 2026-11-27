@@ -1,65 +1,12 @@
+/* Context Layer web app, v0.7: one page for now. Admins add users, set up teams and team admins; team admins add
+   and remove people in their teams; everyone else sees their team and their link. (The older admin pages are
+   still in src/pages but not shown.) */
 import { useEffect, useState, type FormEvent } from 'react'
-import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { api, setMcpUrl, setUnauthorizedHandler, type User } from './api'
 import { Icon, Spinner, ToastProvider } from './ui'
-import Overview from './pages/Overview'
-import Documents from './pages/Documents'
-import DataTables from './pages/DataTables'
-import Metrics from './pages/Metrics'
-import Graph from './pages/Graph'
-import Agents from './pages/Agents'
-import Playground from './pages/Playground'
-import Activity from './pages/Activity'
-import Quality from './pages/Quality'
-import Access from './pages/Access'
-import Settings from './pages/Settings'
+import Shell from './Shell'
 
 export interface Session { user: User; organisation: string; version: string }
-
-const NAV: { sec?: string; to?: string; label?: string; icon?: string }[] = [
-  { to: '/', label: 'Overview', icon: 'home' },
-  { sec: 'Sources' }, { to: '/sources/documents', label: 'Documents', icon: 'file' }, { to: '/sources/data', label: 'Data tables', icon: 'table' },
-  { sec: 'Knowledge' }, { to: '/knowledge/metrics', label: 'Metrics', icon: 'metric' }, { to: '/knowledge/graph', label: 'Knowledge graph', icon: 'graph' },
-  { sec: 'Agents' }, { to: '/agents', label: 'Agents', icon: 'agent' }, { to: '/playground', label: 'Playground', icon: 'play' },
-  { sec: 'Govern' }, { to: '/activity', label: 'Activity', icon: 'activity' }, { to: '/quality', label: 'Quality', icon: 'check' }, { to: '/access', label: 'Access', icon: 'lock' },
-  { to: '/settings', label: 'Settings', icon: 'gear' },
-]
-
-function Shell({ s, onLogout }: { s: Session; onLogout: () => void }) {
-  const [open, setOpen] = useState(false)
-  const loc = useLocation()
-  useEffect(() => setOpen(false), [loc.pathname])
-  const initials = s.user.name.split(/\s+/).map((x) => x[0]).join('').slice(0, 2).toUpperCase()
-  return <div className={`shell${open ? ' open' : ''}`}>
-    <aside className="side" aria-label="Main navigation">
-      <div className="brand"><div className="mark"><Icon name="menu" size={17} /></div>
-        <div><b>Context Layer</b><span>{s.organisation || 'Your organisation'}</span></div></div>
-      {NAV.map((n, i) => n.sec ? <div key={i} className="navsec">{n.sec}</div> :
-        <NavLink key={n.to} to={n.to!} end={n.to === '/'} className={({ isActive }) => `nav${isActive ? ' active' : ''}`}><Icon name={n.icon!} />{n.label}</NavLink>)}
-      <div className="foot"><div className="avatar">{initials}</div>
-        <div className="who"><b>{s.user.name}</b><span>{s.user.role}</span></div>
-        <button className="btn ghost sm" onClick={onLogout} title="Sign out" aria-label="Sign out"><Icon name="out" size={16} /></button></div>
-    </aside>
-    <div className="main">
-      <div className="topbar"><button className="btn ghost sm" onClick={() => setOpen(!open)} aria-label="Menu"><Icon name="menu" /></button><b>Context Layer</b></div>
-      <Routes>
-        <Route path="/" element={<Overview s={s} />} />
-        <Route path="/sources/documents" element={<Documents s={s} />} />
-        <Route path="/sources/data" element={<DataTables s={s} />} />
-        <Route path="/knowledge/metrics" element={<Metrics s={s} />} />
-        <Route path="/knowledge/graph" element={<Graph s={s} />} />
-        <Route path="/agents" element={<Agents s={s} />} />
-        <Route path="/playground" element={<Playground />} />
-        <Route path="/activity" element={<Activity s={s} />} />
-        <Route path="/quality" element={<Quality s={s} />} />
-        <Route path="/access" element={<Access s={s} />} />
-        <Route path="/settings" element={<Settings s={s} />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </div>
-    {open && <div className="modal-bg" style={{ zIndex: 25, background: 'rgb(0 0 0 / .3)' }} onClick={() => setOpen(false)} />}
-  </div>
-}
 
 function AuthCard({ title, sub, children }: { title: string; sub: string; children: React.ReactNode }) {
   return <div className="auth"><div className="card">
@@ -80,7 +27,7 @@ function Setup({ onDone }: { onDone: () => void }) {
       <label className="f">Organisation<input type="text" value={f.organisation} onChange={set('organisation')} placeholder="Acme Pvt Ltd" /></label>
       <label className="f">Your name<input type="text" required value={f.name} onChange={set('name')} autoComplete="name" /></label>
       <label className="f">Work email<input type="email" required value={f.email} onChange={set('email')} autoComplete="email" /></label>
-      <label className="f">Password<span className="h">At least 10 characters.</span><input type="password" required minLength={10} value={f.password} onChange={set('password')} autoComplete="new-password" /></label>
+      <label className="f">Password<span className="h">At least 15 characters. A short sentence you will remember works well.</span><input type="password" required minLength={15} value={f.password} onChange={set('password')} autoComplete="new-password" /></label>
       {err && <div className="callout bad">{err}</div>}
       <button className="btn primary" style={{ width: '100%', justifyContent: 'center' }} disabled={busy}>{busy ? <Spinner /> : 'Create owner account'}</button>
     </form></AuthCard>
@@ -104,10 +51,10 @@ function Login({ onDone, org }: { onDone: () => void; org: string }) {
 }
 
 export default function App() {
-  const [state, setState] = useState<{ phase: 'loading' | 'setup' | 'login' | 'in'; s?: Session; org?: string }>({ phase: 'loading' })
+  const [state, setState] = useState<{ phase: 'loading' | 'setup' | 'login' | 'in' | 'guest'; s?: Session; org?: string }>({ phase: 'loading' })
   const load = async () => {
     try {
-      const st = await api<{ needs_setup: boolean; organisation: string }>('/setup')
+      const st = await api<{ needs_setup: boolean; organisation: string; guest_chat: boolean }>('/setup')
       if (st.needs_setup) return setState({ phase: 'setup' })
       try {
         const me = await api<Session>('/me'); setState({ phase: 'in', s: me })
@@ -121,6 +68,6 @@ export default function App() {
     {state.phase === 'loading' && <div className="auth"><Spinner /></div>}
     {state.phase === 'setup' && <Setup onDone={load} />}
     {state.phase === 'login' && <Login onDone={load} org={state.org || ''} />}
-    {state.phase === 'in' && state.s && <BrowserRouter><Shell s={state.s} onLogout={logout} /></BrowserRouter>}
+    {state.phase === 'in' && state.s && <Shell s={state.s} onLogout={logout} />}
   </ToastProvider>
 }

@@ -17,9 +17,12 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.environ.get("CL_DATA_DIR", ROOT / "var"))
 DB_PATH = DATA_DIR / "app.db"
 SECRETS_FILE = DATA_DIR / "secrets.json"
-VERSION = "0.4.0"
-SESSION_DAYS = 14
-ROLES = ("owner", "admin", "viewer")
+VERSION = "0.8.0"
+SESSION_DAYS = 1                       # absolute lifetime of a web session (cookie max-age too)
+SESSION_IDLE_MIN = int(os.environ.get("CL_SESSION_IDLE_MIN", "120"))   # signed out after this long without use
+SCRYPT_N = int(os.environ.get("CL_SCRYPT_N", str(2 ** 17)))           # OWASP: scrypt N=2^17, r=8, p=1
+MIN_PASSWORD = int(os.environ.get("CL_MIN_PASSWORD_LENGTH", "15"))     # NIST 800-63B: 15 without a second factor
+ROLES = ("owner", "admin", "publisher", "viewer")       # viewer = member
 CAPABILITIES = ("documents", "data", "graph", "upload")
 READ_CAPABILITIES = ("documents", "data", "graph")
 ACCESS_TOKEN_S = 3600
@@ -65,6 +68,8 @@ CREATE TABLE IF NOT EXISTS upload_links (
 
 MIGRATIONS = [
     "ALTER TABLE users ADD COLUMN groups TEXT NOT NULL DEFAULT '[\"public\"]'",
+    "ALTER TABLE users ADD COLUMN must_change INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE sessions ADD COLUMN last_seen TEXT",
 ]
 
 
@@ -117,16 +122,36 @@ def tx():
 
 # ------------------------------------------------------------------ hashing and tokens
 
+def _scrypt(pw: str, salt: bytes, n: int, r: int = 8, p: int = 1) -> bytes:
+    return hashlib.scrypt(pw.encode(), salt=salt, n=n, r=r, p=p, dklen=32, maxmem=2 * 128 * r * n + 2 ** 20)
+
+
 def hash_password(pw: str) -> str:
     salt = secrets.token_bytes(16)
-    h = hashlib.scrypt(pw.encode(), salt=salt, n=2 ** 14, r=8, p=1, dklen=32)
-    return f"scrypt$16384$8$1${salt.hex()}${h.hex()}"
+    return f"scrypt${SCRYPT_N}$8$1${salt.hex()}${_scrypt(pw, salt, SCRYPT_N).hex()}"
+
+
+_DUMMY: list[str] = []
+
+
+def _dummy_hash() -> str:
+    if not _DUMMY:
+        _DUMMY.append(hash_password(secrets.token_hex(8)))
+    return _DUMMY[0]
+
+
+def needs_rehash(stored: str) -> bool:
+    """Hashes made with weaker settings are upgraded the next time the person signs in."""
+    try:
+        return int(stored.split("$")[1]) < SCRYPT_N
+    except (IndexError, ValueError):
+        return True
 
 
 def check_password(pw: str, stored: str) -> bool:
     try:
         _, n, r, p, salt, h = stored.split("$")
-        got = hashlib.scrypt(pw.encode(), salt=bytes.fromhex(salt), n=int(n), r=int(r), p=int(p), dklen=32)
+        got = _scrypt(pw, bytes.fromhex(salt), int(n), int(r), int(p))
         return hmac.compare_digest(got.hex(), h)
     except (ValueError, TypeError):
         return False
@@ -148,17 +173,39 @@ def user_count() -> int:
 
 def public_user(row) -> dict:
     return {k: row[k] for k in ("id", "email", "name", "role", "created", "last_login")} | \
-           {"disabled": bool(row["disabled"]), "groups": json.loads(row["groups"] or '["public"]')}
+           {"disabled": bool(row["disabled"]), "groups": json.loads(row["groups"] or '["public"]'),
+            "must_change": bool(row["must_change"]) if "must_change" in row.keys() else False}
+
+
+def breached(pw: str) -> bool:
+    """Is the password in a known data breach? Uses the free Have I Been Pwned range API: only the first 5
+    characters of the SHA-1 hash leave this server (k-anonymity). Fails open if the service cannot be reached."""
+    if os.environ.get("CL_BREACH_CHECK", "1") == "0":
+        return False
+    import urllib.request
+    h = hashlib.sha1(pw.encode()).hexdigest().upper()
+    try:
+        req = urllib.request.Request(f"https://api.pwnedpasswords.com/range/{h[:5]}",
+                                     headers={"Add-Padding": "true", "User-Agent": "context-layer"})
+        with urllib.request.urlopen(req, timeout=3) as r:
+            body = r.read().decode()
+    except Exception:                                      # noqa: BLE001 - offline: do not block sign-up
+        return False
+    return any(line.split(":")[0] == h[5:] and line.split(":")[1].strip() != "0" for line in body.splitlines())
 
 
 def validate_password(pw: str):
-    if len(pw) < 10:
-        raise ValueError("Use at least 10 characters for the password.")
+    if len(pw or "") < MIN_PASSWORD:
+        raise ValueError(f"Use at least {MIN_PASSWORD} characters. A short sentence you will remember works well.")
+    if len(pw) > 256:
+        raise ValueError("Use at most 256 characters.")
+    if breached(pw):
+        raise ValueError("This password has appeared in a data breach elsewhere. Choose a different one.")
 
 
 def create_user(email: str, name: str, password: str, role: str) -> dict:
     email = email.strip().lower()
-    if "@" not in email or len(email) > 200:
+    if "@" not in email or len(email) > 200 or email.endswith("@guest.local"):
         raise ValueError("Enter a valid email address.")
     if role not in ROLES:
         raise ValueError(f"Role must be one of {', '.join(ROLES)}.")
@@ -174,14 +221,17 @@ def create_user(email: str, name: str, password: str, role: str) -> dict:
 def login(email: str, password: str) -> tuple[dict, str] | None:
     row = db().execute("SELECT * FROM users WHERE email = ?", (email.strip().lower(),)).fetchone()
     if row is None:
-        check_password(password, hash_password("timing-equaliser"))     # same cost whether or not the user exists
+        check_password(password, _dummy_hash())                       # same cost whether or not the user exists
         return None
-    if row["disabled"] or not check_password(password, row["pw_hash"]):
+    if row["disabled"] or row["email"].endswith("@guest.local") or not check_password(password, row["pw_hash"]):
         return None
     token = new_token("cls_")
     exp = (datetime.now(timezone.utc) + timedelta(days=SESSION_DAYS)).isoformat(timespec="seconds")
     with tx() as c:
-        c.execute("INSERT INTO sessions VALUES (?, ?, ?, ?)", (token_hash(token), row["id"], now(), exp))
+        if needs_rehash(row["pw_hash"]):
+            c.execute("UPDATE users SET pw_hash = ? WHERE id = ?", (hash_password(password), row["id"]))
+        c.execute("INSERT INTO sessions (token_hash, user_id, created, expires, last_seen) VALUES (?, ?, ?, ?, ?)",
+                  (token_hash(token), row["id"], now(), exp, now()))
         c.execute("UPDATE users SET last_login = ? WHERE id = ?", (now(), row["id"]))
         c.execute("DELETE FROM sessions WHERE expires < ?", (now(),))
     return public_user(row), token
@@ -190,10 +240,26 @@ def login(email: str, password: str) -> tuple[dict, str] | None:
 def session_user(token: str | None) -> dict | None:
     if not token:
         return None
-    row = db().execute("SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id "
-                       "WHERE s.token_hash = ? AND s.expires > ? AND u.disabled = 0",
-                       (token_hash(token), now())).fetchone()
-    return public_user(row) if row else None
+    th = token_hash(token)
+    idle = (datetime.now(timezone.utc) - timedelta(minutes=SESSION_IDLE_MIN)).isoformat(timespec="seconds")
+    row = db().execute("SELECT u.*, s.last_seen AS s_seen FROM sessions s JOIN users u ON u.id = s.user_id "
+                       "WHERE s.token_hash = ? AND s.expires > ? AND u.disabled = 0 "
+                       "AND COALESCE(s.last_seen, s.created) > ?", (th, now(), idle)).fetchone()
+    if row is None:
+        return None
+    t = now()
+    if (row["s_seen"] or "")[:16] != t[:16]:                       # at most one write a minute
+        db().execute("UPDATE sessions SET last_seen = ? WHERE token_hash = ?", (t, th))
+    return public_user(row)
+
+
+def logout_everywhere(user_id: int, apps: bool = False) -> dict:
+    """End every web session of this person; with apps, also disconnect Claude/ChatGPT."""
+    with tx() as c:
+        n = c.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,)).rowcount
+        a = c.execute("UPDATE oauth_tokens SET revoked = ? WHERE user_id = ? AND revoked IS NULL",
+                      (now(), user_id)).rowcount if apps else 0
+    return {"sessions": n, "apps": a}
 
 
 def logout(token: str | None):
@@ -202,14 +268,15 @@ def logout(token: str | None):
 
 
 def list_users() -> list[dict]:
-    return [public_user(r) for r in db().execute("SELECT * FROM users ORDER BY created")]
+    """People with accounts (not the hidden guest accounts of chat-without-sign-in)."""
+    return [public_user(r) for r in db().execute("SELECT * FROM users WHERE email NOT LIKE '%@guest.local' ORDER BY created")]
 
 
 def update_user(user_id: int, role: str | None = None, disabled: bool | None = None,
                 groups: list[str] | None = None) -> dict:
     with tx() as c:
         row = c.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-        if row is None:
+        if row is None or row["email"].endswith("@guest.local"):
             raise KeyError(user_id)
         new_role = role or row["role"]
         new_disabled = row["disabled"] if disabled is None else int(disabled)
@@ -236,7 +303,7 @@ def change_password(user_id: int, old: str, new: str):
         raise ValueError("The current password is not correct.")
     validate_password(new)
     with tx() as c:
-        c.execute("UPDATE users SET pw_hash = ? WHERE id = ?", (hash_password(new), user_id))
+        c.execute("UPDATE users SET pw_hash = ?, must_change = 0 WHERE id = ?", (hash_password(new), user_id))
 
 
 # ------------------------------------------------------------------ agents (MCP keys)
@@ -333,10 +400,28 @@ def principal_for_token(token: str | None, resource: str | None = None) -> dict 
     if resource and r["resource"] and r["resource"].rstrip("/").lower() != resource.rstrip("/").lower():
         return None
     admin = r["role"] in ("owner", "admin")
+    groups = json.loads(r["groups"] or '["public"]')
+    caps = list(READ_CAPABILITIES) + ["upload"]
+    try:                                          # data sets and connectors: Everyone + teams + roles + own grants
+        from .access import for_agent
+        groups, caps = for_agent(r["email"], r["role"])
+    except Exception:                             # noqa: BLE001 - access tables not reachable: old behaviour
+        pass
     return {"id": f"user:{r['id']}", "kind": "user", "user_id": r["id"], "email": r["email"], "role": r["role"],
             "name": f"{r['name']} via {r['client_name']}", "client": r["client_name"],
-            "groups": json.loads(r["groups"] or '["public"]'), "all_groups": admin,
-            "capabilities": list(READ_CAPABILITIES) + (["upload"] if admin else [])}
+            "groups": groups or ["public"], "all_groups": admin, "capabilities": caps}
+
+
+def set_password(user_id: int, password: str, must_change: bool = False):
+    if must_change:                       # a temporary password the person replaces at first sign-in
+        if len(password or "") < 10:
+            raise ValueError("Use a temporary password of at least 10 characters.")
+    else:
+        validate_password(password)
+    with tx() as c:
+        c.execute("UPDATE users SET pw_hash = ?, must_change = ? WHERE id = ?", (hash_password(password), int(must_change), user_id))
+        if must_change:
+            c.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
 
 
 def touch_token(token: str):

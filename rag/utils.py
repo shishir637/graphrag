@@ -1,4 +1,5 @@
 import json
+import os
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -9,7 +10,9 @@ from .config import OUT_DIR
 def write_json(name: str, data) -> Path:
     OUT_DIR.mkdir(exist_ok=True)
     path = OUT_DIR / name
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, path)                     # atomic: answers keep reading the old file until the new one is whole
     print(f"  -> wrote {path.relative_to(OUT_DIR.parent)}")
     return path
 

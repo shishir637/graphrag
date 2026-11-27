@@ -6,7 +6,7 @@
 services:
   app:
     build: .
-    image: context-layer:0.4.0
+    image: context-layer:0.6.0
     restart: unless-stopped
     depends_on:
       graphdb: { condition: service_healthy }
@@ -17,6 +17,8 @@ services:
       CL_PUBLIC_URL: ${CL_PUBLIC_URL:-}
       GRAPH_PG_DSN: host=graphdb port=5432 dbname=graphrag user=rag password=${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
       CL_GRAPH_MODE: ${CL_GRAPH_MODE:-}
+      # business definitions, layers, shares and their history (schema cl_defs in the same Postgres as the graph)
+      CL_DEFS_DSN: host=graphdb port=5432 dbname=graphrag user=rag password=${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
     extra_hosts:
       - "host.docker.internal:host-gateway"    # lets optional AI extraction reach a local model (Ollama) on this machine
     volumes:
@@ -67,7 +69,22 @@ services:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
     depends_on: [app]
 
+  # ---- optional: a free local AI model (Ollama, MIT licence) for proposing the graph's ontology and for
+  # AI extraction. Nothing leaves the machine and there is no API cost. About 4 GB of disk for qwen3.5:4b.
+  #   docker compose --profile localai up -d ollama
+  #   docker compose exec ollama ollama pull qwen3.5:4b
+  #   Settings -> AI extraction: Local model, address http://ollama:11434/v1, model qwen3.5:4b
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["localai"]
+    restart: unless-stopped
+    volumes:
+      - ollama_models:/root/.ollama
+    environment:
+      OLLAMA_KEEP_ALIVE: 10m
+
 volumes:
+  ollama_models:
   documents:
   tables:
   outputs:

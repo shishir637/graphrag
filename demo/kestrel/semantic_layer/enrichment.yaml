@@ -1,0 +1,73 @@
+# Kestrel Labs demo company: everyday words.
+version: 1
+synonyms:
+  - term: deploys
+    target: deployment_count
+  - term: releases
+    target: deployment_count
+  - term: CFR
+    target: change_failure_rate
+  - term: MTTR
+    target: time_to_restore
+  - term: time to recovery
+    target: time_to_restore
+  - term: lead time
+    target: lead_time_for_changes
+  - term: velocity
+    target: story_points_done
+  - term: cycle time
+    target: ticket_cycle_time
+  - term: outages
+    target: incident_count
+  - term: cloud spend
+    target: cloud_cost
+  - term: AWS bill
+    target: cloud_cost
+  - term: revenue
+    target: mrr
+  - term: recurring revenue
+    target: mrr
+  - term: annual revenue
+    target: arr
+  - term: customer satisfaction
+    target: csat
+  - term: employees
+    target: headcount
+  - term: attrition
+    target: people_left
+  - term: signups
+    target: new_customers
+  - term: churn
+    target: churned_customers
+  - term: freshness
+    target: data_freshness_hours
+  - term: team
+    target: teams.team_name
+  - term: squad
+    target: teams.team_name
+  - term: devops
+    target: teams.team_name=Platform and DevOps
+  - term: SRE
+    target: teams.team_name=Platform and DevOps
+  - term: data team
+    target: teams.team_name=Data Engineering
+  - term: CS
+    target: teams.team_name=Customer Success
+value_list_dimensions:
+  - teams.team_name
+  - teams.department
+  - deployments.service
+  - deployments.status
+  - incidents.severity
+  - incidents.service
+  - tickets.type
+  - pipeline_runs.pipeline
+  - cloud_costs.provider
+  - cloud_costs.service
+  - customers.region
+  - customers.industry
+  - customers.plan
+  - subscriptions.plan
+  - support_tickets.priority
+  - support_tickets.channel
+  - employees.location

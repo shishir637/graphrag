@@ -42,9 +42,9 @@ K = 10
 def _single(question: str, using: str, groups) -> list[str]:
     from .models import embed_dense, embed_sparse
     from .retrieve import build_filter
-    from .store import client
+    from .store import active_collection, client
     q = embed_dense([question])[0] if using == "dense" else models.SparseVector(**embed_sparse([question], query=True)[0])
-    pts = client().query_points(COLLECTION, query=q, using=using, query_filter=build_filter(groups, None),
+    pts = client().query_points(active_collection(), query=q, using=using, query_filter=build_filter(groups, None),
                                 limit=K, with_payload=True).points
     return [p.payload["chunk_id"] for p in pts]
 

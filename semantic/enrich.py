@@ -98,6 +98,12 @@ def _index_in_qdrant(items: list[dict]) -> int:
     return qc.count(SEMANTIC_COLLECTION).count
 
 
+def _many(store, sql, rows):
+    rows = list(rows)
+    if rows:                    # DuckDB refuses executemany with no rows (e.g. no verified queries yet)
+        store.executemany(sql, rows)
+
+
 def build_enrichment(embed: bool = True) -> dict:
     model, metrics, enrichment, verified = load_model(), load_metrics(), load_enrichment(), load_verified()
     con = connect()
@@ -121,11 +127,11 @@ def build_enrichment(embed: bool = True) -> dict:
     STORE_DB.unlink(missing_ok=True)
     store = duckdb.connect(str(STORE_DB))
     store.execute("CREATE TABLE synonyms (term VARCHAR, target VARCHAR)")
-    store.executemany("INSERT INTO synonyms VALUES (?, ?)", [(s.term, s.target) for s in enrichment.synonyms])
+    _many(store, "INSERT INTO synonyms VALUES (?, ?)", [(s.term, s.target) for s in enrichment.synonyms])
     store.execute("CREATE TABLE value_lists (dimension VARCHAR, value VARCHAR)")
-    store.executemany("INSERT INTO value_lists VALUES (?, ?)", [(d, v) for d, vs in values.items() for v in vs])
+    _many(store, "INSERT INTO value_lists VALUES (?, ?)", [(d, v) for d, vs in values.items() for v in vs])
     store.execute("CREATE TABLE verified_queries (question VARCHAR, query JSON, sql VARCHAR, verified_by VARCHAR)")
-    store.executemany("INSERT INTO verified_queries VALUES (?, ?, ?, ?)", [
+    _many(store, "INSERT INTO verified_queries VALUES (?, ?, ?, ?)", [
         (v.question, json.dumps(v.query.model_dump(mode="json", exclude_defaults=True)), sql, v.verified_by)
         for v, sql in compiled])
     store.execute("CREATE TABLE instructions (text VARCHAR)")

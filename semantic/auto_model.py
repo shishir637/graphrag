@@ -41,6 +41,27 @@ def _dim_type(role: str, dtype: str) -> str:
     return "text"
 
 
+def table_layers() -> dict:
+    """Which layer each uploaded table belongs to (tables uploaded by a person are drafted into their layer)."""
+    import json
+    from .config import DATA_DIR
+    f = DATA_DIR / "_layers.json"
+    try:
+        return json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def set_table_layer(tables: list[str], layer: str):
+    import json
+    from .config import DATA_DIR
+    m = table_layers()
+    for t in tables:
+        m[t] = layer
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    (DATA_DIR / "_layers.json").write_text(json.dumps(m, indent=1), encoding="utf-8")
+
+
 def draft(approve: bool = False) -> dict:
     prof = read_json("sl_1_profile.json")
     new_files = not MODEL_FILE.exists()
@@ -53,8 +74,13 @@ def draft(approve: bool = False) -> dict:
     names = {e["name"] for e in model["entities"]}
     metric_names = {m["name"] for m in metrics["metrics"]}
     added_entities, added_metrics = [], []
+    from . import defstore
+    layer = defstore.WRITE_LAYER.get() if defstore.enabled() else defstore.COMPANY
+    if layer != defstore.COMPANY:
+        approve = True                           # a person's own tables: their drafts are live for them at once
     status = "approved" if approve else "draft"
-    new_tables = [t for t in prof["tables"] if t not in have]
+    owners = table_layers()
+    new_tables = [t for t in prof["tables"] if t not in have and owners.get(t, defstore.COMPANY) == layer]
     # a prefix every new table shares ("lumora_customers", "lumora_invoices") is left out of labels and synonyms
     prefix = ""
     if len(new_tables) >= 2:
@@ -189,3 +215,12 @@ def set_status(name: str, status: str, by: str = "") -> dict:
     MetricSet.model_validate(_plain(metrics))
     write(METRICS_FILE, metrics, "")
     return {"name": name, "status": status}
+
+
+def pending_drafts() -> list[dict]:
+    """Company metrics still waiting for review (status draft)."""
+    from .yamlio import load_metrics
+    try:
+        return [m.model_dump() for m in load_metrics().metrics if getattr(m, "status", "") == "draft"]
+    except Exception:                                      # noqa: BLE001
+        return []

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ago, can, type Job } from '../api'
 import type { Session } from '../App'
 import { Badge, Empty, ErrorBox, Icon, JobPanel, Loading, PageHead, useJob, useLoad } from '../ui'
+import Ontology from './Ontology'
 
 interface Ent { id: string; name: string; type: string; degree: number; description: string; community: number | null; passages: number }
 interface Rel { source: string; target: string; type: string; weight: number; description: string }
@@ -99,5 +100,6 @@ export default function Graph({ s }: { s: Session }) {
                 {r.description && <div className="tiny muted">{r.description}</div>}</div>)}</div>
             : <p className="muted small" style={{ margin: 0 }}>Click an entity to see what the graph knows about it and how it connects. The most connected entities are shown; search to explore any other.</p>}</div></div>
       </div></>}
+    {admin && <Ontology />}
   </div>
 }

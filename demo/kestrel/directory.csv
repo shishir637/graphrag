@@ -1,0 +1,125 @@
+name,email,title,team,manager_email,location,status
+Anika Rao,anika.rao@kestrel-labs.example,Chief Executive Officer,Leadership,,Bengaluru,active
+Vikram Menon,vikram.menon@kestrel-labs.example,Chief Technology Officer,Leadership,anika.rao@kestrel-labs.example,Pune,active
+Isabel Moreau,isabel.moreau@kestrel-labs.example,Chief Operating Officer,Leadership,anika.rao@kestrel-labs.example,Pune,active
+Meera Krishnan,meera.krishnan@kestrel-labs.example,Head of Data Engineering,Data Engineering,vikram.menon@kestrel-labs.example,Bengaluru,active
+Ines Wong,ines.wong@kestrel-labs.example,Data Engineer,Data Engineering,meera.krishnan@kestrel-labs.example,Remote,active
+Leah Muller,leah.muller@kestrel-labs.example,Analytics Engineer,Data Engineering,meera.krishnan@kestrel-labs.example,Bengaluru,active
+Deepak Kulkarni,deepak.kulkarni@kestrel-labs.example,Senior Data Engineer,Data Engineering,meera.krishnan@kestrel-labs.example,Hyderabad,active
+Jaya Raman,jaya.raman@kestrel-labs.example,Data Engineer,Data Engineering,meera.krishnan@kestrel-labs.example,Remote,active
+Hannah Rossi,hannah.rossi@kestrel-labs.example,Analytics Engineer,Data Engineering,meera.krishnan@kestrel-labs.example,Bengaluru,active
+Ananya Saxena,ananya.saxena@kestrel-labs.example,Senior Data Engineer,Data Engineering,meera.krishnan@kestrel-labs.example,Hyderabad,active
+Mei Fernandes,mei.fernandes@kestrel-labs.example,Data Engineer,Data Engineering,meera.krishnan@kestrel-labs.example,Pune,active
+Sanjana Malhotra,sanjana.malhotra@kestrel-labs.example,Analytics Engineer,Data Engineering,meera.krishnan@kestrel-labs.example,Remote,active
+Elena Agarwal,elena.agarwal@kestrel-labs.example,Senior Data Engineer,Data Engineering,meera.krishnan@kestrel-labs.example,Bengaluru,active
+Nadia Novak,nadia.novak@kestrel-labs.example,Data Engineer,Data Engineering,meera.krishnan@kestrel-labs.example,Pune,active
+Isabel Thomas,isabel.thomas@kestrel-labs.example,Analytics Engineer,Data Engineering,meera.krishnan@kestrel-labs.example,Pune,active
+Ravi Shankar,ravi.shankar@kestrel-labs.example,Head of Platform and DevOps,Platform and DevOps,vikram.menon@kestrel-labs.example,Bengaluru,active
+Divya Hegde,divya.hegde@kestrel-labs.example,Site Reliability Engineer,Platform and DevOps,ravi.shankar@kestrel-labs.example,Hyderabad,active
+Vidya Iyer,vidya.iyer@kestrel-labs.example,DevOps Engineer,Platform and DevOps,ravi.shankar@kestrel-labs.example,Pune,active
+Maya Nair,maya.nair@kestrel-labs.example,Senior Site Reliability Engineer,Platform and DevOps,ravi.shankar@kestrel-labs.example,Remote,active
+Aarav Novak,aarav.novak@kestrel-labs.example,Site Reliability Engineer,Platform and DevOps,ravi.shankar@kestrel-labs.example,Pune,active
+Amara Okoye,amara.okoye@kestrel-labs.example,DevOps Engineer,Platform and DevOps,ravi.shankar@kestrel-labs.example,Pune,active
+Maya Jain,maya.jain@kestrel-labs.example,Senior Site Reliability Engineer,Platform and DevOps,ravi.shankar@kestrel-labs.example,Pune,active
+Chen Kowalski,chen.kowalski@kestrel-labs.example,Site Reliability Engineer,Platform and DevOps,ravi.shankar@kestrel-labs.example,Bengaluru,active
+Siddharth Andersen,siddharth.andersen@kestrel-labs.example,DevOps Engineer,Platform and DevOps,ravi.shankar@kestrel-labs.example,Pune,active
+Yusuf Gupta,yusuf.gupta@kestrel-labs.example,Senior Site Reliability Engineer,Platform and DevOps,ravi.shankar@kestrel-labs.example,Bengaluru,active
+Mohan Muller,mohan.muller@kestrel-labs.example,Site Reliability Engineer,Platform and DevOps,ravi.shankar@kestrel-labs.example,Bengaluru,active
+Daniel Okafor,daniel.okafor@kestrel-labs.example,Backend Engineering Lead,Backend,vikram.menon@kestrel-labs.example,Bengaluru,active
+Isabel Ghosh,isabel.ghosh@kestrel-labs.example,Backend Engineer,Backend,daniel.okafor@kestrel-labs.example,Pune,active
+Maya Sen,maya.sen@kestrel-labs.example,Senior Backend Engineer,Backend,daniel.okafor@kestrel-labs.example,Pune,active
+Divya Wong,divya.wong@kestrel-labs.example,Backend Engineer,Backend,daniel.okafor@kestrel-labs.example,Bengaluru,active
+Nikhil Muller,nikhil.muller@kestrel-labs.example,Senior Backend Engineer,Backend,daniel.okafor@kestrel-labs.example,Bengaluru,active
+Liam Chatterjee,liam.chatterjee@kestrel-labs.example,Backend Engineer,Backend,daniel.okafor@kestrel-labs.example,Hyderabad,active
+Deepak Saxena,deepak.saxena@kestrel-labs.example,Senior Backend Engineer,Backend,daniel.okafor@kestrel-labs.example,Bengaluru,active
+Isabel Sen,isabel.sen@kestrel-labs.example,Backend Engineer,Backend,daniel.okafor@kestrel-labs.example,Bengaluru,active
+Zoe Thomas,zoe.thomas@kestrel-labs.example,Senior Backend Engineer,Backend,daniel.okafor@kestrel-labs.example,Bengaluru,left
+Farhan Chatterjee,farhan.chatterjee@kestrel-labs.example,Backend Engineer,Backend,daniel.okafor@kestrel-labs.example,Bengaluru,active
+Kenji Haddad,kenji.haddad@kestrel-labs.example,Senior Backend Engineer,Backend,daniel.okafor@kestrel-labs.example,Pune,active
+Amara Wong,amara.wong@kestrel-labs.example,Backend Engineer,Backend,daniel.okafor@kestrel-labs.example,Bengaluru,active
+Lucas Novak,lucas.novak@kestrel-labs.example,Senior Backend Engineer,Backend,daniel.okafor@kestrel-labs.example,Bengaluru,active
+Noah Iyer,noah.iyer@kestrel-labs.example,Backend Engineer,Backend,daniel.okafor@kestrel-labs.example,Pune,active
+Elena Iyer,elena.iyer@kestrel-labs.example,Senior Backend Engineer,Backend,daniel.okafor@kestrel-labs.example,Remote,active
+Vidya Bose,vidya.bose@kestrel-labs.example,Backend Engineer,Backend,daniel.okafor@kestrel-labs.example,Hyderabad,active
+Oliver Rossi,oliver.rossi@kestrel-labs.example,Senior Backend Engineer,Backend,daniel.okafor@kestrel-labs.example,Bengaluru,active
+Omar Jain,omar.jain@kestrel-labs.example,Backend Engineer,Backend,daniel.okafor@kestrel-labs.example,Pune,active
+Sara Lindqvist,sara.lindqvist@kestrel-labs.example,Frontend Engineering Lead,Frontend,vikram.menon@kestrel-labs.example,Bengaluru,active
+Lakshmi Bose,lakshmi.bose@kestrel-labs.example,Frontend Engineer,Frontend,sara.lindqvist@kestrel-labs.example,Bengaluru,active
+Siddharth Pillai,siddharth.pillai@kestrel-labs.example,Product Designer,Frontend,sara.lindqvist@kestrel-labs.example,Hyderabad,active
+Nikhil Andersen,nikhil.andersen@kestrel-labs.example,Senior Frontend Engineer,Frontend,sara.lindqvist@kestrel-labs.example,Pune,active
+Yusuf Chatterjee,yusuf.chatterjee@kestrel-labs.example,Frontend Engineer,Frontend,sara.lindqvist@kestrel-labs.example,Pune,active
+Tanvi Raman,tanvi.raman@kestrel-labs.example,Product Designer,Frontend,sara.lindqvist@kestrel-labs.example,Hyderabad,active
+Aarav Chatterjee,aarav.chatterjee@kestrel-labs.example,Senior Frontend Engineer,Frontend,sara.lindqvist@kestrel-labs.example,Remote,active
+Hannah Iyer,hannah.iyer@kestrel-labs.example,Frontend Engineer,Frontend,sara.lindqvist@kestrel-labs.example,Pune,active
+Kiran Muller,kiran.muller@kestrel-labs.example,Product Designer,Frontend,sara.lindqvist@kestrel-labs.example,Bengaluru,active
+Ananya Desai,ananya.desai@kestrel-labs.example,Senior Frontend Engineer,Frontend,sara.lindqvist@kestrel-labs.example,Bengaluru,active
+Priya Jain,priya.jain@kestrel-labs.example,Frontend Engineer,Frontend,sara.lindqvist@kestrel-labs.example,Pune,active
+Bhavna Saxena,bhavna.saxena@kestrel-labs.example,Product Designer,Frontend,sara.lindqvist@kestrel-labs.example,Bengaluru,left
+Arjun Mehta,arjun.mehta@kestrel-labs.example,Mobile Engineering Lead,Mobile,vikram.menon@kestrel-labs.example,Bengaluru,active
+Karan Gupta,karan.gupta@kestrel-labs.example,Mobile Engineer,Mobile,arjun.mehta@kestrel-labs.example,Bengaluru,active
+Sneha Wong,sneha.wong@kestrel-labs.example,Senior Mobile Engineer,Mobile,arjun.mehta@kestrel-labs.example,Pune,active
+Deepak Haddad,deepak.haddad@kestrel-labs.example,Mobile Engineer,Mobile,arjun.mehta@kestrel-labs.example,Pune,active
+Rahul Garcia,rahul.garcia@kestrel-labs.example,Senior Mobile Engineer,Mobile,arjun.mehta@kestrel-labs.example,Bengaluru,active
+Jaya Desai,jaya.desai@kestrel-labs.example,Mobile Engineer,Mobile,arjun.mehta@kestrel-labs.example,Pune,active
+Elena Saxena,elena.saxena@kestrel-labs.example,Senior Mobile Engineer,Mobile,arjun.mehta@kestrel-labs.example,Bengaluru,active
+Lucas Kulkarni,lucas.kulkarni@kestrel-labs.example,Mobile Engineer,Mobile,arjun.mehta@kestrel-labs.example,Bengaluru,active
+Sneha Fernandes,sneha.fernandes@kestrel-labs.example,Senior Mobile Engineer,Mobile,arjun.mehta@kestrel-labs.example,Pune,active
+Fatima Sheikh,fatima.sheikh@kestrel-labs.example,QA Lead,QA,vikram.menon@kestrel-labs.example,Bengaluru,active
+Omar Muller,omar.muller@kestrel-labs.example,QA Engineer,QA,fatima.sheikh@kestrel-labs.example,Bengaluru,active
+Zoe Desai,zoe.desai@kestrel-labs.example,Senior QA Engineer,QA,fatima.sheikh@kestrel-labs.example,Pune,active
+Oliver Raman,oliver.raman@kestrel-labs.example,QA Engineer,QA,fatima.sheikh@kestrel-labs.example,Bengaluru,active
+Varun Kowalski,varun.kowalski@kestrel-labs.example,Senior QA Engineer,QA,fatima.sheikh@kestrel-labs.example,Bengaluru,active
+Uday Okoye,uday.okoye@kestrel-labs.example,QA Engineer,QA,fatima.sheikh@kestrel-labs.example,Bengaluru,active
+Mei Tanaka,mei.tanaka@kestrel-labs.example,Senior QA Engineer,QA,fatima.sheikh@kestrel-labs.example,Remote,active
+Bhavna Tanaka,bhavna.tanaka@kestrel-labs.example,QA Engineer,QA,fatima.sheikh@kestrel-labs.example,Bengaluru,active
+Neha Kapoor,neha.kapoor@kestrel-labs.example,Chief Product Officer,Product,anika.rao@kestrel-labs.example,Bengaluru,active
+Maya Novak,maya.novak@kestrel-labs.example,Product Manager,Product,neha.kapoor@kestrel-labs.example,Bengaluru,active
+Hannah Haddad,hannah.haddad@kestrel-labs.example,Product Analyst,Product,neha.kapoor@kestrel-labs.example,Bengaluru,left
+Farhan Garcia,farhan.garcia@kestrel-labs.example,Senior Product Manager,Product,neha.kapoor@kestrel-labs.example,Pune,active
+Gauri Haddad,gauri.haddad@kestrel-labs.example,Product Manager,Product,neha.kapoor@kestrel-labs.example,Bengaluru,active
+Rahul Muller,rahul.muller@kestrel-labs.example,Product Analyst,Product,neha.kapoor@kestrel-labs.example,Hyderabad,active
+Oliver Thomas,oliver.thomas@kestrel-labs.example,Senior Product Manager,Product,neha.kapoor@kestrel-labs.example,Hyderabad,active
+Vidya Agarwal,vidya.agarwal@kestrel-labs.example,Product Manager,Product,neha.kapoor@kestrel-labs.example,Bengaluru,active
+Tom Becker,tom.becker@kestrel-labs.example,Head of Sales,Sales,anika.rao@kestrel-labs.example,Bengaluru,active
+Noah Haddad,noah.haddad@kestrel-labs.example,Sales Development Representative,Sales,tom.becker@kestrel-labs.example,Hyderabad,active
+Oliver Bose,oliver.bose@kestrel-labs.example,Sales Engineer,Sales,tom.becker@kestrel-labs.example,Pune,active
+Elena Silva,elena.silva@kestrel-labs.example,Account Executive,Sales,tom.becker@kestrel-labs.example,Pune,active
+Priya Tanaka,priya.tanaka@kestrel-labs.example,Sales Development Representative,Sales,tom.becker@kestrel-labs.example,Pune,active
+Mei Kulkarni,mei.kulkarni@kestrel-labs.example,Sales Engineer,Sales,tom.becker@kestrel-labs.example,Bengaluru,active
+Rahul Rossi,rahul.rossi@kestrel-labs.example,Account Executive,Sales,tom.becker@kestrel-labs.example,Bengaluru,left
+Bhavna Jain,bhavna.jain@kestrel-labs.example,Sales Development Representative,Sales,tom.becker@kestrel-labs.example,Remote,active
+Pooja Ghosh,pooja.ghosh@kestrel-labs.example,Sales Engineer,Sales,tom.becker@kestrel-labs.example,Remote,active
+Nikhil Fernandes,nikhil.fernandes@kestrel-labs.example,Account Executive,Sales,tom.becker@kestrel-labs.example,Pune,active
+Aditi Gupta,aditi.gupta@kestrel-labs.example,Sales Development Representative,Sales,tom.becker@kestrel-labs.example,Bengaluru,left
+Karan Kowalski,karan.kowalski@kestrel-labs.example,Sales Engineer,Sales,tom.becker@kestrel-labs.example,Bengaluru,active
+Varun Joshi,varun.joshi@kestrel-labs.example,Account Executive,Sales,tom.becker@kestrel-labs.example,Bengaluru,active
+Amara Patel,amara.patel@kestrel-labs.example,Sales Development Representative,Sales,tom.becker@kestrel-labs.example,Bengaluru,active
+Varun Malhotra,varun.malhotra@kestrel-labs.example,Sales Engineer,Sales,tom.becker@kestrel-labs.example,Bengaluru,active
+Deepak Kowalski,deepak.kowalski@kestrel-labs.example,Account Executive,Sales,tom.becker@kestrel-labs.example,Bengaluru,active
+Leela Iyer,leela.iyer@kestrel-labs.example,Head of Customer Success,Customer Success,anika.rao@kestrel-labs.example,Bengaluru,active
+Lakshmi Nair,lakshmi.nair@kestrel-labs.example,Support Engineer,Customer Success,leela.iyer@kestrel-labs.example,Remote,active
+Jaya Jain,jaya.jain@kestrel-labs.example,Onboarding Specialist,Customer Success,leela.iyer@kestrel-labs.example,Remote,active
+Yusuf Haddad,yusuf.haddad@kestrel-labs.example,Customer Success Manager,Customer Success,leela.iyer@kestrel-labs.example,Pune,active
+Oliver Agarwal,oliver.agarwal@kestrel-labs.example,Support Engineer,Customer Success,leela.iyer@kestrel-labs.example,Bengaluru,active
+Ines Saxena,ines.saxena@kestrel-labs.example,Onboarding Specialist,Customer Success,leela.iyer@kestrel-labs.example,Bengaluru,active
+Mei Iyer,mei.iyer@kestrel-labs.example,Customer Success Manager,Customer Success,leela.iyer@kestrel-labs.example,Bengaluru,active
+Jaya Agarwal,jaya.agarwal@kestrel-labs.example,Support Engineer,Customer Success,leela.iyer@kestrel-labs.example,Bengaluru,active
+Noah Nair,noah.nair@kestrel-labs.example,Onboarding Specialist,Customer Success,leela.iyer@kestrel-labs.example,Bengaluru,active
+Tanvi Patel,tanvi.patel@kestrel-labs.example,Customer Success Manager,Customer Success,leela.iyer@kestrel-labs.example,Pune,left
+Jaya Hegde,jaya.hegde@kestrel-labs.example,Support Engineer,Customer Success,leela.iyer@kestrel-labs.example,Bengaluru,active
+Isabel Bose,isabel.bose@kestrel-labs.example,Onboarding Specialist,Customer Success,leela.iyer@kestrel-labs.example,Hyderabad,active
+Kiran Agarwal,kiran.agarwal@kestrel-labs.example,Customer Success Manager,Customer Success,leela.iyer@kestrel-labs.example,Bengaluru,active
+Sameer Pillai,sameer.pillai@kestrel-labs.example,Support Engineer,Customer Success,leela.iyer@kestrel-labs.example,Remote,active
+Rohan Das,rohan.das@kestrel-labs.example,Chief Financial Officer,Finance,anika.rao@kestrel-labs.example,Bengaluru,active
+Aditi Ghosh,aditi.ghosh@kestrel-labs.example,Billing Specialist,Finance,rohan.das@kestrel-labs.example,Bengaluru,active
+Liam Hegde,liam.hegde@kestrel-labs.example,Accountant,Finance,rohan.das@kestrel-labs.example,Bengaluru,active
+Sanjana Kulkarni,sanjana.kulkarni@kestrel-labs.example,Financial Analyst,Finance,rohan.das@kestrel-labs.example,Bengaluru,active
+Ines Thomas,ines.thomas@kestrel-labs.example,Billing Specialist,Finance,rohan.das@kestrel-labs.example,Hyderabad,active
+Nikhil Silva,nikhil.silva@kestrel-labs.example,Accountant,Finance,rohan.das@kestrel-labs.example,Remote,left
+Tariq Ghosh,tariq.ghosh@kestrel-labs.example,Financial Analyst,Finance,rohan.das@kestrel-labs.example,Remote,active
+Kavya Reddy,kavya.reddy@kestrel-labs.example,Head of People,People,anika.rao@kestrel-labs.example,Bengaluru,active
+Mei Garcia,mei.garcia@kestrel-labs.example,People Partner,People,kavya.reddy@kestrel-labs.example,Pune,active
+Farhan Andersen,farhan.andersen@kestrel-labs.example,Recruiter,People,kavya.reddy@kestrel-labs.example,Bengaluru,active
+Leah Bose,leah.bose@kestrel-labs.example,People Partner,People,kavya.reddy@kestrel-labs.example,Bengaluru,active
+Mohan Rossi,mohan.rossi@kestrel-labs.example,Recruiter,People,kavya.reddy@kestrel-labs.example,Bengaluru,active
+Kanakavalli,kanakavalli@kestrel-labs.example,Senior Data Engineer,Data Engineering,meera.krishnan@kestrel-labs.example,Bengaluru,active

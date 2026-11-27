@@ -21,6 +21,7 @@ Output: one JSON line per passage, the same record format the graph builder alre
 import argparse
 import itertools
 import json
+import os
 import re
 import sys
 import time
@@ -54,6 +55,13 @@ GENERIC_SCHEMA = {   # used when a deployment has no graph_layer/schema.yaml
     "head_words": [],
 }
 SKIP = re.compile(r"^(\W+|\d[\d,.\s%]*|the|a|an|this|that|it|they|he|she|we|i)$", re.I)
+GENERIC = re.compile(r"^[a-z][a-z ]*$")         # "outage", "owning team": ordinary words, not a named thing
+
+
+def named(n: str) -> bool:
+    """A name of a thing: has a capital, a digit, '-' or '_' (api-gateway, warehouse_build, INC-2026-031), and
+    does not run across two table cells or sentences ("Mobile. ios-app")."""
+    return not GENERIC.match(n) and ". " not in n
 
 
 @lru_cache
@@ -61,7 +69,39 @@ def schema() -> dict:
     s = yaml.safe_load(SCHEMA_FILE.read_text(encoding="utf-8")) if SCHEMA_FILE.exists() else {}
     out = dict(GENERIC_SCHEMA)
     out.update({k: v for k, v in (s or {}).items() if v})
+    try:                                               # an approved ontology replaces the hand-written types
+        from graph.ontology import approved, as_schema
+        o = approved()
+    except Exception:                                   # noqa: BLE001 - no store: the hand-written list
+        o = None
+    if o:
+        out.update(as_schema(o))
+        types = set(out["entity_types"])
+        out["spacy_label_map"] = {k: (v if v in types else _closest(v, types)) for k, v in
+                                  (out.get("spacy_label_map") or {}).items()}
+        out["head_words"] = [r for r in out.get("head_words") or [] if r.get("type") in types]
+        out["gazetteer"] = {k: v for k, v in (out.get("gazetteer") or {}).items() if k in types}
+        out["verb_rules"] = {k: v for k, v in (out.get("verb_rules") or {}).items()
+                             if (v or {}).get("type") in out["relation_types"]}
     return out
+
+
+def _closest(typ, types: set) -> str | None:
+    """spaCy's labels after the ontology changed: keep the type if it is still there, else a type of the same
+    family by name (PERSON -> a Person-like type), else none (the name is then skipped by fast mode)."""
+    if not typ:
+        return None
+    fam = {"Person": ("person", "employee", "people", "staff", "member"),
+           "Organisation": ("organisation", "organization", "company", "team", "customer", "vendor", "department"),
+           "Place": ("place", "location", "city", "region", "country", "office"),
+           "GeoFeature": ("place", "location", "region"), "Landmark": ("place", "location", "building", "office"),
+           "Product": ("product", "service", "system", "tool", "application"),
+           "Event": ("event", "incident", "project", "meeting"), "EthnicGroup": (), "Language": ("language",)}
+    for word in fam.get(typ, (typ.lower(),)):
+        for t in sorted(types):
+            if word in t.lower():
+                return t
+    return None
 
 
 def head_word_rules() -> list[tuple[re.Pattern, str]]:
@@ -95,6 +135,8 @@ def refine(name: str, typ: str, rules) -> str:
 
 
 def clean(name: str) -> str:
+    name = next((x for x in name.strip().splitlines() if x.strip()), "")   # never across lines
+    name = re.sub(r"^[\w ]{1,30}:\s+", "", name.strip()) if re.match(r"^[a-z_ ]{1,30}:\s", name.strip()) else name
     name = re.sub(r"^(the|a|an)\s+", "", name.strip(), flags=re.I)
     name = re.sub(r"['’]s$", "", name)
     return re.sub(r"[\s,;:.()\[\]]+$", "", name).strip()
@@ -136,12 +178,12 @@ class Extractor:
         if self.mode == "accurate":
             for e in gliner().predict_entities(text, list(self.labels), threshold=GLINER_THRESHOLD):
                 n = clean(e["text"])
-                if n and not SKIP.match(n):
+                if n and not SKIP.match(n) and named(n):
                     ents.setdefault(norm(n), {"name": n, "type": self.labels[e["label"]], "score": round(e["score"], 3)})
         for e in doc.ents:                       # spaCy spans: all of them in fast mode, the missing ones otherwise
             t = self.spacy_map.get(e.label_)
             n = clean(e.text)
-            if not t or not n or SKIP.match(n) or len(n) < 2:
+            if not t or not n or SKIP.match(n) or len(n) < 2 or not named(n):
                 continue
             k = norm(n)
             if k in ents or any(k in x or x in k for x in ents if len(x) > 3 and len(k) > 3):
@@ -216,33 +258,54 @@ class Extractor:
         return "Place" if "Place" in self.labels.values() else next(iter(self.labels.values()))
 
 
+def ontology_fp() -> str:
+    """Fingerprint of the types in use: results found with other types are redone after the ontology changes."""
+    import hashlib
+    s = schema()
+    return hashlib.sha1(json.dumps([s["entity_types"], s.get("relation_types")], sort_keys=True,
+                                   default=str).encode("utf-8")).hexdigest()[:10]
+
+
 def _th(chunk: dict) -> str:
     import hashlib
     return hashlib.sha1(chunk["text"].encode("utf-8")).hexdigest()[:12]
 
 
 def extract_all(out: Path, mode: str = "accurate", relations: str = "cooc", ids: list[str] | None = None,
-                resume: bool = True) -> Path:
-    chunks = json.loads(CHUNKS.read_text(encoding="utf-8"))
+                resume: bool = True, compact: bool | None = None) -> Path:
+    """ids: only (re)extract these passages. compact: drop results for passages that were deleted or changed
+    (default: when all passages are processed; uploads pass ids AND compact=True)."""
+    all_chunks = json.loads(CHUNKS.read_text(encoding="utf-8"))
+    chunks = all_chunks
     if ids:
         keep = set(ids)
-        chunks = [c for c in chunks if c["chunk_id"] in keep]
+        chunks = [c for c in all_chunks if c["chunk_id"] in keep]
+    if compact is None:
+        compact = not ids
     done = set()
     if resume and out.exists():
         # keep only results for passages that still exist with the same text: a deleted or edited document
         # must not leave its old entities in the graph (records from before 0.3 have no hash: kept)
-        want = {c["chunk_id"]: _th(c) for c in chunks}
-        kept, dropped = {}, 0
+        want = {c["chunk_id"]: _th(c) for c in all_chunks}
+        fp = ontology_fp()
+        kept, dropped, retyped = {}, 0, 0
         for line in out.read_text(encoding="utf-8").splitlines():
             if not line.strip():
                 continue
             r = json.loads(line)
-            if ids is None and (r["chunk_id"] not in want or r.get("th", want[r["chunk_id"]]) != want[r["chunk_id"]]):
+            if compact and (r["chunk_id"] not in want or r.get("th", want[r["chunk_id"]]) != want[r["chunk_id"]]):
                 dropped += 1
                 continue
+            if not ids and r.get("ov") != fp and mode != "ai":   # full build after an ontology change: find again
+                retyped += 1
+                continue
             kept[r["chunk_id"]] = line
-        if dropped and ids is None:
-            out.write_text("".join(x + "\n" for x in kept.values()), encoding="utf-8")
+        if retyped:
+            print(f"  the ontology changed: {retyped} passages will be read again with the new types", flush=True)
+        if dropped or retyped:
+            tmp = out.with_name(out.name + ".tmp")
+            tmp.write_text("".join(x + "\n" for x in kept.values()), encoding="utf-8")
+            os.replace(tmp, out)
             print(f"  removed {dropped} passages that were deleted or changed", flush=True)
         done = set(kept)
     else:
@@ -252,9 +315,10 @@ def extract_all(out: Path, mode: str = "accurate", relations: str = "cooc", ids:
     if mode == "ai":
         return _extract_ai(out, todo, t0)
     ex = Extractor(mode, relations)
+    fp_now = ontology_fp()
     with out.open("a", encoding="utf-8") as f:
         for i, c in enumerate(todo, 1):
-            f.write(json.dumps(ex.run(c) | {"th": _th(c)}, ensure_ascii=False) + "\n")
+            f.write(json.dumps(ex.run(c) | {"th": _th(c), "ov": fp_now}, ensure_ascii=False) + "\n")
             if i % 50 == 0 or i == len(todo):
                 f.flush()
                 print(f"  {i}/{len(todo)} passages ({time.perf_counter() - t0:.0f}s)", flush=True)

@@ -4,6 +4,7 @@ their entry points, adding access control and the per-agent capabilities."""
 import json
 import re
 import shutil
+import threading
 import time
 from pathlib import Path
 
@@ -14,7 +15,7 @@ from semantic import config as SC
 
 DOC_EXTS = DOCLING_EXTS | PLAINTEXT_EXTS | RECORD_EXTS
 ACCESS_FILE = DOCS_DIR / "_access.json"
-_GROUP_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
+_GROUP_RE = re.compile(r"^(layer:[a-z0-9:_-]{1,60}|[a-z0-9][a-z0-9_-]{0,39})$")   # layer:<id> = a person's layer
 _SAFE_NAME = re.compile(r"[^\w.\- ()]+")
 
 
@@ -166,9 +167,10 @@ def save_table(filename: str, data: bytes) -> list[str]:
 
 def metrics() -> dict:
     def load(path):
+        from semantic.yamlio import _plain, read
         try:
-            return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-        except (OSError, yaml.YAMLError):
+            return _plain(read(path)) or {}
+        except (OSError, ValueError, yaml.YAMLError, RuntimeError):
             return {}
     m, model = load(SC.METRICS_FILE), load(SC.MODEL_FILE)
     dims = []
@@ -261,7 +263,19 @@ def prepare_documents():
     chunk_access()
 
 
+DATA_IDLE = threading.Event()        # cleared while metric tables are rebuilt (metric questions wait briefly)
+DATA_IDLE.set()
+
+
 def prepare_data():
+    DATA_IDLE.clear()
+    try:
+        _prepare_data()
+    finally:
+        DATA_IDLE.set()
+
+
+def _prepare_data():
     print("[1/4] Profiling tables"); from semantic.profile import profile_all; profile_all()
     print("[2/4] Drafting definitions for new tables (review them on the Metrics page)")
     from semantic.auto_model import draft
@@ -355,15 +369,59 @@ def rebuild(info: dict):
     if "document" in kinds:
         prepare_documents()
         if info.get("graph"):
-            build_graph()
+            update_graph([f["file"] for f in files if f["kind"] == "document"])
     if "table" in kinds:
-        prepare_data()
+        layer = info.get("layer")
+        from semantic import defstore
+        if layer and defstore.enabled():
+            with defstore.acting(info.get("who") or "upload", "upload", stack=(defstore.COMPANY, layer), write_layer=layer):
+                prepare_data()                   # drafts this person's tables into their own layer
+        else:
+            prepare_data()
 
 
-def queue_rebuild(saved: list[dict], by: str) -> dict:
+def update_graph(sources: list[str]):
+    """After uploads: read only the new files' passages for the graph, then merge. A full read of every
+    passage (GLiNER, 1-2 s each) only happens from the Graph page, never because of an upload."""
+    chunks = json.loads((OUT_DIR / "2_chunks.json").read_text(encoding="utf-8"))
+    files = sorted(OUT_DIR.glob("gr_extract_*.jsonl"), key=lambda p: (p.stem != f"gr_extract_{graph_mode()}",
+                                                                        -p.stat().st_mtime))
+    files = [p for p in files if p.stem.removeprefix("gr_extract_") in GRAPH_MODES]
+    new = {c["chunk_id"] for c in chunks if c["source"] in set(sources)}
+    if not files:
+        print("[graph] skipped: build the graph once from the Graph page, then uploads keep it up to date")
+        return
+    out = files[0]
+    mode = out.stem.removeprefix("gr_extract_")
+    have = set()
+    for line in out.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            have.add(json.loads(line)["chunk_id"])
+    others = {c["chunk_id"] for c in chunks} - new
+    if others and len(have & others) < 0.9 * len(others):
+        print(f"[graph] skipped: the graph covers {len(have & others)} of {len(others)} passages; rebuild it from "
+              "the Graph page")
+        return
+    if mode == "ai":
+        from graph.extract_ai import problems
+        if problems():
+            mode, out = "accurate", OUT_DIR / "gr_extract_accurate.jsonl"
+            if not out.exists():
+                print("[graph] skipped: AI extraction is not set up")
+                return
+    print(f"[graph] reading {len(new)} new passages ({GRAPH_MODES[mode]})")
+    from graph.nlp_extract import extract_all
+    extract_all(out, mode=mode, ids=sorted(new), resume=True, compact=True)
+    print("[graph] merging and storing the graph")
+    from graph.build import build
+    build([str(out)])
+
+
+def queue_rebuild(saved: list[dict], by: str, layer: str | None = None, who: str | None = None) -> dict:
     from app import jobs
     return jobs.enqueue("rebuild", "Adding uploaded files", rebuild, by,
-                        {"files": saved, "graph": graph_ready() or bool(info_graph_wanted())})
+                        {"files": saved, "graph": graph_ready() or bool(info_graph_wanted()), "layer": layer,
+                         "who": who or by})
 
 
 def info_graph_wanted() -> bool:
@@ -375,7 +433,10 @@ def rebuild_report(job: dict, info: dict) -> dict:
     """What the uploaded files turned into, for build_status."""
     out = {"job_id": job["id"], "status": job["status"], "queue_position": job.get("queue_position"),
            "started": job["started"], "finished": job["finished"], "error": job["error"],
-           "steps": [l for l in job["log"] if l.startswith(("[", "Rebuilding"))][-12:], "files": []}
+           "steps": (job.get("steps") or [])[-15:], "files": []}
+    if job.get("started") and job["status"] == "running":
+        from datetime import datetime, timezone
+        out["running_for"] = f"{int((datetime.now(timezone.utc) - datetime.fromisoformat(job['started'])).total_seconds() // 60)} min"
     docs = {d["name"]: d for d in documents()} if job["status"] == "done" else {}
     drafted = []
     if job["status"] == "done" and any(f["kind"] == "table" for f in info.get("files", [])):
@@ -394,7 +455,8 @@ def rebuild_report(job: dict, info: dict) -> dict:
                        + (". New metric definitions are drafts: an admin approves them on the Metrics page "
                           "before query_metrics uses them." if drafted else "."))
     elif job["status"] in ("running", "queued"):
-        out["next"] = "Still building. Check again with build_status in about 30 seconds."
+        out["next"] = ("Still building. Questions keep working meanwhile and use the documents as they were "
+                       "before the upload. Check again with build_status in about 30 seconds.")
     return out
 
 

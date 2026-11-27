@@ -163,7 +163,10 @@ def _plan_prompt(question: str, ctx: dict) -> str:
 def _layer_version() -> str:
     """Fingerprint of the reviewed layer: any change to a definition invalidates cached plans."""
     import hashlib
+    from . import defstore
     from .config import LAYER_DIR
+    if defstore.enabled():
+        return hashlib.sha1(defstore.version().encode()).hexdigest()[:12]
     h = hashlib.sha1()
     for f in sorted(LAYER_DIR.glob("*")):
         if f.is_file() and f.name != "eval_questions.yaml":

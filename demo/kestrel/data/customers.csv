@@ -1,0 +1,321 @@
+customer_id,name,industry,region,plan,signup_date,status,churned_at,csm_email
+C0001,Pine Foods,SaaS,Europe,Growth,2026-04-14,active,,isabel.bose@kestrel-labs.example
+C0002,Clear Retail,SaaS,North America,Enterprise,2026-07-28,active,,sameer.pillai@kestrel-labs.example
+C0003,Clear Works,Retail,North America,Enterprise,2024-10-23,active,,jaya.jain@kestrel-labs.example
+C0004,Iron Studio,SaaS,Europe,Starter,2023-10-03,active,,leela.iyer@kestrel-labs.example
+C0005,Iron Works,Retail,India,Starter,2024-04-13,active,,jaya.hegde@kestrel-labs.example
+C0006,Harbor Freight,Media,Europe,Starter,2023-07-18,active,,jaya.agarwal@kestrel-labs.example
+C0007,Stone Pay,Manufacturing,India,Growth,2023-09-24,active,,yusuf.haddad@kestrel-labs.example
+C0008,Nova Freight,Healthcare,India,Growth,2025-03-01,active,,sameer.pillai@kestrel-labs.example
+C0009,Vertex Studio,SaaS,Europe,Starter,2026-04-13,active,,jaya.jain@kestrel-labs.example
+C0010,Pine Energy,Media,Europe,Starter,2025-07-05,churned,2026-11-05,yusuf.haddad@kestrel-labs.example
+C0011,Pine Studio,Fintech,India,Starter,2026-10-31,active,,kiran.agarwal@kestrel-labs.example
+C0012,Atlas Works,Education,North America,Starter,2025-12-10,active,,yusuf.haddad@kestrel-labs.example
+C0013,Vertex Logistics,Manufacturing,India,Growth,2025-04-03,active,,mei.iyer@kestrel-labs.example
+C0014,Atlas Retail,Media,India,Enterprise,2026-10-21,active,,noah.nair@kestrel-labs.example
+C0015,Swift Works,Logistics,APAC,Starter,2023-12-07,active,,jaya.jain@kestrel-labs.example
+C0016,Orbit Motors,Fintech,North America,Growth,2024-11-14,active,,noah.nair@kestrel-labs.example
+C0017,Echo Studio,SaaS,India,Starter,2025-11-08,active,,isabel.bose@kestrel-labs.example
+C0018,Harbor Labs,Manufacturing,India,Growth,2025-02-24,active,,kiran.agarwal@kestrel-labs.example
+C0019,Iron Learning,Healthcare,APAC,Enterprise,2024-10-29,active,,kiran.agarwal@kestrel-labs.example
+C0020,Swift Freight,Logistics,North America,Growth,2025-12-15,active,,lakshmi.nair@kestrel-labs.example
+C0021,Silver Analytics,Healthcare,APAC,Starter,2023-02-01,active,,jaya.hegde@kestrel-labs.example
+C0022,Pine Motors,SaaS,North America,Starter,2026-03-10,active,,mei.iyer@kestrel-labs.example
+C0023,Orbit Clinics,Healthcare,India,Starter,2025-09-14,active,,sameer.pillai@kestrel-labs.example
+C0024,Iron Pay,Retail,APAC,Starter,2026-09-27,active,,isabel.bose@kestrel-labs.example
+C0025,Green Works,Retail,India,Growth,2025-10-22,active,,oliver.agarwal@kestrel-labs.example
+C0026,Lumen Labs,Media,India,Growth,2026-05-03,churned,2026-10-01,noah.nair@kestrel-labs.example
+C0027,Iron Health,Logistics,Europe,Starter,2026-09-20,active,,mei.iyer@kestrel-labs.example
+C0028,Vertex Foods,Media,Europe,Growth,2024-10-13,active,,yusuf.haddad@kestrel-labs.example
+C0029,Stone Analytics,Manufacturing,Europe,Starter,2025-03-03,active,,jaya.agarwal@kestrel-labs.example
+C0030,Echo Analytics,Fintech,Europe,Starter,2024-11-27,active,,oliver.agarwal@kestrel-labs.example
+C0031,Stone Media,Healthcare,India,Growth,2023-09-24,active,,lakshmi.nair@kestrel-labs.example
+C0032,Silver Logistics,Retail,India,Starter,2026-02-08,active,,yusuf.haddad@kestrel-labs.example
+C0033,Blue Energy,Fintech,India,Enterprise,2023-03-03,active,,sameer.pillai@kestrel-labs.example
+C0034,River Retail,Logistics,North America,Starter,2026-02-25,active,,oliver.agarwal@kestrel-labs.example
+C0035,Stone Logistics,Logistics,North America,Growth,2024-06-18,active,,yusuf.haddad@kestrel-labs.example
+C0036,Vertex Analytics,Media,Europe,Starter,2023-11-18,active,,lakshmi.nair@kestrel-labs.example
+C0037,Summit Logistics,Logistics,North America,Starter,2025-02-09,active,,sameer.pillai@kestrel-labs.example
+C0038,Cedar Studio,Logistics,India,Starter,2023-10-23,active,,leela.iyer@kestrel-labs.example
+C0039,Harbor Energy,Fintech,India,Growth,2025-01-07,active,,yusuf.haddad@kestrel-labs.example
+C0040,River Motors,SaaS,India,Growth,2026-07-04,active,,kiran.agarwal@kestrel-labs.example
+C0041,Swift Logistics,Logistics,North America,Growth,2025-07-12,active,,sameer.pillai@kestrel-labs.example
+C0042,Orbit Works,Retail,North America,Starter,2023-05-05,churned,2024-01-24,noah.nair@kestrel-labs.example
+C0043,Vertex Freight,Retail,Europe,Starter,2025-08-25,active,,isabel.bose@kestrel-labs.example
+C0044,Summit Works,Healthcare,North America,Enterprise,2026-02-02,active,,ines.saxena@kestrel-labs.example
+C0045,Green Motors,Media,India,Starter,2025-08-09,active,,jaya.agarwal@kestrel-labs.example
+C0046,Clear Freight,Healthcare,North America,Starter,2026-06-17,active,,isabel.bose@kestrel-labs.example
+C0047,Atlas Learning,Logistics,APAC,Growth,2025-02-09,active,,mei.iyer@kestrel-labs.example
+C0048,Atlas Motors,Retail,North America,Growth,2026-09-24,active,,ines.saxena@kestrel-labs.example
+C0049,Blue Studio,Media,North America,Starter,2024-10-02,active,,jaya.agarwal@kestrel-labs.example
+C0050,Atlas Logistics,Retail,India,Growth,2023-04-09,churned,2025-09-23,kiran.agarwal@kestrel-labs.example
+C0051,Swift Systems,Education,Europe,Growth,2024-12-15,active,,kiran.agarwal@kestrel-labs.example
+C0052,Iron Foods,Logistics,India,Growth,2024-12-04,churned,2026-04-28,jaya.jain@kestrel-labs.example
+C0053,Swift Studio,Retail,India,Growth,2025-03-14,active,,isabel.bose@kestrel-labs.example
+C0054,River Learning,Logistics,APAC,Enterprise,2024-09-27,active,,lakshmi.nair@kestrel-labs.example
+C0055,Pine Systems,Education,North America,Starter,2025-05-16,active,,jaya.jain@kestrel-labs.example
+C0056,River Foods,Retail,India,Enterprise,2025-09-23,active,,yusuf.haddad@kestrel-labs.example
+C0057,Silver Retail,SaaS,India,Starter,2025-09-04,active,,isabel.bose@kestrel-labs.example
+C0058,Nova Labs,Logistics,North America,Enterprise,2023-06-18,active,,noah.nair@kestrel-labs.example
+C0059,North Logistics,Healthcare,India,Starter,2023-02-28,active,,jaya.agarwal@kestrel-labs.example
+C0060,Cedar Health,Retail,India,Starter,2024-02-22,active,,mei.iyer@kestrel-labs.example
+C0061,Atlas Analytics,Education,Europe,Starter,2026-06-01,active,,noah.nair@kestrel-labs.example
+C0062,North Motors,Logistics,Europe,Growth,2025-07-18,churned,2026-04-28,mei.iyer@kestrel-labs.example
+C0063,Blue Logistics,Media,India,Starter,2023-01-09,active,,jaya.jain@kestrel-labs.example
+C0064,Bright Health,Media,India,Starter,2024-09-18,active,,mei.iyer@kestrel-labs.example
+C0065,Pine Labs,Healthcare,Europe,Starter,2023-09-16,active,,jaya.agarwal@kestrel-labs.example
+C0066,Bright Works,Education,APAC,Enterprise,2024-07-17,churned,2025-03-21,kiran.agarwal@kestrel-labs.example
+C0067,Orbit Media,Retail,India,Growth,2023-08-27,active,,jaya.agarwal@kestrel-labs.example
+C0068,Harbor Analytics,Fintech,North America,Growth,2024-05-11,churned,2025-11-28,mei.iyer@kestrel-labs.example
+C0069,Echo Logistics,Fintech,India,Growth,2024-05-02,active,,jaya.jain@kestrel-labs.example
+C0070,Lumen Clinics,SaaS,India,Growth,2025-03-07,active,,yusuf.haddad@kestrel-labs.example
+C0071,Nova Analytics,Manufacturing,Europe,Enterprise,2023-09-08,active,,jaya.hegde@kestrel-labs.example
+C0072,River Health,Healthcare,APAC,Starter,2023-01-21,active,,mei.iyer@kestrel-labs.example
+C0073,Echo Freight,Healthcare,North America,Growth,2025-03-05,active,,jaya.hegde@kestrel-labs.example
+C0074,Clear Labs,Media,Europe,Starter,2026-07-16,active,,lakshmi.nair@kestrel-labs.example
+C0075,Cedar Clinics,Healthcare,North America,Starter,2025-07-25,active,,mei.iyer@kestrel-labs.example
+C0076,Summit Media,Media,North America,Starter,2026-09-15,active,,ines.saxena@kestrel-labs.example
+C0077,Lumen Analytics,Education,India,Starter,2023-07-11,active,,mei.iyer@kestrel-labs.example
+C0078,Bright Clinics,Fintech,Europe,Starter,2026-08-31,active,,leela.iyer@kestrel-labs.example
+C0079,Lumen Learning,Manufacturing,India,Starter,2023-05-31,churned,2025-05-23,jaya.hegde@kestrel-labs.example
+C0080,Green Foods,Healthcare,India,Growth,2024-11-19,churned,2026-04-23,jaya.hegde@kestrel-labs.example
+C0081,Vertex Learning,Manufacturing,India,Growth,2023-09-08,active,,kiran.agarwal@kestrel-labs.example
+C0082,Lumen Health,Retail,North America,Enterprise,2023-03-24,active,,yusuf.haddad@kestrel-labs.example
+C0083,Atlas Studio,Education,North America,Growth,2026-07-24,active,,leela.iyer@kestrel-labs.example
+C0084,Iron Energy,Retail,APAC,Growth,2026-07-31,active,,kiran.agarwal@kestrel-labs.example
+C0085,Clear Motors,Healthcare,India,Starter,2026-07-26,active,,noah.nair@kestrel-labs.example
+C0086,Bright Foods,SaaS,India,Growth,2025-02-07,active,,sameer.pillai@kestrel-labs.example
+C0087,Orbit Freight,Media,India,Starter,2024-03-30,active,,mei.iyer@kestrel-labs.example
+C0088,Silver Works,SaaS,Europe,Growth,2024-08-15,churned,2026-03-17,leela.iyer@kestrel-labs.example
+C0089,Iron Analytics,Media,Europe,Starter,2023-03-18,active,,oliver.agarwal@kestrel-labs.example
+C0090,Swift Motors,Logistics,India,Growth,2025-03-25,churned,2026-10-21,yusuf.haddad@kestrel-labs.example
+C0091,Vertex Works,Retail,India,Growth,2023-06-12,churned,2024-07-20,yusuf.haddad@kestrel-labs.example
+C0092,Harbor Motors,Fintech,India,Starter,2023-08-09,active,,ines.saxena@kestrel-labs.example
+C0093,Orbit Analytics,Healthcare,Europe,Growth,2024-01-20,active,,jaya.jain@kestrel-labs.example
+C0094,Vertex Pay,Healthcare,Europe,Starter,2023-04-26,active,,ines.saxena@kestrel-labs.example
+C0095,North Freight,Healthcare,India,Starter,2025-06-25,active,,leela.iyer@kestrel-labs.example
+C0096,Pine Works,Healthcare,North America,Growth,2026-10-17,active,,sameer.pillai@kestrel-labs.example
+C0097,Blue Media,Healthcare,India,Starter,2024-11-28,active,,leela.iyer@kestrel-labs.example
+C0098,Orbit Logistics,Education,India,Starter,2026-08-28,active,,lakshmi.nair@kestrel-labs.example
+C0099,Vertex Labs,Logistics,North America,Starter,2024-08-12,active,,sameer.pillai@kestrel-labs.example
+C0100,Pine Learning,Logistics,India,Starter,2025-03-20,active,,oliver.agarwal@kestrel-labs.example
+C0101,Stone Clinics,Retail,North America,Starter,2025-09-28,active,,jaya.hegde@kestrel-labs.example
+C0102,Pine Media,Education,India,Starter,2025-02-27,active,,lakshmi.nair@kestrel-labs.example
+C0103,Clear Clinics,Manufacturing,India,Growth,2024-08-27,active,,mei.iyer@kestrel-labs.example
+C0104,Bright Analytics,Healthcare,Europe,Starter,2025-01-09,active,,yusuf.haddad@kestrel-labs.example
+C0105,River Analytics,Healthcare,North America,Starter,2023-01-29,active,,jaya.hegde@kestrel-labs.example
+C0106,Lumen Works,Media,India,Starter,2025-05-22,active,,jaya.agarwal@kestrel-labs.example
+C0107,Atlas Pay,Education,North America,Starter,2023-06-19,active,,oliver.agarwal@kestrel-labs.example
+C0108,Summit Learning,Education,India,Enterprise,2025-09-29,churned,2026-11-19,leela.iyer@kestrel-labs.example
+C0109,Blue Freight,Retail,North America,Enterprise,2026-04-03,active,,oliver.agarwal@kestrel-labs.example
+C0110,Green Energy,Manufacturing,North America,Starter,2024-05-17,active,,jaya.hegde@kestrel-labs.example
+C0111,Lumen Retail,Media,North America,Starter,2023-04-05,active,,jaya.hegde@kestrel-labs.example
+C0112,Summit Energy,Education,India,Starter,2023-08-14,churned,2024-09-04,jaya.jain@kestrel-labs.example
+C0113,Orbit Labs,Manufacturing,North America,Enterprise,2025-02-02,active,,sameer.pillai@kestrel-labs.example
+C0114,Blue Analytics,Manufacturing,India,Growth,2025-09-11,active,,kiran.agarwal@kestrel-labs.example
+C0115,Iron Labs,Retail,India,Growth,2026-06-05,active,,jaya.agarwal@kestrel-labs.example
+C0116,Swift Energy,Fintech,India,Growth,2026-09-15,active,,jaya.hegde@kestrel-labs.example
+C0117,Bright Motors,Healthcare,India,Starter,2024-08-18,churned,2025-10-10,jaya.jain@kestrel-labs.example
+C0118,North Media,Education,India,Growth,2023-06-02,active,,jaya.agarwal@kestrel-labs.example
+C0119,Silver Learning,Media,India,Starter,2024-03-06,active,,oliver.agarwal@kestrel-labs.example
+C0120,Blue Retail,Manufacturing,India,Starter,2024-12-17,active,,jaya.hegde@kestrel-labs.example
+C0121,Bright Labs,Healthcare,India,Growth,2025-06-30,active,,jaya.agarwal@kestrel-labs.example
+C0122,Silver Freight,Retail,Europe,Starter,2023-04-08,churned,2025-07-02,sameer.pillai@kestrel-labs.example
+C0123,Blue Health,Healthcare,North America,Growth,2023-08-11,churned,2026-02-19,sameer.pillai@kestrel-labs.example
+C0124,Echo Clinics,Fintech,India,Growth,2026-07-12,active,,kiran.agarwal@kestrel-labs.example
+C0125,Swift Retail,Retail,North America,Starter,2026-06-18,active,,jaya.agarwal@kestrel-labs.example
+C0126,Cedar Motors,Healthcare,India,Enterprise,2025-10-02,active,,noah.nair@kestrel-labs.example
+C0127,Harbor Logistics,Logistics,APAC,Growth,2024-12-11,active,,jaya.jain@kestrel-labs.example
+C0128,Swift Learning,Manufacturing,North America,Starter,2026-09-11,active,,lakshmi.nair@kestrel-labs.example
+C0129,Blue Motors,Retail,India,Growth,2026-08-20,active,,sameer.pillai@kestrel-labs.example
+C0130,Lumen Energy,Healthcare,North America,Starter,2023-04-26,active,,oliver.agarwal@kestrel-labs.example
+C0131,Bright Media,Retail,North America,Starter,2025-08-30,active,,lakshmi.nair@kestrel-labs.example
+C0132,Green Freight,Retail,APAC,Starter,2024-12-08,active,,oliver.agarwal@kestrel-labs.example
+C0133,Summit Retail,SaaS,North America,Starter,2024-05-04,active,,mei.iyer@kestrel-labs.example
+C0134,North Works,Healthcare,North America,Enterprise,2026-07-02,active,,jaya.jain@kestrel-labs.example
+C0135,North Studio,Logistics,APAC,Starter,2024-10-12,active,,ines.saxena@kestrel-labs.example
+C0136,River Clinics,Healthcare,North America,Starter,2024-01-03,churned,2026-02-23,sameer.pillai@kestrel-labs.example
+C0137,Nova Media,Retail,North America,Growth,2026-07-29,active,,jaya.jain@kestrel-labs.example
+C0138,Echo Labs,Healthcare,India,Enterprise,2026-04-28,churned,2026-09-13,mei.iyer@kestrel-labs.example
+C0139,River Energy,Fintech,Europe,Starter,2024-07-01,active,,isabel.bose@kestrel-labs.example
+C0140,Stone Health,Media,North America,Starter,2024-05-12,active,,mei.iyer@kestrel-labs.example
+C0141,Summit Clinics,Education,North America,Starter,2023-03-28,active,,leela.iyer@kestrel-labs.example
+C0142,Cedar Energy,Education,Europe,Growth,2023-03-22,active,,yusuf.haddad@kestrel-labs.example
+C0143,Clear Foods,Retail,Europe,Starter,2023-10-01,active,,jaya.hegde@kestrel-labs.example
+C0144,Orbit Health,Fintech,North America,Enterprise,2026-03-07,active,,leela.iyer@kestrel-labs.example
+C0145,Cedar Works,Fintech,India,Starter,2023-10-27,active,,lakshmi.nair@kestrel-labs.example
+C0146,Summit Health,Logistics,North America,Enterprise,2023-08-01,active,,mei.iyer@kestrel-labs.example
+C0147,Atlas Systems,Fintech,Europe,Growth,2024-09-20,active,,oliver.agarwal@kestrel-labs.example
+C0148,Echo Media,Fintech,India,Growth,2023-11-06,active,,sameer.pillai@kestrel-labs.example
+C0149,Echo Energy,Manufacturing,APAC,Growth,2023-08-25,active,,noah.nair@kestrel-labs.example
+C0150,Green Systems,Manufacturing,APAC,Starter,2023-03-03,active,,oliver.agarwal@kestrel-labs.example
+C0151,Summit Analytics,Media,India,Growth,2023-09-09,active,,lakshmi.nair@kestrel-labs.example
+C0152,Orbit Retail,Healthcare,India,Starter,2026-05-06,active,,oliver.agarwal@kestrel-labs.example
+C0153,Pine Health,Healthcare,India,Growth,2025-02-03,active,,leela.iyer@kestrel-labs.example
+C0154,Summit Motors,Education,India,Starter,2023-12-03,active,,lakshmi.nair@kestrel-labs.example
+C0155,Green Health,Logistics,India,Growth,2024-07-17,churned,2025-10-16,jaya.jain@kestrel-labs.example
+C0156,Iron Motors,Education,Europe,Growth,2025-06-07,active,,leela.iyer@kestrel-labs.example
+C0157,North Labs,Education,North America,Starter,2025-12-02,churned,2026-05-07,sameer.pillai@kestrel-labs.example
+C0158,Echo Systems,Media,Europe,Growth,2025-10-15,churned,2026-06-06,jaya.jain@kestrel-labs.example
+C0159,Cedar Systems,Retail,Europe,Enterprise,2023-06-02,active,,kiran.agarwal@kestrel-labs.example
+C0160,Stone Learning,Fintech,India,Starter,2026-03-04,active,,sameer.pillai@kestrel-labs.example
+C0161,Silver Pay,Education,North America,Growth,2025-01-06,churned,2026-01-26,jaya.hegde@kestrel-labs.example
+C0162,Swift Clinics,Healthcare,Europe,Starter,2025-05-13,active,,jaya.hegde@kestrel-labs.example
+C0163,Silver Health,Education,Europe,Enterprise,2023-06-30,active,,mei.iyer@kestrel-labs.example
+C0164,Clear Analytics,SaaS,India,Growth,2024-01-25,active,,lakshmi.nair@kestrel-labs.example
+C0165,Cedar Learning,SaaS,Europe,Growth,2024-12-06,churned,2026-05-03,isabel.bose@kestrel-labs.example
+C0166,Pine Analytics,Healthcare,India,Enterprise,2023-05-26,active,,kiran.agarwal@kestrel-labs.example
+C0167,Stone Studio,Education,Europe,Starter,2023-08-17,active,,yusuf.haddad@kestrel-labs.example
+C0168,North Systems,Media,Europe,Starter,2023-08-16,active,,yusuf.haddad@kestrel-labs.example
+C0169,Clear Learning,Retail,India,Growth,2024-08-04,active,,oliver.agarwal@kestrel-labs.example
+C0170,River Logistics,Retail,North America,Growth,2025-06-12,active,,jaya.jain@kestrel-labs.example
+C0171,Nova Energy,Fintech,India,Starter,2025-05-22,churned,2025-12-02,jaya.agarwal@kestrel-labs.example
+C0172,Cedar Pay,Healthcare,APAC,Growth,2025-09-30,active,,jaya.hegde@kestrel-labs.example
+C0173,Lumen Pay,Fintech,India,Starter,2026-09-23,active,,ines.saxena@kestrel-labs.example
+C0174,Vertex Systems,Education,APAC,Starter,2026-08-08,active,,noah.nair@kestrel-labs.example
+C0175,Silver Systems,Manufacturing,North America,Starter,2024-09-22,churned,2025-03-22,noah.nair@kestrel-labs.example
+C0176,Lumen Freight,SaaS,North America,Enterprise,2023-02-18,churned,2025-07-22,mei.iyer@kestrel-labs.example
+C0177,Nova Systems,Manufacturing,India,Enterprise,2026-08-24,active,,leela.iyer@kestrel-labs.example
+C0178,Silver Foods,Logistics,APAC,Starter,2025-05-29,active,,mei.iyer@kestrel-labs.example
+C0179,Iron Systems,Education,India,Growth,2024-08-06,active,,lakshmi.nair@kestrel-labs.example
+C0180,Cedar Retail,Logistics,North America,Starter,2026-07-06,active,,noah.nair@kestrel-labs.example
+C0181,Green Logistics,Media,Europe,Growth,2024-04-22,active,,jaya.hegde@kestrel-labs.example
+C0182,Blue Learning,Fintech,North America,Starter,2026-03-24,active,,sameer.pillai@kestrel-labs.example
+C0183,Silver Motors,Retail,India,Starter,2026-10-18,active,,oliver.agarwal@kestrel-labs.example
+C0184,Pine Freight,Media,India,Growth,2024-01-18,active,,ines.saxena@kestrel-labs.example
+C0185,Orbit Learning,Logistics,Europe,Starter,2026-04-16,active,,lakshmi.nair@kestrel-labs.example
+C0186,Bright Freight,Retail,APAC,Growth,2023-05-25,active,,leela.iyer@kestrel-labs.example
+C0187,Stone Foods,SaaS,India,Starter,2025-05-24,active,,jaya.agarwal@kestrel-labs.example
+C0188,Nova Motors,Fintech,India,Starter,2025-04-23,active,,jaya.agarwal@kestrel-labs.example
+C0189,Blue Labs,Fintech,North America,Starter,2025-05-14,active,,oliver.agarwal@kestrel-labs.example
+C0190,Stone Works,Manufacturing,Europe,Growth,2023-03-21,active,,sameer.pillai@kestrel-labs.example
+C0191,Bright Energy,Logistics,North America,Starter,2024-10-26,active,,yusuf.haddad@kestrel-labs.example
+C0192,Blue Clinics,Logistics,Europe,Starter,2026-03-20,active,,lakshmi.nair@kestrel-labs.example
+C0193,Harbor Clinics,Logistics,Europe,Growth,2024-12-16,active,,lakshmi.nair@kestrel-labs.example
+C0194,River Freight,Logistics,India,Growth,2025-10-12,active,,yusuf.haddad@kestrel-labs.example
+C0195,Cedar Freight,Education,India,Starter,2025-11-22,active,,yusuf.haddad@kestrel-labs.example
+C0196,North Health,Healthcare,APAC,Growth,2025-04-27,active,,oliver.agarwal@kestrel-labs.example
+C0197,Swift Foods,Media,APAC,Starter,2023-09-19,active,,noah.nair@kestrel-labs.example
+C0198,Bright Systems,Logistics,India,Starter,2024-11-25,active,,noah.nair@kestrel-labs.example
+C0199,North Energy,Healthcare,North America,Starter,2025-06-15,active,,isabel.bose@kestrel-labs.example
+C0200,Summit Pay,Logistics,APAC,Starter,2023-01-21,active,,jaya.agarwal@kestrel-labs.example
+C0201,Vertex Energy,Fintech,Europe,Starter,2026-09-28,active,,oliver.agarwal@kestrel-labs.example
+C0202,Vertex Retail,SaaS,India,Growth,2023-08-24,active,,lakshmi.nair@kestrel-labs.example
+C0203,Atlas Clinics,Education,Europe,Starter,2023-10-16,active,,yusuf.haddad@kestrel-labs.example
+C0204,Pine Pay,Manufacturing,India,Starter,2025-06-02,active,,yusuf.haddad@kestrel-labs.example
+C0205,North Analytics,SaaS,North America,Starter,2025-12-02,active,,kiran.agarwal@kestrel-labs.example
+C0206,Green Learning,Media,Europe,Starter,2024-05-30,active,,isabel.bose@kestrel-labs.example
+C0207,Nova Foods,Healthcare,India,Growth,2025-02-14,active,,kiran.agarwal@kestrel-labs.example
+C0208,Harbor Pay,Manufacturing,North America,Growth,2023-04-12,active,,jaya.agarwal@kestrel-labs.example
+C0209,Lumen Media,Manufacturing,APAC,Growth,2024-03-08,active,,oliver.agarwal@kestrel-labs.example
+C0210,Green Pay,Logistics,APAC,Starter,2026-08-20,active,,oliver.agarwal@kestrel-labs.example
+C0211,Nova Pay,Manufacturing,Europe,Growth,2024-01-01,active,,ines.saxena@kestrel-labs.example
+C0212,Nova Works,Healthcare,Europe,Starter,2023-11-09,active,,lakshmi.nair@kestrel-labs.example
+C0213,Bright Logistics,Healthcare,India,Growth,2024-07-05,active,,jaya.agarwal@kestrel-labs.example
+C0214,Summit Labs,Healthcare,North America,Growth,2026-08-31,active,,oliver.agarwal@kestrel-labs.example
+C0215,Harbor Retail,Education,North America,Starter,2024-11-26,active,,jaya.agarwal@kestrel-labs.example
+C0216,Swift Labs,Logistics,Europe,Starter,2024-10-22,active,,mei.iyer@kestrel-labs.example
+C0217,Harbor Foods,Healthcare,North America,Starter,2024-02-03,active,,sameer.pillai@kestrel-labs.example
+C0218,Summit Systems,SaaS,India,Starter,2026-08-17,active,,mei.iyer@kestrel-labs.example
+C0219,Silver Clinics,Healthcare,North America,Growth,2025-09-08,active,,kiran.agarwal@kestrel-labs.example
+C0220,Atlas Health,Logistics,India,Growth,2023-08-04,active,,isabel.bose@kestrel-labs.example
+C0221,Green Clinics,Manufacturing,India,Growth,2025-03-31,active,,isabel.bose@kestrel-labs.example
+C0222,Echo Learning,Manufacturing,North America,Starter,2024-02-20,active,,jaya.agarwal@kestrel-labs.example
+C0223,Nova Health,Media,APAC,Starter,2025-02-15,active,,noah.nair@kestrel-labs.example
+C0224,Nova Clinics,Education,India,Growth,2025-02-08,active,,jaya.agarwal@kestrel-labs.example
+C0225,Nova Learning,Healthcare,India,Growth,2025-10-04,active,,yusuf.haddad@kestrel-labs.example
+C0226,Lumen Motors,Healthcare,North America,Growth,2023-08-10,churned,2025-07-16,mei.iyer@kestrel-labs.example
+C0227,Harbor Systems,Fintech,India,Starter,2023-03-23,churned,2026-09-04,lakshmi.nair@kestrel-labs.example
+C0228,Iron Media,Healthcare,North America,Starter,2024-01-18,active,,lakshmi.nair@kestrel-labs.example
+C0229,Pine Logistics,SaaS,Europe,Starter,2024-11-30,active,,yusuf.haddad@kestrel-labs.example
+C0230,Vertex Motors,Healthcare,India,Enterprise,2024-07-21,active,,jaya.jain@kestrel-labs.example
+C0231,Iron Retail,Logistics,North America,Starter,2025-12-12,active,,isabel.bose@kestrel-labs.example
+C0232,Green Analytics,Media,India,Starter,2026-01-21,active,,isabel.bose@kestrel-labs.example
+C0233,Orbit Energy,Healthcare,North America,Growth,2023-02-17,active,,jaya.hegde@kestrel-labs.example
+C0234,Iron Freight,Logistics,India,Starter,2024-03-15,active,,oliver.agarwal@kestrel-labs.example
+C0235,Green Retail,Media,North America,Starter,2024-12-06,active,,noah.nair@kestrel-labs.example
+C0236,Clear Energy,Fintech,Europe,Starter,2023-04-18,active,,oliver.agarwal@kestrel-labs.example
+C0237,Green Labs,Manufacturing,North America,Starter,2023-09-25,active,,noah.nair@kestrel-labs.example
+C0238,Silver Energy,Education,North America,Starter,2024-06-22,churned,2024-11-28,mei.iyer@kestrel-labs.example
+C0239,North Clinics,SaaS,APAC,Starter,2024-06-25,active,,mei.iyer@kestrel-labs.example
+C0240,Nova Retail,Healthcare,India,Starter,2023-09-20,active,,isabel.bose@kestrel-labs.example
+C0241,Harbor Health,Retail,North America,Starter,2025-05-31,active,,jaya.jain@kestrel-labs.example
+C0242,North Learning,Healthcare,North America,Starter,2026-06-01,active,,jaya.hegde@kestrel-labs.example
+C0243,Summit Freight,Media,North America,Starter,2024-04-12,active,,mei.iyer@kestrel-labs.example
+C0244,Orbit Pay,Logistics,India,Starter,2023-09-23,active,,mei.iyer@kestrel-labs.example
+C0245,Bright Studio,Media,North America,Growth,2023-03-21,active,,lakshmi.nair@kestrel-labs.example
+C0246,Clear Pay,Healthcare,North America,Growth,2023-10-03,active,,oliver.agarwal@kestrel-labs.example
+C0247,Cedar Media,Retail,Europe,Starter,2025-11-04,active,,noah.nair@kestrel-labs.example
+C0248,Swift Analytics,Retail,Europe,Growth,2026-03-02,active,,kiran.agarwal@kestrel-labs.example
+C0249,Cedar Logistics,Logistics,India,Starter,2026-07-18,active,,kiran.agarwal@kestrel-labs.example
+C0250,Atlas Labs,Healthcare,North America,Enterprise,2025-07-25,active,,jaya.agarwal@kestrel-labs.example
+C0251,Stone Retail,Education,Europe,Enterprise,2026-04-10,active,,yusuf.haddad@kestrel-labs.example
+C0252,Lumen Logistics,Retail,India,Starter,2023-05-04,active,,isabel.bose@kestrel-labs.example
+C0253,North Pay,Logistics,Europe,Starter,2025-01-04,active,,leela.iyer@kestrel-labs.example
+C0254,Swift Media,Fintech,India,Growth,2024-06-04,active,,jaya.agarwal@kestrel-labs.example
+C0255,Nova Studio,Fintech,North America,Growth,2026-07-12,active,,sameer.pillai@kestrel-labs.example
+C0256,Blue Pay,Healthcare,India,Starter,2025-08-19,churned,2026-05-01,isabel.bose@kestrel-labs.example
+C0257,Vertex Health,Media,India,Starter,2023-07-19,active,,oliver.agarwal@kestrel-labs.example
+C0258,Clear Health,Education,North America,Starter,2026-08-16,active,,kiran.agarwal@kestrel-labs.example
+C0259,Harbor Media,Media,APAC,Growth,2026-04-15,active,,noah.nair@kestrel-labs.example
+C0260,Stone Energy,SaaS,India,Growth,2025-11-05,active,,mei.iyer@kestrel-labs.example
+C0261,Orbit Foods,Logistics,APAC,Starter,2024-01-29,active,,kiran.agarwal@kestrel-labs.example
+C0262,Atlas Foods,Media,North America,Enterprise,2023-12-22,churned,2026-06-04,yusuf.haddad@kestrel-labs.example
+C0263,Clear Logistics,Retail,North America,Enterprise,2023-12-25,active,,isabel.bose@kestrel-labs.example
+C0264,Nova Logistics,Education,North America,Starter,2025-01-15,active,,jaya.hegde@kestrel-labs.example
+C0265,Stone Labs,Logistics,North America,Starter,2025-05-27,churned,2025-11-09,kiran.agarwal@kestrel-labs.example
+C0266,Atlas Media,Retail,Europe,Starter,2026-02-05,churned,2026-09-30,lakshmi.nair@kestrel-labs.example
+C0267,Echo Pay,Retail,APAC,Growth,2023-09-09,active,,leela.iyer@kestrel-labs.example
+C0268,Silver Studio,Healthcare,North America,Starter,2023-03-18,churned,2026-05-21,jaya.agarwal@kestrel-labs.example
+C0269,Harbor Learning,SaaS,Europe,Starter,2025-08-30,active,,oliver.agarwal@kestrel-labs.example
+C0270,Clear Studio,Retail,North America,Starter,2023-02-05,churned,2024-08-28,isabel.bose@kestrel-labs.example
+C0271,Green Media,Logistics,India,Enterprise,2023-12-01,active,,jaya.jain@kestrel-labs.example
+C0272,River Systems,Logistics,Europe,Growth,2026-02-16,active,,lakshmi.nair@kestrel-labs.example
+C0273,Green Studio,Logistics,APAC,Growth,2023-08-26,churned,2025-11-29,kiran.agarwal@kestrel-labs.example
+C0274,Orbit Systems,Media,APAC,Growth,2024-01-10,active,,jaya.jain@kestrel-labs.example
+C0275,Echo Works,Media,North America,Enterprise,2025-06-14,active,,jaya.agarwal@kestrel-labs.example
+C0276,Stone Freight,Manufacturing,North America,Growth,2026-01-10,active,,leela.iyer@kestrel-labs.example
+C0277,Echo Health,Retail,India,Starter,2023-01-01,active,,leela.iyer@kestrel-labs.example
+C0278,River Media,SaaS,North America,Starter,2025-06-24,active,,oliver.agarwal@kestrel-labs.example
+C0279,River Studio,Fintech,North America,Starter,2026-05-13,active,,yusuf.haddad@kestrel-labs.example
+C0280,Cedar Analytics,Logistics,India,Starter,2023-05-15,active,,sameer.pillai@kestrel-labs.example
+C0281,Pine Clinics,Healthcare,India,Growth,2023-05-11,active,,mei.iyer@kestrel-labs.example
+C0282,Stone Systems,Education,India,Starter,2025-06-10,active,,jaya.jain@kestrel-labs.example
+C0283,Lumen Studio,Logistics,India,Starter,2024-04-25,active,,noah.nair@kestrel-labs.example
+C0284,Echo Motors,Logistics,APAC,Enterprise,2023-09-20,active,,sameer.pillai@kestrel-labs.example
+C0285,North Retail,Media,APAC,Starter,2026-10-31,active,,isabel.bose@kestrel-labs.example
+C0286,Swift Health,Logistics,Europe,Starter,2024-09-15,active,,jaya.agarwal@kestrel-labs.example
+C0287,Silver Media,Media,North America,Growth,2026-06-22,active,,mei.iyer@kestrel-labs.example
+C0288,River Works,SaaS,Europe,Starter,2024-09-14,active,,noah.nair@kestrel-labs.example
+C0289,Lumen Systems,Logistics,India,Starter,2025-05-26,active,,jaya.agarwal@kestrel-labs.example
+C0290,North Foods,Education,APAC,Starter,2023-05-31,active,,oliver.agarwal@kestrel-labs.example
+C0291,Vertex Clinics,Fintech,Europe,Growth,2026-01-18,active,,isabel.bose@kestrel-labs.example
+C0292,Harbor Works,Fintech,North America,Starter,2024-12-30,active,,ines.saxena@kestrel-labs.example
+C0293,Atlas Energy,Manufacturing,India,Growth,2024-06-02,active,,ines.saxena@kestrel-labs.example
+C0294,Blue Foods,Media,North America,Starter,2024-05-21,active,,oliver.agarwal@kestrel-labs.example
+C0295,Bright Pay,Media,India,Starter,2024-02-05,active,,leela.iyer@kestrel-labs.example
+C0296,Silver Labs,Logistics,India,Starter,2026-05-22,active,,oliver.agarwal@kestrel-labs.example
+C0297,Echo Foods,Logistics,Europe,Growth,2024-06-11,churned,2024-11-08,yusuf.haddad@kestrel-labs.example
+C0298,Harbor Studio,Logistics,North America,Starter,2024-11-25,active,,jaya.jain@kestrel-labs.example
+C0299,Atlas Freight,Media,India,Starter,2025-09-27,active,,kiran.agarwal@kestrel-labs.example
+C0300,Bright Learning,Media,India,Starter,2026-03-15,active,,lakshmi.nair@kestrel-labs.example
+C0301,Lumen Foods,Healthcare,Europe,Growth,2024-10-04,churned,2025-12-10,mei.iyer@kestrel-labs.example
+C0302,River Labs,Education,India,Growth,2026-10-02,active,,mei.iyer@kestrel-labs.example
+C0303,Swift Pay,SaaS,North America,Starter,2025-01-28,active,,oliver.agarwal@kestrel-labs.example
+C0304,Blue Systems,SaaS,North America,Starter,2025-07-01,active,,lakshmi.nair@kestrel-labs.example
+C0305,Clear Systems,Media,North America,Growth,2025-09-15,active,,mei.iyer@kestrel-labs.example
+C0306,Cedar Labs,Healthcare,India,Starter,2023-02-15,active,,noah.nair@kestrel-labs.example
+C0307,Clear Media,Fintech,India,Growth,2024-08-10,active,,oliver.agarwal@kestrel-labs.example
+C0308,Orbit Studio,Retail,Europe,Starter,2023-09-28,active,,mei.iyer@kestrel-labs.example
+C0309,Pine Retail,Education,India,Growth,2023-04-05,active,,mei.iyer@kestrel-labs.example
+C0310,Bright Retail,Healthcare,Europe,Starter,2024-10-21,active,,jaya.agarwal@kestrel-labs.example
+C0311,Summit Studio,Manufacturing,India,Starter,2023-11-15,churned,2025-10-16,kiran.agarwal@kestrel-labs.example
+C0312,Vertex Media,Fintech,Europe,Starter,2025-08-17,active,,yusuf.haddad@kestrel-labs.example
+C0313,Summit Foods,Fintech,Europe,Starter,2025-04-22,active,,isabel.bose@kestrel-labs.example
+C0314,River Pay,SaaS,Europe,Starter,2023-01-21,active,,isabel.bose@kestrel-labs.example
+C0315,Iron Clinics,Healthcare,North America,Starter,2023-04-20,active,,leela.iyer@kestrel-labs.example
+C0316,Cedar Foods,Retail,India,Enterprise,2024-05-15,active,,lakshmi.nair@kestrel-labs.example
+C0317,Blue Works,Retail,India,Growth,2026-02-09,active,,jaya.jain@kestrel-labs.example
+C0318,Stone Motors,Logistics,APAC,Starter,2023-07-21,active,,jaya.jain@kestrel-labs.example
+C0319,Iron Logistics,Manufacturing,India,Growth,2026-04-06,active,,noah.nair@kestrel-labs.example
+C0320,Echo Retail,Healthcare,India,Starter,2025-05-20,active,,jaya.jain@kestrel-labs.example
