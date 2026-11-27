@@ -171,6 +171,8 @@ def _wait():
 
 def run(agent: dict, tool: str, args: dict, fn, wait: bool = True) -> dict:
     t = core.timer()
+    from semantic.access import SCOPE, scope_for
+    SCOPE.set(scope_for(agent))                 # metrics count only the rows this caller may see (row rules)
     try:
         if wait:
             _wait()

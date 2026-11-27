@@ -489,6 +489,8 @@ def playground(body: PlaygroundIn, u: dict = Depends(ANY)):
         raise HTTPException(400, "Unknown mode.")
     t = core.timer()
     try:
+        from semantic.access import SCOPE
+        SCOPE.set(None if groups is None else {"groups": groups, "teams": [], "roles": []})   # row rules by data set
         out = engine.ask(body.question, groups, caps, mode)
     except (ValueError, PermissionError, RuntimeError) as e:
         core.log_event("user", u["email"], "playground.ask", body.question[:200], {"who": who, "error": str(e)}, False, t())
@@ -1219,6 +1221,52 @@ def access_overview(request: Request, u: dict = Depends(ANY)):
                           "link": f"{_public_url_base() or base_url(request.scope)}/mcp/teams/{t['slug']}"})
     return {"datasets": ds, "roles": access.roles(), "connectors": access.CONNECTORS, "teams": tlist,
             "can_give": access.manageable(a), "company_admin": company}
+
+
+# ---- row rules for numbers: metrics only count the rows a data set / team / role may see (semantic/access.py)
+
+class RowRuleIn(BaseModel):
+    entity: str
+    column: str
+    kind: str                              # dataset | team | role
+    audience: str
+    values: list[str]
+
+
+@app.get("/api/v1/access/row-rules")
+def row_rules(u: dict = Depends(ADMIN)):
+    from semantic import access as RA
+    from semantic.yamlio import load_model
+    try:
+        ents = [{"name": e.name, "label": e.label or e.name,
+                 "columns": [d.column for d in e.dimensions if d.type in ("category", "key", "text")]}
+                for e in load_model().entities]
+    except Exception:                                      # noqa: BLE001 - no data layer yet
+        ents = []
+    return {"rules": RA.rules(), "entities": ents, "kinds": list(RA.KINDS)}
+
+
+@app.put("/api/v1/access/row-rules")
+def row_rule_put(body: RowRuleIn, u: dict = Depends(ADMIN)):
+    from semantic import access as RA
+    try:
+        RA.put_rule(body.entity, body.column, body.kind, body.audience, body.values, "manual", u["email"])
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    engine.clear_ask_cache()
+    audit(u, "access.row_rule", f"{body.entity}.{body.column}", {"for": f"{body.kind}:{body.audience}",
+                                                                 "values": body.values[:20]})
+    return {"rules": RA.rules()}
+
+
+@app.delete("/api/v1/access/row-rules")
+def row_rule_delete(entity: str, column: str, kind: str, audience: str, u: dict = Depends(ADMIN)):
+    from semantic import access as RA
+    if not RA.delete_rule(entity, column, kind, audience):
+        raise HTTPException(404, "No such rule.")
+    engine.clear_ask_cache()
+    audit(u, "access.row_rule.delete", f"{entity}.{column}", {"for": f"{kind}:{audience}"})
+    return {"rules": RA.rules()}
 
 
 @app.post("/api/v1/access/datasets")

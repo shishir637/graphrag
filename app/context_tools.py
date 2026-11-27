@@ -131,7 +131,8 @@ def _effect(metric_name: str, before_sets, after_sets) -> str:
             last_month_end = first - timedelta(days=1)
             q |= {"start_date": last_month_end.replace(day=1), "end_date": last_month_end}
         sql = compile_query(SemanticQuery.model_validate(q), model, mets).sql
-        df = connect().execute(sql).df()
+        from semantic.db import connect_scoped
+        df = connect_scoped(model).execute(sql).df()           # the person's own rows only (row rules)
         return None if df.empty else df.iloc[0][metric_name]
 
     def fmt(v):

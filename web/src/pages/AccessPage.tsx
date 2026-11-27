@@ -3,23 +3,23 @@ import { api } from '../api'
 import { Checks, dsLabel, type AccessData, type Effective, type Role, type TeamA } from '../admin'
 import { Icon, Loading, Modal, askConfirm, useLoad, useToast } from '../ui'
 
-type Sub = 'teams' | 'roles' | 'datasets'
+type Sub = 'teams' | 'roles' | 'datasets' | 'rows'
 
 /* Access: what each team gets, roles to hand out, and the data sets everything is built from. */
 export default function AccessPage() {
-  const d = useLoad<AccessData>('/access'); const [sub, setSub] = useState<Sub>(() => (['roles', 'datasets'].find((x) => location.hash.endsWith(`?${x}`)) as Sub) || 'teams')
+  const d = useLoad<AccessData>('/access'); const [sub, setSub] = useState<Sub>(() => (['roles', 'datasets', 'rows'].find((x) => location.hash.endsWith(`?${x}`)) as Sub) || 'teams')
   if (d.error) return <div className="callout bad">{d.error}</div>
   if (!d.data) return <Loading />
   const a = d.data
   return <>
     <div className="row" style={{ justifyContent: 'space-between', marginBottom: 14 }}>
       <h1 style={{ margin: 0 }}>Access</h1>
-      <div className="seg">{(['teams', 'roles', 'datasets'] as Sub[]).map((x) => <button key={x} className={sub === x ? 'on' : ''} onClick={() => setSub(x)}>
-        {x === 'teams' ? 'Teams' : x === 'roles' ? 'Roles' : 'Data sets'}</button>)}</div>
+      <div className="seg">{((a.company_admin ? ['teams', 'roles', 'datasets', 'rows'] : ['teams', 'roles', 'datasets']) as Sub[]).map((x) => <button key={x} className={sub === x ? 'on' : ''} onClick={() => setSub(x)}>
+        {x === 'teams' ? 'Teams' : x === 'roles' ? 'Roles' : x === 'rows' ? 'Row rules' : 'Data sets'}</button>)}</div>
     </div>
     <p className="small muted" style={{ marginTop: -4 }}>Access comes from a person's <b>team</b> and from what is given to them <b>directly</b> (on the Users tab). It adds up.</p>
     <CheckPerson a={a} />
-    {sub === 'teams' ? <Teams a={a} reload={d.reload} /> : sub === 'roles' ? <Roles a={a} reload={d.reload} /> : <DataSets a={a} reload={d.reload} />}
+    {sub === 'teams' ? <Teams a={a} reload={d.reload} /> : sub === 'roles' ? <Roles a={a} reload={d.reload} /> : sub === 'rows' ? <RowRules a={a} /> : <DataSets a={a} reload={d.reload} />}
   </>
 }
 
@@ -133,4 +133,46 @@ function DataSets({ a, reload }: { a: AccessData; reload: () => void }) {
       <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="New data set, e.g. board-papers" style={{ flex: 1 }} onKeyDown={(e) => { if (e.key === 'Enter' && name.trim()) add() }} aria-label="New data set" />
       <button className="btn" disabled={!name.trim()} onClick={add}>Add data set</button></div>}
   </div>
+}
+
+/* Row rules: metrics only count the rows a data set, team or role may see (e.g. region managers see their region). */
+interface RowRule { entity: string; column: string; kind: 'dataset' | 'team' | 'role'; audience: string; values: string[]; source: string; by: string | null }
+interface RowData { rules: RowRule[]; entities: { name: string; label: string; columns: string[] }[]; kinds: string[] }
+
+function RowRules({ a }: { a: AccessData }) {
+  const d = useLoad<RowData>('/access/row-rules'); const toast = useToast()
+  const [entity, setEntity] = useState(''); const [column, setColumn] = useState(''); const [kind, setKind] = useState<'dataset' | 'team' | 'role'>('dataset')
+  const [audience, setAudience] = useState(''); const [values, setValues] = useState('')
+  if (d.error) return <div className="callout bad">{d.error}</div>
+  if (!d.data) return <Loading />
+  const ent = d.data.entities.find((e) => e.name === entity)
+  const who = kind === 'dataset' ? a.datasets.map((x) => ({ v: x.name, l: x.label })) : kind === 'team' ? a.teams.map((t) => ({ v: t.name, l: t.name })) : a.roles.map((r) => ({ v: r.name, l: r.name }))
+  const label = (r: RowRule) => r.kind === 'dataset' ? `data set ${dsLabel(a, r.audience)}` : `${r.kind} ${r.audience}`
+  const save = async () => {
+    try { await api('/access/row-rules', { method: 'PUT', json: { entity, column, kind, audience, values: values.split(',').map((x) => x.trim()).filter(Boolean) } })
+      toast('Saved. Numbers for these people now count only those rows.'); setValues(''); d.reload() } catch (e: any) { toast(e.message, true) }
+  }
+  const del = async (r: RowRule) => {
+    if (!(await askConfirm(`Remove the rule for ${label(r)} on ${r.entity}.${r.column}?`, 'Remove'))) return
+    try { await api(`/access/row-rules?entity=${encodeURIComponent(r.entity)}&column=${encodeURIComponent(r.column)}&kind=${r.kind}&audience=${encodeURIComponent(r.audience)}`, { method: 'DELETE' }); d.reload() } catch (e: any) { toast(e.message, true) }
+  }
+  return <>
+    <p className="small muted">A table with rules is closed to anyone no rule covers; tables without rules are not filtered. Company admins always see every row.</p>
+    <div className="card" style={{ marginBottom: 14 }}><table className="t plain"><thead><tr><th>Table</th><th>Who</th><th>Only rows where</th><th /></tr></thead>
+      <tbody>{d.data.rules.map((r) => <tr key={`${r.entity}|${r.column}|${r.kind}|${r.audience}`}>
+        <td className="small"><b>{r.entity}</b></td><td className="small">{label(r)}</td>
+        <td className="small">{r.column} is {r.values.join(', ')}{r.source !== 'manual' && <span className="muted"> ({r.source})</span>}</td>
+        <td style={{ textAlign: 'right' }}><button className="btn ghost sm" onClick={() => del(r)} aria-label="Remove rule"><Icon name="x" size={14} /></button></td></tr>)}
+        {!d.data.rules.length && <tr><td colSpan={4} className="muted small" style={{ padding: 18 }}>No row rules: everyone with the Metrics connector counts every row.</td></tr>}</tbody></table></div>
+    <div className="card"><div className="bd"><div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+      <select value={entity} onChange={(e) => { setEntity(e.target.value); setColumn('') }} aria-label="Table"><option value="">Table…</option>
+        {d.data.entities.map((e) => <option key={e.name} value={e.name}>{e.label}</option>)}</select>
+      <select value={column} onChange={(e) => setColumn(e.target.value)} aria-label="Column" disabled={!ent}><option value="">Column…</option>
+        {ent?.columns.map((c) => <option key={c} value={c}>{c}</option>)}</select>
+      <select value={kind} onChange={(e) => { setKind(e.target.value as any); setAudience('') }} aria-label="Rule for"><option value="dataset">Data set</option><option value="team">Team</option><option value="role">Role</option></select>
+      <select value={audience} onChange={(e) => setAudience(e.target.value)} aria-label="Who"><option value="">Who…</option>
+        {who.map((w) => <option key={w.v} value={w.v}>{w.l}</option>)}</select>
+      <input type="text" value={values} onChange={(e) => setValues(e.target.value)} placeholder="Allowed values, comma-separated" style={{ flex: 1, minWidth: 180 }} aria-label="Allowed values" />
+      <button className="btn primary sm" disabled={!entity || !column || !audience || !values.trim()} onClick={save}>Add rule</button></div></div></div>
+  </>
 }

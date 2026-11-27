@@ -604,7 +604,8 @@ def metric_query(request: dict | None = None, question: str | None = None) -> di
         compiled = compile_query(q, model, mets)
     except CompileError as e:
         raise ValueError(str(e)) from e
-    df = connect().execute(compiled.sql).df()
+    from semantic.db import connect_scoped
+    df = connect_scoped(model).execute(compiled.sql).df()          # only the rows the caller may see (row rules)
     rows = json.loads(df.head(200).to_json(orient="records", date_format="iso"))
     summary = template_answer(q, rows)
     return {"found": not df.empty, "answer": summary, "planned_by": how,
@@ -639,8 +640,11 @@ def _sources_version() -> tuple:
 
 def _ask_key(question: str, groups, capabilities, mode: str) -> tuple:
     from datetime import date
+    from semantic.access import SCOPE
     norm = re.sub(r"\s+", " ", question.strip().lower()).rstrip(" ?.!")
-    return (norm, None if groups is None else tuple(sorted(groups)), tuple(sorted(capabilities)), mode,
+    scope = SCOPE.get()
+    rows = None if scope is None else (tuple(sorted(scope.get("teams") or [])), tuple(sorted(scope.get("roles") or [])))
+    return (norm, None if groups is None else tuple(sorted(groups)), tuple(sorted(capabilities)), mode, rows,
             date.today().isoformat(), _sources_version())
 
 

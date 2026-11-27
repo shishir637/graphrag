@@ -50,5 +50,18 @@ def _live_sources() -> list[dict]:
         return []
 
 
+def connect_for(scope: dict | None = None, model=None) -> duckdb.DuckDBPyConnection:
+    """connect() with only the rows this caller may see (row rules, semantic/access.py). scope: the caller's
+    {"groups", "teams", "roles"}; None = no restriction."""
+    from .access import restrict
+    return restrict(connect(), scope, model)
+
+
+def connect_scoped(model=None) -> duckdb.DuckDBPyConnection:
+    """connect_for the caller of the current MCP call or chat turn (semantic.access.SCOPE)."""
+    from .access import SCOPE
+    return connect_for(SCOPE.get(), model)
+
+
 def columns(con, table: str) -> dict[str, str]:
     return {r[0]: r[1] for r in con.execute(f'DESCRIBE "{table}"').fetchall()}
