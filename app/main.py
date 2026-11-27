@@ -36,6 +36,7 @@ async def lifespan(app):
     except Exception as e:                           # noqa: BLE001 - generic wording stays
         print(f"Could not describe the organisation for Claude: {e}", flush=True)
     _warm_up()
+    _landing_backfill()
     from . import scheduler
     scheduler.start()
     try:
@@ -43,6 +44,28 @@ async def lifespan(app):
             yield
     finally:
         scheduler.stop()
+
+
+def _landing_backfill():
+    """CL_LANDING_BACKFILL=1 (Docker): tables kept as CSV/Excel by earlier versions become Parquet, per workspace."""
+    import os
+    import threading
+    if os.environ.get("CL_LANDING_BACKFILL") != "1":
+        return
+
+    def run():
+        from . import db as D
+        from . import landing
+        for t in ([x["id"] for x in core.list_tenants()] if D.postgres() else [None]):
+            try:
+                with core.tenant_scope(t):
+                    out = landing.backfill()
+                if out["converted"]:
+                    print(f"Tables moved to Parquet in {t or 'the first workspace'}: {out['converted']}", flush=True)
+            except Exception as e:                   # noqa: BLE001 - the CSV keeps working through its view
+                print(f"Parquet backfill skipped for {t}: {e}", flush=True)
+
+    threading.Thread(target=run, daemon=True, name="landing-backfill").start()
 
 
 def _warm_up():

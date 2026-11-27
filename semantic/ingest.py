@@ -1,6 +1,8 @@
 """Turn uploaded data files into tables DuckDB can query.
 
-  .csv / .parquet   used as they are
+  .csv              converted to Parquet (zstd) with the column types DuckDB infers (0.9: the landing zone,
+                    app/landing.py); before 0.9 CSV files were kept as they were
+  .parquet          column names cleaned
   .xlsx / .xls      every non-empty sheet becomes a table: <file> (one sheet) or <file>__<sheet> (several)
   .json             an array of records, an object holding one or more arrays of records, or one record;
                     nested objects are flattened (customer.name -> customer_name); lists of scalars are joined
@@ -74,9 +76,12 @@ def convert(path: Path) -> list[Path]:
     ext = path.suffix.lower()
     stem = snake(path.stem)
     out: list[Path] = []
-    if ext == ".csv":                                   # kept as CSV (DuckDB reads it directly)
-        target = DATA_DIR / f"{stem}.csv"
-        target.write_bytes(path.read_bytes())
+    if ext == ".csv":                                   # landed as Parquet; DuckDB reads it through a view
+        from app.landing import csv_to_parquet
+        target = DATA_DIR / f"{stem}.parquet"
+        tmp = DATA_DIR / f".{stem}.landing.parquet"
+        csv_to_parquet(path, tmp)
+        tmp.replace(target)
         out.append(target)
     elif ext == ".parquet":
         target = DATA_DIR / f"{stem}.parquet"
@@ -124,4 +129,9 @@ def save_upload(filename: str, data: bytes) -> list[str]:
         for other in DATA_DIR.glob(p.stem + ".*"):
             if other != p and other.suffix.lower() in {".csv", ".parquet", ".xlsx"}:
                 other.unlink()
+        try:                                            # the landing manifest: where each table came from
+            from app.landing import record
+            record(p, "upload", "", filename)
+        except Exception:                               # noqa: BLE001 - the table is there; the manifest is extra
+            pass
     return [p.stem for p in written]

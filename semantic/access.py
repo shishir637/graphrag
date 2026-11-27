@@ -115,40 +115,47 @@ def restrict(con, scope: dict | None, model=None):
         if not table or table not in kinds:
             continue
         if not conds:
-            keep = "false"                                  # rules exist, none for this caller: no rows
+            keep = lambda s: "false"                        # noqa: E731 - rules exist, none for this caller: no rows
         else:
-            parts = []
-            for col, vals in conds:
-                lits = ", ".join("'" + str(v).replace("'", "''") + "'" for v in vals) or "NULL"
-                parts.append(f'CAST("{col}" AS VARCHAR) IN ({lits})')
-            keep = " AND ".join(parts)
-        if kinds[table] == "VIEW":
-            con.execute(f'ALTER VIEW "{table}" RENAME TO "{table}__all"')
-            con.execute(f'CREATE VIEW "{table}" AS SELECT * FROM "{table}__all" WHERE {keep}')
-        else:
-            con.execute(f'DELETE FROM "{table}" WHERE NOT COALESCE(({keep}), false)')
+            def keep(s, conds=conds):
+                parts = []
+                for col, vals in conds:
+                    lits = ", ".join("'" + str(v).replace("'", "''") + "'" for v in vals) or "NULL"
+                    parts.append(f'CAST({s}."{col}" AS VARCHAR) IN ({lits})')
+                return " AND ".join(parts)
+        _filter(con, kinds, table, keep)
     _cascade(con, model, tables, kinds, set(filters))
     return con
+
+
+def _filter(con, kinds: dict, table: str, keep):
+    """Show only the rows of `table` that pass keep(alias) on this connection (views: wrapped; tables: deleted)."""
+    if kinds.get(table) == "VIEW":
+        n = sum(1 for k in kinds if k.startswith(f"{table}__all"))
+        hidden = f"{table}__all{n or ''}"
+        con.execute(f'ALTER VIEW "{table}" RENAME TO "{hidden}"')
+        con.execute(f'CREATE VIEW "{table}" AS SELECT s.* FROM "{hidden}" s WHERE COALESCE(({keep("s")}), false)')
+        kinds[hidden] = "VIEW"
+    else:
+        con.execute(f'DELETE FROM "{table}" WHERE NOT COALESCE(({keep(chr(34) + table + chr(34))}), false)')
 
 
 def _cascade(con, model, tables: dict, kinds: dict, restricted: set):
     """Rows that join (many-to-one) to hidden rows are hidden too: a rule on regions also hides the customers of other
     regions and their orders, so a total can never include them (not even as an empty region)."""
     joins = list(getattr(model, "joins", []) or [])
-    todo = set(restricted)
+    todo, done = set(restricted), set()
     while todo:
         target = todo.pop()
         for j in joins:
             if j.to_entity != target or j.from_entity == target:
                 continue
             src, dst = tables.get(j.from_entity), tables.get(j.to_entity)
-            if not src or not dst or kinds.get(src) != "BASE TABLE":
+            if not src or not dst or src not in kinds or (j.from_entity, j.to_entity) in done:
                 continue
-            n = con.execute(f'SELECT count(*) FROM "{src}" s WHERE s."{j.from_column}" IS NOT NULL AND NOT EXISTS '
-                            f'(SELECT 1 FROM "{dst}" d WHERE CAST(d."{j.to_column}" AS VARCHAR) = '
-                            f'CAST(s."{j.from_column}" AS VARCHAR))').fetchone()[0]
-            if n:
-                con.execute(f'DELETE FROM "{src}" WHERE "{j.from_column}" IS NOT NULL AND NOT EXISTS '
-                            f'(SELECT 1 FROM "{dst}" d WHERE CAST(d."{j.to_column}" AS VARCHAR) = '
-                            f'CAST("{src}"."{j.from_column}" AS VARCHAR))')
-                todo.add(j.from_entity)
+            done.add((j.from_entity, j.to_entity))
+            def keep(s, j=j, dst=dst):
+                return (f'{s}."{j.from_column}" IS NULL OR EXISTS (SELECT 1 FROM "{dst}" d WHERE '
+                        f'CAST(d."{j.to_column}" AS VARCHAR) = CAST({s}."{j.from_column}" AS VARCHAR))')
+            _filter(con, kinds, src, keep)
+            todo.add(j.from_entity)

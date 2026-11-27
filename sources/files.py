@@ -24,7 +24,7 @@ def table_path(name: str) -> Path | None:
     return None
 
 
-def store_table(name: str, parquet_path: str | None = None, csv: bytes | None = None) -> bool:
+def store_table(name: str, parquet_path: str | None = None, csv: bytes | None = None, source: str = "source") -> bool:
     """Put a source's table in the data folder as <name>.parquet (replacing other files of that name).
     Returns False when the content is the same as before."""
     import hashlib
@@ -57,8 +57,6 @@ def store_table(name: str, parquet_path: str | None = None, csv: bytes | None = 
     if same:
         Path(parquet_path).unlink(missing_ok=True)
         return False
-    Path(parquet_path).replace(target)
-    for other in d.glob(name + ".*"):
-        if other != target and other.suffix.lower() in {".csv", ".xlsx"}:
-            other.unlink()
+    from app.landing import land
+    land(name, parquet_path, source)                     # atomic replace + manifest entry
     return True

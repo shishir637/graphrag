@@ -146,12 +146,17 @@ def tables() -> list[dict]:
     pt = prof.get("tables", {}) if isinstance(prof, dict) else {}
     ptables = pt if isinstance(pt, dict) else {t.get("name") or t.get("table"): t for t in pt}
     out = []
+    from app.landing import manifest
+    man = manifest()
     if SC.DATA_DIR.exists():
         for p in sorted(SC.DATA_DIR.iterdir()):
-            if p.suffix.lower() in SC.TABLE_EXTS:
+            if p.suffix.lower() in SC.TABLE_EXTS and not p.name.startswith((".", "_")):
                 t = ptables.get(p.stem, {})
+                m = man.get(p.stem) or {}
                 out.append({"name": p.name, "table": p.stem, "size": p.stat().st_size, "modified": iso(p.stat().st_mtime),
-                            "rows": t.get("rows") or t.get("row_count"), "columns": len(t.get("columns", []) or [])})
+                            "rows": t.get("rows") or t.get("row_count") or m.get("rows"),
+                            "columns": len(t.get("columns", []) or []) or len(m.get("columns") or []),
+                            "format": p.suffix.lstrip("."), "source": m.get("source"), "landed": m.get("landed")})
     return out
 
 

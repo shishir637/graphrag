@@ -297,7 +297,8 @@ def run_sync(info: dict):
             pass
         db().execute("DELETE FROM source_docs WHERE source_id = ? AND name = ?", (sid, name))
     for t in res.tables:
-        if store_table(t.name, parquet_path=t.parquet_path, csv=t.csv if not t.parquet_path else None):
+        if store_table(t.name, parquet_path=t.parquet_path, csv=t.csv if not t.parquet_path else None,
+                       source=f"source:{sid}"):
             changed.append({"file": f"{t.name}.parquet", "kind": "table"})
     if res.summary.get("live_tables_changed"):
         changed.append({"file": "live tables", "kind": "table"})
