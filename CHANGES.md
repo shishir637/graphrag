@@ -85,6 +85,16 @@ runs no AI model. Existing workspaces are upgraded automatically at start (`app/
 - Optional drivers are listed in `requirements-connectors.txt` (installed in the Docker image); without them the
   connector is not offered. Secrets go only through `app/vault.py`.
 
+**API and worker containers** (`app/worker.py`, `CL_ROLE`)
+- `CL_ROLE=api` serves the web app, REST and MCP with no job workers and no scheduler; `CL_ROLE=worker`
+  (`python -m app.worker`) runs the job workers and the scheduler with no HTTP server; `CL_ROLE=all` (default) does
+  both, so single-container installs keep working.
+- `docker-compose.yml` runs the same image twice: `app` (api) and `worker`, sharing the volumes; builds never slow
+  down questions. More workers: `docker compose up -d --scale worker=2`.
+- The scheduler runs in exactly one place (a Postgres advisory lock picks the leader). A running job now writes a
+  heartbeat every minute (`CL_JOB_HEARTBEAT_S`), so a worker that starts while another is busy never marks a long,
+  quiet job as stopped. The worker container has its own health check.
+
 ## 0.6.0: accuracy: facts, checks, an inbox, "answerable?" and a grounding check
 
 No AI model is added: everything below is rules, regular expressions, RapidFuzz and the local models already used.

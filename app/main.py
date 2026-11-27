@@ -41,10 +41,12 @@ async def lifespan(app):
         upgrade.run()
     except Exception as e:                                # noqa: BLE001 - never block the start
         print(f"0.7 upgrade skipped: {type(e).__name__}: {e}")
-    if os.environ.get("CL_WORKERS", "2") != "0":
+    from . import scheduler, worker
+    runs_jobs = worker.runs_jobs()                        # CL_ROLE=api: questions only, a worker runs the jobs
+    if runs_jobs and os.environ.get("CL_WORKERS", "2") != "0":
         jobs.start_workers()
-    from . import scheduler
-    scheduler.start()
+    if runs_jobs:
+        scheduler.start()
     try:
         async with M.mcp.session_manager.run():
             yield

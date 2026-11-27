@@ -27,6 +27,7 @@ from .db import system, tenant_scope
 HANDLERS: dict = {}                 # kind -> callable(info: dict)
 LABELS: dict = {}
 STALE_S = 600
+HEARTBEAT_S = int(os.environ.get("CL_JOB_HEARTBEAT_S", "60"))
 WORKER = f"{socket.gethostname()}:{os.getpid()}"
 LOCK = threading.Lock()             # kept for callers that serialise local work; questions no longer wait on it
 _stop = threading.Event()
@@ -229,6 +230,16 @@ def run_one() -> bool:
         return False
     t, log = core.timer(), _Log(r["id"], r["tenant_id"])
     status, error = "done", None
+    beating = threading.Event()
+
+    def beat():                                            # a long, quiet step never looks like a stopped worker
+        while not beating.wait(HEARTBEAT_S):
+            try:
+                with system():
+                    core.db().execute("UPDATE jobs SET heartbeat = ? WHERE id = ?", (core.now(), r["id"]))
+            except Exception:                              # noqa: BLE001
+                pass
+    threading.Thread(target=beat, daemon=True, name=f"cl-heartbeat-{r['id']}").start()
     with tenant_scope(r["tenant_id"]):
         try:
             fn = HANDLERS.get(r["kind"])
@@ -241,6 +252,7 @@ def run_one() -> bool:
             log.lines.extend(traceback.format_exc().splitlines()[-8:])
             print(traceback.format_exc(), file=sys.__stderr__)
         finally:
+            beating.set()
             log.flush()
             core.db().execute("UPDATE jobs SET status = ?, error = ?, finished = ? WHERE id = ?",
                               (status, error, core.now(), r["id"]))

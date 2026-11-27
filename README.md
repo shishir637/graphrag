@@ -41,6 +41,8 @@ the knowledge graph, then connect your first agent. Agents connect to `http://<s
 
 - To serve other machines: put HTTPS in front (Caddy, nginx, your load balancer), set `CL_BIND=0.0.0.0`
   and `CL_PUBLIC_HOSTS=contextlayer.yourcompany.com` in `.env`.
+- Two containers from one image: `app` (web app, REST, MCP; `CL_ROLE=api`) and `worker` (builds, syncs and the
+  scheduler; `CL_ROLE=worker`). One container with `CL_ROLE=all` (the default outside Compose) also works.
 - Everything stays in the Docker volumes; there is no outbound traffic except model downloads on first use.
 - Backups: the volumes `db_data` (Postgres: workspaces, people, keys, audit, semantic layer, ontology, document
   groups, facts and document cards, passages, jobs, connectors, encrypted secrets, graph copy) and `app_data` (each
