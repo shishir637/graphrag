@@ -82,6 +82,8 @@ def test_graph_search_respects_groups(tmp_path, monkeypatch):
     f = tmp_path / "_graph_build.json"
     f.write_text(json.dumps(build))
     monkeypatch.setattr(GS, "BUILD", f)
+    from graph import kg
+    monkeypatch.setattr(kg, "OUT_DIR", tmp_path)                 # command line: the graph file (0.7: kg.py)
     GS._GS.clear()
     access = {"c1": ["public"], "c2": ["public"], "c3": ["finance"]}
     vis = lambda c, g: g is None or bool(set(access.get(c, [])) & set(g))            # noqa: E731

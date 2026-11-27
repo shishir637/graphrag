@@ -29,7 +29,7 @@ def test_aggregate_weights_repeated_relations():
 
 
 def test_labels_are_whitelisted():
-    from graph.store import _label
+    from experiments.graph_age.store import _label
     assert _label("LOCATED_IN") == "LOCATED_IN"
     for bad in ("x) DETACH DELETE (n", "City{", "", "drop"):
         with pytest.raises(ValueError):
@@ -38,7 +38,7 @@ def test_labels_are_whitelisted():
 
 def _age():
     try:
-        from graph import store
+        from experiments.graph_age import store
         store.conn()
         return store
     except Exception:
@@ -47,7 +47,7 @@ def _age():
 
 @pytest.mark.skipif(_age() is None, reason="Apache AGE container not running")
 def test_cypher_parameters_cannot_inject():
-    from graph import store
+    from experiments.graph_age import store
     c = store.conn()
     if c.execute("SELECT count(*) FROM ag_graph WHERE name = 'india_kg'").fetchone()[0] == 0:
         pytest.skip("graph 'india_kg' not built")

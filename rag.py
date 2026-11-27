@@ -145,9 +145,9 @@ def _run(args):
     elif args.cmd == "gr-build":
         from graph.build import build; build(args.paths)
     elif args.cmd == "gr-ask":
-        from graph.query import answer, print_answer; print_answer(answer(args.question, args.mode))
+        from experiments.graph_age.query import answer, print_answer; print_answer(answer(args.question, args.mode))
     elif args.cmd == "gr-eval":
-        from graph import evaluate as ge
+        from experiments.graph_age import evaluate as ge
         {"questions": ge.make_questions, "run": ge.run, "score": ge.score}[args.stage]()
 
 

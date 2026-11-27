@@ -229,7 +229,8 @@ def graph_explore(q: str = "", limit: int = 120, groups: list[str] | None = None
     of these groups support (names, descriptions and link sentences included); None: everything (owners, admins)."""
     from graph.access import visible
     from graph.search import _seen, ent_view, rel_evidence
-    g = _json(OUT_DIR / "_graph_build.json")
+    from graph import kg
+    g = kg.load()
     if not g:
         return {"entities": [], "relations": [], "total": 0}
     ents = [e for e in g.get("entities", []) if groups is None or _seen(e.get("chunk_ids"), groups, visible)]
@@ -657,11 +658,12 @@ _ASK_CACHE: "dict[tuple, tuple[float, dict]]" = {}
 def _sources_version() -> tuple:
     from semantic import config as S
     from rag import passages
+    from graph import kg
     paths = [OUT_DIR / "2_chunks.json", OUT_DIR / "4_index.json", OUT_DIR / "_graph_build.json", ACCESS_FILE]
     if _in_workspace():
         from semantic import repo
         from .db import current_tenant
-        return (current_tenant(), repo.layer_version(), passages.stamp(), *(_mtime(p) for p in paths))
+        return (current_tenant(), repo.layer_version(), passages.stamp(), kg.version(), *(_mtime(p) for p in paths))
     paths += [S.STORE_DB, *sorted(S.LAYER_DIR.glob("*.yaml")), S.INSTRUCTIONS_FILE]
     return tuple(_mtime(p) for p in paths)
 

@@ -30,7 +30,7 @@ from pydantic import BaseModel, Field
 from rag.utils import write_json
 
 from . import store
-from .config import ANSWER_MODEL, OUT_DIR, ROOT
+from graph.config import ANSWER_MODEL, OUT_DIR, ROOT
 
 REGIONS = ["Kerala", "Tamil Nadu", "Karnataka", "Andhra Pradesh", "Telangana", "Puducherry"]
 QFILE = OUT_DIR / "gr_eval_questions.json"

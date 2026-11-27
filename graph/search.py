@@ -1,4 +1,4 @@
-"""Graph search without a language model, over the merged graph the builder saves (outputs/_graph_build.json).
+"""Graph search without a language model, over the workspace's knowledge graph (graph/kg.py: Postgres tables).
 
 The calling agent does the reasoning; this module finds the evidence:
 
@@ -10,8 +10,9 @@ The calling agent does the reasoning; this module finds the evidence:
 
 Every passage, link and entity is checked against the caller's access groups: a link counts only if a
 passage behind it is visible, and community summaries are built from visible passages only.
-The graph is loaded once per process and reloaded when the build file changes. Apache AGE (Postgres)
-keeps the same graph for Cypher queries and the explorer; answering does not depend on it being up.
+The graph is loaded from its tables into an in-memory cache (a NetworkX graph plus name and passage indexes),
+one per workspace, and reloaded when the build's version (graph_state) moves. On the command line it is read from
+outputs/_graph_build.json.
 """
 import json
 import math
@@ -24,7 +25,7 @@ from rapidfuzz import fuzz, process
 ROOT = Path(__file__).resolve().parent.parent
 from .config import OUT_DIR  # noqa: E402
 
-BUILD = OUT_DIR / "_graph_build.json"           # per workspace (rag/wspath.py)
+BUILD = OUT_DIR / "_graph_build.json"           # cache key per workspace; the file itself only on the command line
 STOP = set("the a an of in on at to for and or is are was were be by with from as that this which what who whom "
            "how when where why do does did has have had it its their there than then into about between".split())
 from rag.wspath import PerFile  # noqa: E402
@@ -50,16 +51,21 @@ def _norm(s: str) -> str:
 
 
 def ready() -> bool:
-    return BUILD.exists()
+    from . import kg
+    return kg.exists()
 
 
 def graph() -> dict:
-    m = BUILD.stat().st_mtime if BUILD.exists() else None
+    from . import kg
+    m = kg.version()
     if m is None:
         raise FileNotFoundError("The knowledge graph has not been built yet.")
     _G = _GS.entry(BUILD)
     if _G["mtime"] != m:
-        data = json.loads(BUILD.read_text(encoding="utf-8"))
+        import networkx as nx
+        data = kg.load()
+        if data is None:
+            raise FileNotFoundError("The knowledge graph has not been built yet.")
         ents = {e["id"]: e for e in data["entities"]}
         names: dict[str, set] = defaultdict(set)
         for e in ents.values():
@@ -82,7 +88,10 @@ def graph() -> dict:
             ws = _words(c["text"])
             texts[c["chunk_id"]] = ws
             wdf.update(ws)
-        _G.update(texts=texts, wdf=wdf, mtime=m, ents=ents, rels=data["relations"], comms=data.get("communities", []), names=dict(names),
+        nxg = nx.MultiGraph()                           # the same graph as a NetworkX object (paths, degrees)
+        nxg.add_nodes_from(ents)
+        nxg.add_edges_from((r["source_id"], r["target_id"], i) for i, r in enumerate(data["relations"]))
+        _G.update(nx=nxg, texts=texts, wdf=wdf, mtime=m, ents=ents, rels=data["relations"], comms=data.get("communities", []), names=dict(names),
                   name_keys=list(names), adj=adj, chunk_ents=chunk_ents, n_chunks=max(1, len(chunk_ents)), df=df)
     return _G
 

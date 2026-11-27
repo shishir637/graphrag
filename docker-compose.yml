@@ -4,7 +4,7 @@
 #   3. open http://localhost:8080 and create the owner account
 # Data lives in the named volumes below; `docker compose down` keeps it (add -v to delete everything).
 #   db      Postgres: workspaces, people, keys, audit, semantic layer, ontology, document groups, facts and
-#           document cards, jobs, connectors, encrypted secrets (+ an Apache AGE copy of each graph)
+#           document cards, passages, the knowledge graph (plain tables), jobs, connectors, encrypted secrets
 #   app_data each workspace's landing zone (documents/ originals, data/ tables as Parquet; a manifest row per file
 #            in Postgres), DuckDB's spill folder, and build outputs
 #   qdrant  search vectors (one collection; every point carries its workspace)

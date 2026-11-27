@@ -36,6 +36,8 @@ def test_graph_shows_only_evidence_from_visible_passages(tmp_path, monkeypatch):
     f = tmp_path / "_graph_build.json"
     f.write_text(json.dumps(build))
     monkeypatch.setattr(GS, "BUILD", f)
+    from graph import kg
+    monkeypatch.setattr(kg, "OUT_DIR", tmp_path)                 # command line: the graph file (0.7: kg.py)
     GS._GS.clear()
     access = {"pub1": ["public"], "hr1": ["hr"]}
     vis = lambda c, g: g is None or bool(set(access.get(c, [])) & set(g))          # noqa: E731

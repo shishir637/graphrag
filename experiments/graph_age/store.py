@@ -13,7 +13,7 @@ from collections import defaultdict
 
 import psycopg
 
-from .config import GRAPH_NAME as DEFAULT_GRAPH, PG_DSN
+from graph.config import GRAPH_NAME as DEFAULT_GRAPH, PG_DSN
 
 _conn = None
 

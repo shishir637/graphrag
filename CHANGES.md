@@ -44,6 +44,18 @@ runs no AI model. Existing workspaces are upgraded automatically at start (`app/
   Indexes built before 0.7 still hold the text; it is simply not read, and points are rewritten as passages change.
 - Upgrade: each workspace's `2_chunks.json` moves into the table (kept as `2_chunks.json.pre-0.7`).
 
+**One graph store** (`graph/kg.py`, migration `013_graph.sql`)
+- The graph build writes plain Postgres tables in one transaction and moves `graph_state.version`:
+  `kg_entities`, `kg_relations` (with the passages behind each link), `kg_entity_passages`, `kg_communities`.
+  Every field of the build survives the round trip (per-passage evidence included), and `_graph_build.json` is no
+  longer written inside a workspace.
+- Search loads the tables into an in-memory cache (a NetworkX graph plus name and passage indexes) per workspace and
+  version, and reloads when a build moves the version. Every access check is unchanged: a link or entity counts only
+  when a visible passage supports it. The graph explorer reads the same tables.
+- Apache AGE is out of the product path: `graph/store.py`, `graph/query.py` and `graph/evaluate.py` (the Cypher copy
+  and the LLM GraphRAG research CLI) moved to `experiments/graph_age/`; nothing in the product imports them.
+- Upgrade: each workspace's `_graph_build.json` moves into the tables (kept as `_graph_build.json.pre-0.7`).
+
 ## 0.6.0: accuracy: facts, checks, an inbox, "answerable?" and a grounding check
 
 No AI model is added: everything below is rules, regular expressions, RapidFuzz and the local models already used.

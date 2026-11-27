@@ -1,7 +1,16 @@
-# Graph RAG (branch `graph-rag`)
+# Graph RAG
 
-A knowledge graph built from the documents (plus the sales tables), stored in PostgreSQL + Apache AGE,
-used to answer connection (multi-hop) and big-picture questions next to the vector RAG and the semantic layer.
+**In the product (0.7):** the knowledge graph of each workspace is built without a language model (spaCy + GLiNER
+guided by the workspace's ontology, rules for links, RapidFuzz merging, Leiden communities) and stored in plain
+Postgres tables (`graph/kg.py`, migration `013_graph.sql`: `kg_entities`, `kg_relations`, `kg_entity_passages`,
+`kg_communities`, `graph_state`). Each build replaces the workspace's graph in one transaction and moves its version;
+answering loads the tables into an in-memory graph (NetworkX plus name and passage indexes, `graph/search.py`)
+and reloads when the version moves. A link or entity is only shown when a passage behind it is visible to the
+caller. Entity and community vectors stay in Qdrant. Apache AGE is no longer part of the product.
+
+**Research history (below):** the first version, on branch `graph-rag`, stored the graph in PostgreSQL + Apache AGE
+and answered with Claude. That code now lives in `experiments/graph_age/` (store, query, evaluate) and is never
+imported by the product.
 
 ```
 chunks ─► extract (Claude Haiku, typed entities + relations, cached per chunk) ─┐
@@ -18,7 +27,7 @@ question ─► router ─┬ lookup       ─► vector RAG
 ## Setup and commands
 
 ```powershell
-docker compose -f docker-compose.graph.yml up -d          # Postgres 17 + Apache AGE 1.7 on localhost:5455
+docker compose -f experiments/docker-compose.graph.yml up -d   # research only: Postgres 17 + Apache AGE 1.7 on :5455
 .venv\Scripts\python rag.py gr-extract --regions "Kerala,Tamil Nadu" --out outputs/gr_extract_south.jsonl
 .venv\Scripts\python rag.py gr-build outputs/gr_extract_south.jsonl          # add --reuse to skip merging
 .venv\Scripts\python rag.py gr-ask "Which dynasty founded by Sultan Quli ruled Telangana?" --mode local

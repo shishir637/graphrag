@@ -6,7 +6,8 @@
                family (no language model; unclear pairs stay separate, which is the safe default)
   4. relations aggregate repeated relations into weighted edges
   5. communities  Leiden (NetworkX, modularity), two levels; summaries are extractive, built at query time
-  6. store     outputs/_graph_build.json (answering reads this) + Apache AGE when the database is reachable
+  6. store     the workspace's graph tables in Postgres (graph/kg.py, one transaction, new version); answering
+               loads them into an in-memory graph. On the command line: outputs/_graph_build.json
 
   python -m graph.build outputs/gr_extract_south.jsonl [--tables]
 
@@ -355,16 +356,13 @@ def communities(entities: list[dict], relations: list[dict]) -> list[dict]:
 
 # ---------- 6. store ----------
 def build(paths: list[str], tables: bool = True, reuse: bool = False):
-    from . import store
-    from rag.utils import read_json
+    from . import kg
     t0 = time.perf_counter()
-    cache = OUT_DIR / "_graph_build.json"          # merged graph before storage: lets a storage failure be retried fast
-    if reuse and cache.exists():
-        saved = json.loads(cache.read_text(encoding="utf-8"))
-        entities, relations, comms, chunk_ids = (saved["entities"], saved["relations"], saved["communities"],
-                                                 set(saved["chunk_ids"]))
-        print(f"  reusing merged graph from {cache.name}", flush=True)
-        return _store(store, read_json, entities, relations, comms, chunk_ids, t0)
+    if reuse:
+        saved = kg.load()
+        if saved:
+            print("  reusing the stored graph", flush=True)
+            return _store(saved["entities"], saved["relations"], saved["communities"], set(saved["chunk_ids"]), t0)
     groups, rels, chunk_ids = collect(paths)
     n_table = map_tables(groups, rels) if tables else 0
     print(f"  collected {len(groups)} name groups, {len(rels)} relation mentions from {len(chunk_ids)} chunks"
@@ -376,36 +374,18 @@ def build(paths: list[str], tables: bool = True, reuse: bool = False):
     comms = communities(entities, relations)
     print(f"  {len(relations)} edges, {len(comms)} communities "
           f"({sum(c['level'] == 0 for c in comms)} top-level)", flush=True)
-    cache.write_text(json.dumps({"entities": entities, "relations": relations, "communities": comms,
-                                 "chunk_ids": sorted(chunk_ids)}, ensure_ascii=False), encoding="utf-8")
-    return _store(store, read_json, entities, relations, comms, chunk_ids, t0)
+    return _store(entities, relations, comms, chunk_ids, t0)
 
 
-def _store(store, read_json, entities, relations, comms, chunk_ids, t0):
-    from rag import passages
-    chunks = list(passages.by_ids(chunk_ids).values())
-    age = {"stored_in_age": False}
-    try:                                   # Apache AGE copy for Cypher queries; answering works without it
-        store.reset_graph()
-        loaded = store.load(entities, relations, chunks)
-        print(f"  graph database copy: {loaded['age_edges']} strongest links in {loaded['age_seconds']}s", flush=True)
-        c = store.conn()
-        with c.cursor() as cur:
-            cur.executemany("UPDATE kg_entities SET community_l0 = %s, community_l1 = %s WHERE id = %s",
-                            [(e.get("community_l0"), e.get("community_l1"), e["id"]) for e in entities])
-            cur.executemany("INSERT INTO kg_communities (id, level, parent, size, entity_ids, profile) "
-                            "VALUES (%s, %s, %s, %s, %s, %s)",
-                            [(x["id"], x["level"], x["parent"], len(x["entity_ids"]), x["entity_ids"], x["profile"])
-                             for x in comms])
-        age = store.stats() | loaded | {"stored_in_age": True}
-    except Exception as e:                                         # noqa: BLE001 - reported, not fatal
-        age["age_error"] = f"{type(e).__name__}: {str(e).splitlines()[0][:200]}"
-        print(f"  graph database not used ({age['age_error']}); answering reads the build file", flush=True)
-
+def _store(entities, relations, comms, chunk_ids, t0):
+    from . import kg
+    version = kg.save(entities, relations, comms, chunk_ids)
+    print(f"  stored the graph (version {version})", flush=True)
     deg = sorted(entities, key=lambda e: -e.get("degree", 0))
-    report = age | {
+    report = {"stored_in": "postgres" if isinstance(version, tuple) else "outputs/_graph_build.json",
+              "chunks": len(set(chunk_ids)),
         "nodes": len(entities), "edges": len(relations),
-        "entities": len(entities), "relations": len(relations), "chunks": len(chunks),
+        "entities": len(entities), "relations": len(relations),
         "entities_by_type": dict(Counter(e["type"] for e in entities).most_common()),
         "relations_by_type": dict(Counter(r["type"] for r in relations).most_common()),
         "isolated_entities": sum(1 for e in entities if not e.get("degree")),
@@ -429,6 +409,6 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("paths", nargs="+")
     ap.add_argument("--no-tables", action="store_true")
-    ap.add_argument("--reuse", action="store_true", help="skip merging; reload outputs/_graph_build.json")
+    ap.add_argument("--reuse", action="store_true", help="skip merging; reload the stored graph")
     a = ap.parse_args()
     build(a.paths, tables=not a.no_tables, reuse=a.reuse)

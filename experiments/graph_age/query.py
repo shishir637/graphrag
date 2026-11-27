@@ -23,7 +23,7 @@ from rag.generate import SYSTEM, Answer, format_passages
 from rag.llm import claude
 
 from . import store
-from .config import (ANSWER_MODEL, COMMUNITY_COLLECTION, ENTITY_COLLECTION, FINAL_CHUNKS, GLOBAL_COMMUNITIES,
+from graph.config import (ANSWER_MODEL, COMMUNITY_COLLECTION, ENTITY_COLLECTION, FINAL_CHUNKS, GLOBAL_COMMUNITIES,
                      MAX_CHUNKS_RERANK, MAX_RELATIONS, SEED_ENTITIES, SMALL_MODEL)
 
 _names = None
@@ -70,7 +70,7 @@ def link_entities(question: str, qv) -> list[dict]:
 
 # ---------- local search ----------
 # ---------- access groups (moved to graph/access.py) ----------
-from .access import _ACCESS, chunk_access, sees_everything, visible  # noqa: E402,F401
+from graph.access import _ACCESS, chunk_access, sees_everything, visible  # noqa: E402,F401
 
 
 def _chunks(ids: list[str]) -> dict:

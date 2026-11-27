@@ -58,8 +58,8 @@ set CL_DATABASE_URL=postgresql://rag:<pw>@127.0.0.1:5432/contextlayer QDRANT_URL
 python -m app                                                         # http://127.0.0.1:8080
 ```
 Tests need a throwaway Postgres (`CL_TEST_DATABASE_URL`, default `127.0.0.1:5499`) and optionally Qdrant
-(`CL_TEST_QDRANT_URL`, default `127.0.0.1:6399`). Answering reads the graph build file; Apache AGE keeps a copy
-per workspace for Cypher queries.
+(`CL_TEST_QDRANT_URL`, default `127.0.0.1:6399`). The knowledge graph is stored in Postgres tables and loaded
+into an in-memory graph for answering (0.7; Apache AGE is only used by the research tools in `experiments/graph_age/`).
 
 The web app is prebuilt in `web/dist`. To change it: `cd web && npm install && npm run dev` (port 5173,
 forwards the API to 8080), then `npm run build`.
