@@ -35,7 +35,6 @@ services:
       - documents:/app/documents
       - tables:/app/data
       - outputs:/app/outputs
-      - metric_store:/app/sl_store
       - app_data:/app/var
       - semantic_layer:/app/semantic_layer     # reviewed definitions; approvals in the app persist here
       - models:/models
@@ -91,7 +90,6 @@ volumes:
   documents:
   tables:
   outputs:
-  metric_store:
   app_data:
   semantic_layer:
   models:

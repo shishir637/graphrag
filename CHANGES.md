@@ -56,6 +56,14 @@ runs no AI model. Existing workspaces are upgraded automatically at start (`app/
   and the LLM GraphRAG research CLI) moved to `experiments/graph_age/`; nothing in the product imports them.
 - Upgrade: each workspace's `_graph_build.json` moves into the tables (kept as `_graph_build.json.pre-0.7`).
 
+**Metric catalog in memory** (`semantic/enrich.py`)
+- The catalog the planner and agents use (synonyms, known values, instructions) is built in memory from the
+  semantic layer in Postgres and cached by the layer's state version, which every definition or value-list change
+  moves; on the command line it is built from the YAML files and tables, cached by their modification times.
+- Nothing is written to `sl_store/enrichment.duckdb` any more (inside a workspace it was already unused since 0.5);
+  the plan cache moved to `outputs/sl_plan_cache.json`. The `metric_store` Docker volume is gone (an existing one is
+  simply left unused; `docker volume rm <project>_metric_store` removes it).
+
 ## 0.6.0: accuracy: facts, checks, an inbox, "answerable?" and a grounding check
 
 No AI model is added: everything below is rules, regular expressions, RapidFuzz and the local models already used.

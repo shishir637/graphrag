@@ -300,7 +300,8 @@ def _data_status() -> dict:
         st = repo.get_state()
         return {"tables": len(tables()), "metrics": n, "ready": bool(repo.value_lists()) or n > 0,
                 "prepared": st.get("updated_at")}
-    return {"tables": len(tables()), "metrics": n, "ready": SC.STORE_DB.exists(), "prepared": iso(_mtime(SC.STORE_DB))}
+    return {"tables": len(tables()), "metrics": n, "ready": n > 0,
+            "prepared": iso(_mtime(SC.OUT_DIR / "sl_4_enrichment.json"))}
 
 
 # ------------------------------------------------------------------ jobs (run in the background by app.jobs)
@@ -664,7 +665,7 @@ def _sources_version() -> tuple:
         from semantic import repo
         from .db import current_tenant
         return (current_tenant(), repo.layer_version(), passages.stamp(), kg.version(), *(_mtime(p) for p in paths))
-    paths += [S.STORE_DB, *sorted(S.LAYER_DIR.glob("*.yaml")), S.INSTRUCTIONS_FILE]
+    paths += [*sorted(S.LAYER_DIR.glob("*.yaml")), S.INSTRUCTIONS_FILE]
     return tuple(_mtime(p) for p in paths)
 
 

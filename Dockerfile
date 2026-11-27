@@ -20,7 +20,7 @@ COPY requirements.txt requirements-semantic.txt requirements-app.txt ./
 RUN sed -i -E '/^(torch|torchvision)==/d' requirements.txt && pip install -r requirements.txt
 COPY . .
 COPY --from=web /web/dist ./web/dist
-RUN useradd --create-home --uid 10001 cl && mkdir -p /app/var /app/outputs /app/qdrant_data /app/sl_store /models \
+RUN useradd --create-home --uid 10001 cl && mkdir -p /app/var /app/outputs /app/qdrant_data /models \
     && chown -R cl /app /models
 USER cl
 EXPOSE 8080

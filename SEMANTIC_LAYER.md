@@ -45,7 +45,6 @@ semantic_layer/           THE REVIEWED LAYER (source of truth, changed only by p
   verified_queries.yaml   checked question -> request pairs (examples for Claude, compiled in CI)
   instructions.md         business rules: fiscal year, default meanings, wording
 semantic/                 the code, one module per phase
-sl_store/                 built enrichment store (DuckDB); rebuilt by sl-enrich, not committed
 tests/                    the review checks CI runs (+ golden SQL files)
 ```
 
@@ -131,7 +130,7 @@ Accuracy and cost helpers measured with it:
 - `semantic/dates.py`: deterministic date resolution (fiscal years, quarters, halves, "since", "last N days").
 - Template answers for one-row results: no model call, so numbers can't be misquoted.
 - Number guard: an unfaithful summary is regenerated once, then replaced by the table.
-- Plan cache in `sl_store/plan_cache.json`, keyed on question, day, model and a hash of the layer files.
+- Plan cache in `outputs/sl_plan_cache.json`, keyed on question, day, model and a hash of the layer files.
 - `semantic/quality.py` data checks (freshness, duplicate keys, orphan rows), reported with every answer.
 - Rankings (`limit`) leave out the unknown group, so orphan rows cannot be "the top region".
 - Result tables are shown to the summariser with full numbers, not scientific notation.

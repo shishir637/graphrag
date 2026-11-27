@@ -185,16 +185,16 @@ def _plan_cache_key(question: str) -> str:
 def cached_plan(question: str, ctx: dict) -> tuple["_Plan", list[str], bool]:
     """Plan cache: the same question against the same layer and day reuses the plan (no Claude call).
     SL_PLAN_CACHE=0 turns it off (the evaluator does, to measure the planner itself)."""
-    from .config import STORE_DIR
+    from .config import OUT_DIR
     use = os.environ.get("SL_PLAN_CACHE", "1") != "0"
-    path = STORE_DIR / "plan_cache.json"
+    path = OUT_DIR / "sl_plan_cache.json"
     cache = json.loads(path.read_text(encoding="utf-8")) if use and path.exists() else {}
     key = _plan_cache_key(question)
     if use and key in cache:
         return _Plan.model_validate(cache[key]), [], True
     plan, errors = plan_query(question, ctx)
     if use and not errors:
-        STORE_DIR.mkdir(parents=True, exist_ok=True)
+        OUT_DIR.mkdir(parents=True, exist_ok=True)
         cache[key] = plan.model_dump(mode="json")
         path.write_text(json.dumps(cache), encoding="utf-8")
     return plan, errors, False

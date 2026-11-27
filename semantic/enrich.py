@@ -5,20 +5,21 @@
   - verified    : reviewed question -> request pairs; each one is compiled, parsed by SQLGlot and
                   EXPLAINed by DuckDB before it is stored
   - instructions: semantic_layer/instructions.md (fiscal year, default filters, wording)
-Stored in sl_store/enrichment.duckdb. Metrics, dimensions, synonyms and verified questions are also
-embedded with BGE-M3 into a Qdrant collection, so a new question finds its closest matches
-(the RAG retrieval, reused).
+The metric catalog (synonyms, known values, instructions) is an in-memory structure built from the semantic
+layer: inside a workspace from Postgres (sl_definitions, sl_value_lists), cached by the layer's state version
+(sl_state, which every definition or value-list change moves); on the command line from the YAML files and the
+tables, cached by their modification times. Nothing is written to disk (0.7: the DuckDB store file is gone).
+Metrics, dimensions, synonyms and verified questions can also be embedded with BGE-M3 into a Qdrant collection,
+so a new question finds its closest matches (the RAG retrieval, reused).
 
 Output: outputs/sl_4_enrichment.json
 """
-import json
-
-import duckdb
+import threading
 
 from rag.utils import write_json
 
 from .compiler import compile_query
-from .config import INSTRUCTIONS_FILE, SEMANTIC_COLLECTION, STORE_DB, STORE_DIR
+from .config import INSTRUCTIONS_FILE, LAYER_DIR, SEMANTIC_COLLECTION
 from .db import connect
 from .yamlio import load_enrichment, load_metrics, load_model, load_verified
 
@@ -127,25 +128,11 @@ def build_enrichment(embed: bool = True) -> dict:
               f"{len(values)} lists, {len(compiled)} verified queries checked")
         return result
 
-    STORE_DIR.mkdir(parents=True, exist_ok=True)
-    STORE_DB.unlink(missing_ok=True)
-    store = duckdb.connect(str(STORE_DB))
-    store.execute("CREATE TABLE synonyms (term VARCHAR, target VARCHAR)")
-    store.executemany("INSERT INTO synonyms VALUES (?, ?)", [(s.term, s.target) for s in enrichment.synonyms])
-    store.execute("CREATE TABLE value_lists (dimension VARCHAR, value VARCHAR)")
-    store.executemany("INSERT INTO value_lists VALUES (?, ?)", [(d, v) for d, vs in values.items() for v in vs])
-    store.execute("CREATE TABLE verified_queries (question VARCHAR, query JSON, sql VARCHAR, verified_by VARCHAR)")
-    store.executemany("INSERT INTO verified_queries VALUES (?, ?, ?, ?)", [
-        (v.question, json.dumps(v.query.model_dump(mode="json", exclude_defaults=True)), sql, v.verified_by)
-        for v, sql in compiled])
-    store.execute("CREATE TABLE instructions (text VARCHAR)")
-    store.execute("INSERT INTO instructions VALUES (?)", [INSTRUCTIONS_FILE.read_text(encoding="utf-8")])
-    store.close()
-
+    _CATALOG.clear()                          # the command line: the catalog is rebuilt in memory on next use
     items = catalog_items(model, metrics, enrichment, verified)
     n_points = _index_in_qdrant(items) if embed else 0
     result = {
-        "store": str(STORE_DB), "synonyms": len(enrichment.synonyms),
+        "store": "memory", "synonyms": len(enrichment.synonyms),
         "value_lists": {d: len(v) for d, v in values.items()},
         "verified_queries": len(compiled), "qdrant_collection": SEMANTIC_COLLECTION, "qdrant_points": n_points,
         "items_by_kind": {k: sum(i["kind"] == k for i in items) for k in ("metric", "dimension", "verified")},
@@ -156,21 +143,56 @@ def build_enrichment(embed: bool = True) -> dict:
     return result
 
 
-# --- read side, used when answering ---
-def load_store() -> dict:
+# --- read side, used when answering: the metric catalog in memory ---
+_CATALOG: dict = {}                          # workspace (or "" on the command line) -> (stamp, catalog)
+_LOCK = threading.Lock()
+MAX_CATALOGS = 256
+
+
+def _stamp():
+    """What the catalog depends on: the layer's state version in a workspace; files on the command line."""
     from .repo import in_workspace
     if in_workspace():
         from . import repo
-        from .yamlio import load_enrichment
+        return ("v", repo.layer_version())
+    from .db import table_files
+    import os
+    files = sorted(LAYER_DIR.glob("*.yaml")) + ([INSTRUCTIONS_FILE] if INSTRUCTIONS_FILE.exists() else [])
+    return (tuple((str(p), os.path.getmtime(p)) for p in files),
+            tuple((n, os.path.getmtime(p)) for n, p in table_files().items()))
+
+
+def _build_catalog() -> dict:
+    from .repo import in_workspace
+    from .yamlio import load_enrichment
+    if in_workspace():
+        from . import repo
         return {"synonyms": [(x.term, x.target) for x in load_enrichment().synonyms], "values": repo.value_lists(),
                 "instructions": repo.load_instructions()}
-    if not STORE_DB.exists():
-        raise SystemExit("semantic layer store not built - run `python rag.py sl-enrich` first")
-    s = duckdb.connect(str(STORE_DB), read_only=True)
-    values: dict[str, list[str]] = {}
-    for d, v in s.execute("SELECT dimension, value FROM value_lists").fetchall():
-        values.setdefault(d, []).append(v)
-    out = {"synonyms": s.execute("SELECT term, target FROM synonyms").fetchall(), "values": values,
-           "instructions": s.execute("SELECT text FROM instructions").fetchone()[0]}
-    s.close()
-    return out
+    enrichment = load_enrichment()
+    values = _value_lists(load_model(), enrichment, connect())
+    return {"synonyms": [(s.term, s.target) for s in enrichment.synonyms], "values": values,
+            "instructions": INSTRUCTIONS_FILE.read_text(encoding="utf-8") if INSTRUCTIONS_FILE.exists() else ""}
+
+
+def catalog() -> dict:
+    """{"synonyms": [(term, target)], "values": {dimension: [values]}, "instructions": str}, cached per workspace
+    and rebuilt when the semantic layer changes."""
+    from rag.wspath import current_workspace
+    key, stamp = current_workspace() or "", _stamp()
+    with _LOCK:
+        hit = _CATALOG.get(key)
+        if hit and hit[0] == stamp:
+            return hit[1]
+    c = _build_catalog()
+    with _LOCK:
+        _CATALOG.pop(key, None)
+        _CATALOG[key] = (stamp, c)
+        while len(_CATALOG) > MAX_CATALOGS:
+            _CATALOG.pop(next(iter(_CATALOG)))
+    return c
+
+
+def load_store() -> dict:
+    """The metric catalog (kept under its old name for callers)."""
+    return catalog()
