@@ -48,16 +48,28 @@ def _norm(s: str) -> str:
 
 
 def ready() -> bool:
+    from . import kg
+    if kg.in_db():                                  # the graph tables (0.9); an older build file is moved in once
+        if kg.version() is None and BUILD.exists():
+            kg.backfill()
+        return kg.version() is not None or BUILD.exists()
     return BUILD.exists()
 
 
 def graph() -> dict:
-    m = BUILD.stat().st_mtime if BUILD.exists() else None
-    if m is None:
-        raise FileNotFoundError("The knowledge graph has not been built yet.")
-    _G = _GS.setdefault(str(BUILD), {"mtime": None})
+    """The workspace's graph, loaded once per workspace and build version (the in-memory cache)."""
+    from . import kg
+    v = kg.version() if kg.in_db() else None
+    if v is not None:                               # the graph tables; else the build file (no table graph yet)
+        key, m, read = f"db:{v[1]}", v, kg.load
+    else:
+        m = BUILD.stat().st_mtime if BUILD.exists() else None
+        if m is None:
+            raise FileNotFoundError("The knowledge graph has not been built yet.")
+        key, read = str(BUILD), (lambda: json.loads(BUILD.read_text(encoding="utf-8")))
+    _G = _GS.setdefault(key, {"mtime": None})
     if _G["mtime"] != m:
-        data = json.loads(BUILD.read_text(encoding="utf-8"))
+        data = read()
         ents = {e["id"]: e for e in data["entities"]}
         names: dict[str, set] = defaultdict(set)
         for e in ents.values():

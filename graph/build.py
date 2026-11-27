@@ -356,7 +356,7 @@ def communities(entities: list[dict], relations: list[dict]) -> list[dict]:
 
 # ---------- 6. store ----------
 def build(paths: list[str], tables: bool = True, reuse: bool = False):
-    from . import store
+    store = None                                   # (Apache AGE is no longer used)
     from rag.utils import read_json
     t0 = time.perf_counter()
     cache = OUT_DIR / "_graph_build.json"          # merged graph before storage: lets a storage failure be retried fast
@@ -387,23 +387,11 @@ def build(paths: list[str], tables: bool = True, reuse: bool = False):
 
 def _store(store, read_json, entities, relations, comms, chunk_ids, t0):
     chunks = [c for c in read_json("2_chunks.json") if c["chunk_id"] in chunk_ids]
-    age = {"stored_in_age": False}
-    try:                                   # Apache AGE copy for Cypher queries; answering works without it
-        store.reset_graph()
-        loaded = store.load(entities, relations, chunks)
-        print(f"  graph database copy: {loaded['age_edges']} strongest links in {loaded['age_seconds']}s", flush=True)
-        c = store.conn()
-        with c.cursor() as cur:
-            cur.executemany("UPDATE public.kg_entities SET community_l0 = %s, community_l1 = %s WHERE id = %s",
-                            [(e.get("community_l0"), e.get("community_l1"), e["id"]) for e in entities])
-            cur.executemany("INSERT INTO public.kg_communities (id, level, parent, size, entity_ids, profile) "
-                            "VALUES (%s, %s, %s, %s, %s, %s)",
-                            [(x["id"], x["level"], x["parent"], len(x["entity_ids"]), x["entity_ids"], x["profile"])
-                             for x in comms])
-        age = store.stats() | loaded | {"stored_in_age": True}
-    except Exception as e:                                         # noqa: BLE001 - reported, not fatal
-        age["age_error"] = f"{type(e).__name__}: {str(e).splitlines()[0][:200]}"
-        print(f"  graph database not used ({age['age_error']}); answering reads the build file", flush=True)
+    from . import kg                       # the graph tables in Postgres (0.9; no Apache AGE), else the build file
+    if kg.in_db():
+        kg.save(entities, relations, comms, chunk_ids)
+        print(f"  stored in the graph tables (version {kg.version()[2]})", flush=True)
+    age = {"stored_in": "postgres" if kg.in_db() else "file"}
 
     deg = sorted(entities, key=lambda e: -e.get("degree", 0))
     report = age | {

@@ -51,14 +51,16 @@ services:
     volumes:
       - qdrant_storage:/qdrant/storage
 
-  graphdb:                      # PostgreSQL 17 + Apache AGE: the knowledge graph. Not published outside Docker.
-    image: apache/age:release_PG17_1.7.0
+  graphdb:                      # PostgreSQL 17: accounts, access, workspaces, definitions and the knowledge graph
+    # tables (0.9: the official image; Apache AGE is no longer used, see "python -m app.upgrade drop-age").
+    # Not published outside Docker.
+    image: postgres:17
     restart: unless-stopped
     environment:
       POSTGRES_USER: rag
       POSTGRES_PASSWORD: ${CL_DB_PASSWORD:?set CL_DB_PASSWORD in .env}
       POSTGRES_DB: graphrag
-    command: ["postgres", "-c", "shared_preload_libraries=age", "-c", "work_mem=64MB", "-c", "maintenance_work_mem=256MB"]
+    command: ["postgres", "-c", "work_mem=64MB", "-c", "maintenance_work_mem=256MB"]
     volumes:
       - graph_data:/var/lib/postgresql/data
     healthcheck:

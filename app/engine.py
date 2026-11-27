@@ -199,7 +199,8 @@ def graph_explore(q: str = "", limit: int = 120, groups: list[str] | None = None
     of these groups support (names, descriptions and link sentences included); None: everything (company admins)."""
     from graph.access import visible
     from graph.search import _seen, ent_view, rel_evidence
-    g = _json(OUT_DIR / "_graph_build.json")
+    from graph import kg
+    g = (kg.load() if kg.in_db() else None) or _json(OUT_DIR / "_graph_build.json")
     if not g:
         return {"entities": [], "relations": [], "total": 0}
     ents = [e for e in g.get("entities", []) if groups is None or _seen(e.get("chunk_ids"), groups, visible)]
@@ -230,10 +231,12 @@ def graph_explore(q: str = "", limit: int = 120, groups: list[str] | None = None
 
 
 def postgres_ok() -> tuple[bool, str]:
+    """The app database (accounts, access, the graph tables). Apache AGE is no longer used (0.9)."""
     try:
-        import psycopg
-        from graph.config import PG_DSN
-        with psycopg.connect(PG_DSN, connect_timeout=2) as c:
+        from app import db as D
+        if not D.postgres():
+            return False, "not configured (CL_DATABASE_URL): accounts are in var/app.db, the graph in a file"
+        with D.pg_tx() as c:
             c.execute("SELECT 1")
         return True, "connected"
     except Exception as e:                                     # noqa: BLE001 - reported to the admin as text
