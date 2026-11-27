@@ -55,6 +55,17 @@ def _warm_up():
 
     def load():
         try:
+            from rag import store
+            if store.server() and (engine.OUT_DIR / "3_embeddings.json").exists():
+                from qdrant_client import models as qm
+                flt = qm.Filter(must=[qm.FieldCondition(key="tenant", match=qm.MatchValue(value=store.tenant()))])
+                qc = store.client()
+                if not qc.collection_exists(store.COLLECTION) or qc.count(store.COLLECTION, count_filter=flt).count == 0:
+                    print("Moving the search index to the Qdrant server (from the prepared passages)...", flush=True)
+                    store.build_index()            # an install upgraded from the embedded index: no re-embedding
+        except Exception as e:                       # noqa: BLE001 - "Prepare files" does the same
+            print(f"Search index move skipped: {e}", flush=True)
+        try:
             from rag.models import embed_dense, embed_sparse, rerank_scores
             from rag.store import active_collection
             active_collection()

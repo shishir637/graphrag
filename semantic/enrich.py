@@ -86,16 +86,18 @@ def _index_in_qdrant(items: list[dict]) -> int:
     from rag.store import client
     from rag.config import EMBED_DIM
 
+    from rag.store import collection_name
+    SEM = collection_name(SEMANTIC_COLLECTION)            # one per workspace on a shared Qdrant server
     qc = client()
-    if qc.collection_exists(SEMANTIC_COLLECTION):
-        qc.delete_collection(SEMANTIC_COLLECTION)
-    qc.create_collection(SEMANTIC_COLLECTION, vectors_config={
+    if qc.collection_exists(SEM):
+        qc.delete_collection(SEM)
+    qc.create_collection(SEM, vectors_config={
         "dense": models.VectorParams(size=EMBED_DIM, distance=models.Distance.COSINE)})
-    qc.create_payload_index(SEMANTIC_COLLECTION, "kind", models.PayloadSchemaType.KEYWORD)
+    qc.create_payload_index(SEM, "kind", models.PayloadSchemaType.KEYWORD)
     vecs = embed_dense([i["text"] for i in items])
-    qc.upsert(SEMANTIC_COLLECTION, wait=True, points=[
+    qc.upsert(SEM, wait=True, points=[
         models.PointStruct(id=n, vector={"dense": v}, payload=i) for n, (i, v) in enumerate(zip(items, vecs))])
-    return qc.count(SEMANTIC_COLLECTION).count
+    return qc.count(SEM).count
 
 
 def _many(store, sql, rows):

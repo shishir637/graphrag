@@ -91,7 +91,10 @@ _RERANK_CACHE: dict[tuple[str, str], float] = {}
 
 def build_filter(groups: list[str] | None, sources: list[str] | None,
                  headings: list[str] | None = None) -> models.Filter | None:
+    from .store import server, tenant
     must = []
+    if server():   # the shared server collection: only this workspace's passages
+        must.append(models.FieldCondition(key="tenant", match=models.MatchValue(value=tenant())))
     if headings:   # restrict to chunks under any of these headings (e.g. a set of regions)
         must.append(models.FieldCondition(key="headings", match=models.MatchAny(any=headings)))
     if groups:   # user may only see chunks whose "access" contains one of their groups
@@ -113,7 +116,9 @@ def _hits(points, score_key="score"):
 
 
 def point_id(chunk_id: str) -> str:
-    return str(uuid.uuid5(uuid.NAMESPACE_URL, chunk_id))
+    """Point ids include the workspace on a shared server (embedded stores keep the old ids)."""
+    from .store import server, tenant
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"{tenant()}/{chunk_id}" if server() else chunk_id))
 
 
 def fetch_chunks(chunk_ids: list[str], groups: list[str] | None, sources: list[str] | None = None) -> list[dict]:
@@ -121,8 +126,11 @@ def fetch_chunks(chunk_ids: list[str], groups: list[str] | None, sources: list[s
     if not chunk_ids:
         return []
     pts = client().retrieve(active_collection(), ids=[point_id(c) for c in chunk_ids], with_payload=True)
+    from .store import server, tenant
     out = []
     for p in pts:
+        if server() and p.payload.get("tenant") != tenant():
+            continue
         if groups and not set(p.payload.get("access") or []) & set(groups):
             continue
         if sources and p.payload["source"] not in sources:
