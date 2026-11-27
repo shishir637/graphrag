@@ -479,9 +479,16 @@ def _redact_detail(d: dict) -> dict:
 
 
 def purge_events(days: int) -> int:
-    """Delete this workspace's events older than `days` (audit retention)."""
+    """Delete this workspace's events older than `days` (audit retention). With the archive on (workspace setting
+    events_archive, or CL_EVENTS_ARCHIVE=1; off by default) they are first copied to the workspace's archive, one
+    Parquet file per month (app/landing.py)."""
     cutoff = (datetime.now(timezone.utc) - timedelta(days=max(1, int(days)))).isoformat(timespec="seconds")
-    return db().execute("DELETE FROM events WHERE tenant_id = ? AND time < ?", (_need_tenant(), cutoff)).rowcount
+    t = _need_tenant()
+    if str(get_setting("events_archive", os.environ.get("CL_EVENTS_ARCHIVE", "0")) or "0").lower() in ("1", "true", "on"):
+        from .landing import archive_events
+        rows = [dict(r) for r in db().execute("SELECT * FROM events WHERE tenant_id = ? AND time < ? ORDER BY id", (t, cutoff))]
+        archive_events(rows)
+    return db().execute("DELETE FROM events WHERE tenant_id = ? AND time < ?", (t, cutoff)).rowcount
 
 
 def list_events(actor_type: str | None = None, actor: str | None = None, q: str | None = None,

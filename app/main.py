@@ -36,6 +36,8 @@ async def lifespan(app):
     # a fresh MCP app (and session manager) per server start: a manager can only be run once
     global _mcp_asgi
     _mcp_asgi = M.http_app()
+    from . import vault
+    vault.check_startup()                                 # CL_ENV=production: a master key must be configured
     try:                                                  # existing workspaces -> the 0.7 layout (idempotent)
         from . import upgrade
         upgrade.run()

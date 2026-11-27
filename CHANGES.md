@@ -95,6 +95,21 @@ runs no AI model. Existing workspaces are upgraded automatically at start (`app/
   heartbeat every minute (`CL_JOB_HEARTBEAT_S`), so a worker that starts while another is busy never marks a long,
   quiet job as stopped. The worker container has its own health check.
 
+**Identity and secrets** (`app/vault.py`, `app/envfile.py`)
+- Identity stays where it was, with the same protection (scrypt password hashes; SHA-256 hashes of sessions, keys,
+  OAuth tokens and upload links; Fernet-encrypted secrets; row-level security on everything).
+- The master key comes from `CL_SECRET_KEY`, else `CL_SECRET_KEY_FILE` (Docker / Kubernetes secrets), else a
+  provider hook `CL_SECRET_KEY_PROVIDER` (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault, OpenBao /
+  HashiCorp Vault, or your own function; client libraries optional).
+- Several keys, newest first (`MultiFernet`): old secrets stay readable while `python -m app.vault rotate`
+  re-encrypts every stored secret with the newest key.
+- `CL_ENV=production` refuses to start (app and worker) without a configured key instead of generating
+  `secret.key`; development is unchanged.
+- `*_FILE` variants for `CL_DATABASE_URL`, `CL_DB_PASSWORD` (put into the URL when it has no password),
+  `QDRANT_API_KEY` and `CL_SECRET_KEY`.
+- Optional, off by default (`CL_EVENTS_ARCHIVE=1` or the workspace setting `events_archive`): audit events older
+  than the retention period are copied to `<workspace>/archive/events-YYYY-MM.parquet` before they are deleted.
+
 ## 0.6.0: accuracy: facts, checks, an inbox, "answerable?" and a grounding check
 
 No AI model is added: everything below is rules, regular expressions, RapidFuzz and the local models already used.

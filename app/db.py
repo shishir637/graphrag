@@ -29,7 +29,18 @@ _role_ok = False
 
 
 def url() -> str:
-    return os.environ.get("CL_DATABASE_URL") or "postgresql://rag@db:5432/contextlayer"
+    """CL_DATABASE_URL (or CL_DATABASE_URL_FILE); a password from CL_DB_PASSWORD (or CL_DB_PASSWORD_FILE) is put
+    into it when the URL has none."""
+    from urllib.parse import quote, urlsplit, urlunsplit
+    from .envfile import env
+    u = env("CL_DATABASE_URL") or "postgresql://rag@db:5432/contextlayer"
+    pw = env("CL_DB_PASSWORD")
+    if pw:
+        p = urlsplit(u)
+        if p.username and p.password is None:
+            host = p.hostname + (f":{p.port}" if p.port else "")
+            u = urlunsplit((p.scheme, f"{p.username}:{quote(pw, safe='')}@{host}", p.path, p.query, p.fragment))
+    return u
 
 
 # ------------------------------------------------------------------ rows

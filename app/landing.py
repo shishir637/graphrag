@@ -203,6 +203,36 @@ def remove_document(name: str) -> bool:
     return gone
 
 
+# ------------------------------------------------------------------ audit archive (optional)
+
+def archive_events(rows: list[dict]) -> dict[str, int]:
+    """Old audit events copied to <workspace>/archive/events-YYYY-MM.parquet before retention deletes them; a month
+    already archived is merged (by event id), so running it twice changes nothing. Returns rows per file."""
+    import duckdb
+    import pandas as pd
+    if not rows:
+        return {}
+    from rag.wspath import current_workspace, files_root
+    t = current_workspace()
+    d = (files_root() / t / "archive") if t else (Path(__file__).resolve().parent.parent / "var" / "archive")
+    d.mkdir(parents=True, exist_ok=True)
+    df = pd.DataFrame(rows)
+    df["month"] = df["time"].str[:7]
+    out = {}
+    for month, part in df.groupby("month"):
+        path = d / f"events-{month}.parquet"
+        part = part.drop(columns=["month"])
+        if path.exists():
+            p = str(path).replace("\\", "/")
+            old = duckdb.connect().execute(f"SELECT * FROM read_parquet('{p}')").df()
+            part = pd.concat([old, part]).drop_duplicates(subset=["id"], keep="last").sort_values("id")
+        tmp = path.with_suffix(".tmp")
+        part.to_parquet(tmp, index=False, compression="zstd")
+        tmp.replace(path)
+        out[path.name] = len(part)
+    return out
+
+
 # ------------------------------------------------------------------ 0.7 backfill
 
 def backfill() -> dict:

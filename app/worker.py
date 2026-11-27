@@ -37,8 +37,9 @@ def runs_jobs() -> bool:
 
 def main(stop: threading.Event | None = None):
     """Run until SIGTERM / SIGINT (or until `stop` is set, for tests)."""
-    from . import core, jobs, scheduler, upgrade
+    from . import core, jobs, scheduler, upgrade, vault
     from . import engine  # noqa: F401  (registers the job handlers)
+    vault.check_startup()                                  # CL_ENV=production: a master key must be configured
     core.load_secrets()
     from connectors import manage
     manage.install()                                       # the sync job and the scheduler hook

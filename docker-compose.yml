@@ -35,6 +35,11 @@ x-context-layer-env: &context-layer-env
       QDRANT_URL: http://qdrant:6333
       QDRANT_API_KEY: ${CL_QDRANT_API_KEY:?set CL_QDRANT_API_KEY in .env}
       CL_SECRET_KEY: ${CL_SECRET_KEY:-}
+      # or a mounted secret / a secrets manager (app/vault.py); CL_ENV=production refuses to start without a key
+      CL_SECRET_KEY_FILE: ${CL_SECRET_KEY_FILE:-}
+      CL_SECRET_KEY_PROVIDER: ${CL_SECRET_KEY_PROVIDER:-}
+      CL_ENV: ${CL_ENV:-}
+      CL_EVENTS_ARCHIVE: ${CL_EVENTS_ARCHIVE:-0}
       CL_SIGNUP: ${CL_SIGNUP:-invite}
       CL_GRAPH_MODE: ${CL_GRAPH_MODE:-}
 
